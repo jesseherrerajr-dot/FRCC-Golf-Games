@@ -1,0 +1,128 @@
+import { NextResponse } from "next/server";
+import { createAdminClient } from "@/lib/schedule";
+import { sendEmail, generateReminderEmail } from "@/lib/email";
+
+/**
+ * Thursday Reminder Cron
+ * Sends reminders ONLY to golfers who haven't responded or said "Not Sure Yet."
+ */
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const isTest = searchParams.get("test") === "true";
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+
+  const cronSecret = process.env.CRON_SECRET;
+  if (cronSecret) {
+    const authHeader = request.headers.get("authorization");
+    if (authHeader !== `Bearer ${cronSecret}`) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+  }
+
+  const supabase = createAdminClient();
+
+  // Find schedules that have had invites sent but not reminders,
+  // with game dates in the next 3 days (covers Thursday → Saturday)
+  const today = new Date().toISOString().split("T")[0];
+  const threeDaysOut = new Date();
+  threeDaysOut.setDate(threeDaysOut.getDate() + 3);
+  const maxDate = threeDaysOut.toISOString().split("T")[0];
+
+  const { data: schedules } = await supabase
+    .from("event_schedules")
+    .select("*, event:events(*)")
+    .eq("invite_sent", true)
+    .eq("reminder_sent", false)
+    .eq("status", "scheduled")
+    .gte("game_date", today)
+    .lte("game_date", maxDate);
+
+  if (!schedules?.length) {
+    return NextResponse.json({ message: "No reminders to send" });
+  }
+
+  const results = [];
+
+  for (const schedule of schedules) {
+    const event = schedule.event;
+
+    // Get RSVPs that need reminders: no_response or not_sure
+    const { data: rsvps } = await supabase
+      .from("rsvps")
+      .select("*, profile:profiles(id, first_name, last_name, email)")
+      .eq("schedule_id", schedule.id)
+      .in("status", ["no_response", "not_sure"]);
+
+    if (!rsvps?.length) {
+      await supabase
+        .from("event_schedules")
+        .update({ reminder_sent: true })
+        .eq("id", schedule.id);
+      results.push({ event: event.name, skipped: "Everyone has responded" });
+      continue;
+    }
+
+    // Get count of spots remaining
+    const { count: inCount } = await supabase
+      .from("rsvps")
+      .select("*", { count: "exact", head: true })
+      .eq("schedule_id", schedule.id)
+      .eq("status", "in");
+
+    const capacity = schedule.capacity || event.default_capacity || 16;
+    const spotsRemaining = Math.max(0, capacity - (inCount || 0));
+
+    let sentCount = 0;
+    for (const rsvp of rsvps) {
+      const profile = rsvp.profile as {
+        first_name: string;
+        email: string;
+      };
+      if (!profile?.email) continue;
+
+      const html = generateReminderEmail({
+        golferName: profile.first_name,
+        eventName: event.name,
+        gameDate: schedule.game_date,
+        rsvpToken: rsvp.token,
+        siteUrl,
+        spotsRemaining,
+      });
+
+      if (isTest) {
+        console.log(`[TEST] Would send reminder to ${profile.email}`);
+      } else {
+        const result = await sendEmail({
+          to: profile.email,
+          subject: `${event.name}: ${new Date(schedule.game_date + "T12:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric" })} — Last Chance to RSVP`,
+          html,
+        });
+        if (result.success) sentCount++;
+      }
+    }
+
+    if (!isTest) {
+      await supabase
+        .from("event_schedules")
+        .update({ reminder_sent: true })
+        .eq("id", schedule.id);
+
+      await supabase.from("email_log").insert({
+        event_id: event.id,
+        schedule_id: schedule.id,
+        email_type: "reminder",
+        subject: `${event.name}: Reminder`,
+        recipient_count: sentCount,
+      });
+    }
+
+    results.push({
+      event: event.name,
+      gameDate: schedule.game_date,
+      remindersSent: isTest ? `${rsvps.length} (test mode)` : sentCount,
+      spotsRemaining,
+    });
+  }
+
+  return NextResponse.json({ results });
+}

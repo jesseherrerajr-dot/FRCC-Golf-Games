@@ -1,0 +1,121 @@
+import { createClient } from "@supabase/supabase-js";
+
+/**
+ * Create a Supabase admin client (bypasses RLS).
+ * Used by cron jobs and server-side automation.
+ */
+export function createAdminClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { auth: { persistSession: false } }
+  );
+}
+
+/**
+ * Get the upcoming game date for a program.
+ * Finds the next occurrence of the program's day_of_week from today.
+ */
+export function getUpcomingGameDate(dayOfWeek: number): string {
+  const today = new Date();
+  const currentDay = today.getDay();
+  let daysUntil = dayOfWeek - currentDay;
+  if (daysUntil <= 0) daysUntil += 7;
+  const gameDate = new Date(today);
+  gameDate.setDate(today.getDate() + daysUntil);
+  return gameDate.toISOString().split("T")[0];
+}
+
+/**
+ * Ensure a schedule row exists for a given program and date.
+ * Creates one if it doesn't exist. Returns the schedule.
+ */
+export async function ensureSchedule(
+  supabase: ReturnType<typeof createAdminClient>,
+  programId: string,
+  gameDate: string
+) {
+  // Try to find existing schedule
+  const { data: existing } = await supabase
+    .from("program_schedules")
+    .select("*")
+    .eq("program_id", programId)
+    .eq("game_date", gameDate)
+    .single();
+
+  if (existing) return existing;
+
+  // Create new schedule
+  const { data: newSchedule, error } = await supabase
+    .from("program_schedules")
+    .insert({
+      program_id: programId,
+      game_date: gameDate,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Error creating schedule:", error);
+    return null;
+  }
+
+  return newSchedule;
+}
+
+/**
+ * Ensure RSVP rows exist for all active, subscribed members for a given schedule.
+ * Creates RSVP rows with unique tokens for anyone who doesn't have one.
+ */
+export async function ensureRsvps(
+  supabase: ReturnType<typeof createAdminClient>,
+  scheduleId: string,
+  programId: string
+) {
+  // Get all active, subscribed members
+  const { data: subscribers } = await supabase
+    .from("program_subscriptions")
+    .select("profile_id, profiles(id, status, is_guest)")
+    .eq("program_id", programId)
+    .eq("is_active", true);
+
+  if (!subscribers) return [];
+
+  const activeSubscribers = subscribers.filter(
+    (s: Record<string, unknown>) => {
+      const profile = s.profiles as { status: string; is_guest: boolean } | null;
+      return profile && profile.status === "active" && !profile.is_guest;
+    }
+  );
+
+  // Get existing RSVPs for this schedule
+  const { data: existingRsvps } = await supabase
+    .from("rsvps")
+    .select("profile_id")
+    .eq("schedule_id", scheduleId);
+
+  const existingIds = new Set(
+    (existingRsvps || []).map((r: { profile_id: string }) => r.profile_id)
+  );
+
+  // Create RSVPs for subscribers who don't have one
+  const newRsvps = activeSubscribers
+    .filter((s: { profile_id: string }) => !existingIds.has(s.profile_id))
+    .map((s: { profile_id: string }) => ({
+      schedule_id: scheduleId,
+      profile_id: s.profile_id,
+      status: "no_response",
+    }));
+
+  if (newRsvps.length > 0) {
+    await supabase.from("rsvps").insert(newRsvps);
+  }
+
+  // Return all RSVPs for this schedule with profile info
+  const { data: allRsvps } = await supabase
+    .from("rsvps")
+    .select("*, profile:profiles(id, first_name, last_name, email, phone, ghin_number)")
+    .eq("schedule_id", scheduleId);
+
+  return allRsvps || [];
+}

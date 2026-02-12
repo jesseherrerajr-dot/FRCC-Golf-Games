@@ -1,0 +1,74 @@
+import { createClient } from "@supabase/supabase-js";
+import { NextRequest, NextResponse } from "next/server";
+
+function createAdminClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { auth: { persistSession: false } }
+  );
+}
+
+export async function POST(request: NextRequest) {
+  const supabase = createAdminClient();
+  const { searchParams } = new URL(request.url);
+  const token = searchParams.get("token");
+
+  if (!token) {
+    return NextResponse.json({ error: "Missing token" }, { status: 400 });
+  }
+
+  const body = await request.json();
+  const { preference } = body;
+
+  if (!preference || !["no_preference", "early", "late"].includes(preference)) {
+    return NextResponse.json({ error: "Invalid preference" }, { status: 400 });
+  }
+
+  // Verify token and get RSVP
+  const { data: rsvp, error: rsvpError } = await supabase
+    .from("rsvps")
+    .select("id, schedule_id, schedule:event_schedules(game_date, event:events(cutoff_day, cutoff_time))")
+    .eq("token", token)
+    .single();
+
+  if (rsvpError || !rsvp) {
+    return NextResponse.json({ error: "Invalid token" }, { status: 404 });
+  }
+
+  // Check if past cutoff
+  const schedule = rsvp.schedule as {
+    game_date: string;
+    event: { cutoff_day: number; cutoff_time: string };
+  };
+  const event = schedule.event;
+  const gameDate = new Date(schedule.game_date);
+  const cutoffDate = new Date(gameDate);
+  const dayDiff = event.cutoff_day - gameDate.getDay();
+  cutoffDate.setDate(gameDate.getDate() + (dayDiff <= 0 ? dayDiff : dayDiff - 7));
+  const [hours, minutes] = event.cutoff_time.split(":");
+  cutoffDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+
+  if (new Date() > cutoffDate) {
+    return NextResponse.json(
+      { error: "RSVP deadline has passed" },
+      { status: 403 }
+    );
+  }
+
+  // Update tee time preference
+  const { error: updateError } = await supabase
+    .from("rsvps")
+    .update({ tee_time_preference: preference })
+    .eq("id", rsvp.id);
+
+  if (updateError) {
+    console.error("Error updating tee time preference:", updateError);
+    return NextResponse.json(
+      { error: "Failed to update preference" },
+      { status: 500 }
+    );
+  }
+
+  return NextResponse.json({ success: true });
+}

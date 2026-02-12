@@ -1,0 +1,312 @@
+# FRCC Golf Group Tracker
+
+## Project Overview
+An automated golf participation tracker for recurring games at Fairbanks Ranch Country Club (FRCC). The platform manages weekly invites, RSVP tracking, waitlists, guest requests, and automated communications — minimizing human intervention while keeping admins in control of key decisions.
+
+- Tech Stack: Next.js (App Router), TypeScript, Tailwind CSS, Supabase (Auth/DB), Resend (Email)
+- Hosting: Vercel (Free tier)
+- Database: Supabase (Free tier)
+- Email: Resend (Free tier — up to 100 emails/day)
+- UI: Mobile-first (designed for golfers on the course)
+
+## Tech Standards
+- TypeScript for all files
+- Magic Link authentication via Supabase (no passwords)
+- Mobile-first responsive design with Tailwind CSS
+- App Router (Next.js) with Server Actions
+- Role-Based Access: Super Admin, Program Admin, Golfer
+
+---
+
+## Terminology
+- **Program**: A recurring game (e.g., "FRCC Saturday Morning Group"). Each program has its own schedule, capacity, RSVP cycle, admin assignments, and member subscriptions. Programs can be weekly, bi-weekly, or monthly.
+- **Super Admin**: Full platform access. Can manage all programs, add/remove admins, manage all settings. Also a golfer on the distribution list.
+- **Program Admin (Primary)**: Manages a specific program. The "reply-to" address on automated emails for that program. Can approve registrations, manage RSVPs, toggle schedule, send custom emails.
+- **Program Admin (Secondary)**: Same permissions as primary for the program, CC'd on all communications. Exists for redundancy.
+- **Golfer (Member)**: A confirmed club member on the distribution list. Receives weekly invites, can RSVP, manage profile, set preferences.
+- **Guest**: A non-member registered in the system (name, email, phone, GHIN) but NOT on any distribution list. Can only play when invited by a member for a specific week.
+- **GHIN**: USGA Golf Handicap & Information Network number. Required for all members and guests. Future: GHIN API integration.
+
+---
+
+## User Roles & Dual-Role Design
+Super admins and program admins are also golfers. They register, subscribe to programs, RSVP weekly, and appear on the distribution list just like any other golfer. Admin capabilities are layered on top of their golfer account.
+
+When an admin logs in, they see their golfer dashboard (upcoming RSVPs, profile, preferences) PLUS admin tools (member management, schedule, RSVP overview, action items).
+
+### Permission Hierarchy
+- **Super Admin**: All permissions. Manage programs (create/edit/delete). Add/remove other admins. Add/remove golfers. Access all program settings. View all data across all programs.
+- **Program Admin**: Scoped to assigned programs only. Approve/deny registrations. Manage weekly RSVPs (override after cutoff). Toggle schedule on/off. Send custom emails. View full RSVP breakdown. Manage waitlist and guest approvals.
+- **Golfer**: Self-service only. RSVP for subscribed programs. Edit own profile. Set playing partner preferences. View "In" list (only when opted in). Request guests. Subscribe/unsubscribe from programs.
+
+---
+
+## Registration Flow
+1. New golfer visits "/join" and fills in: first name, last name, email, phone, GHIN number (all required).
+2. System sends a Supabase magic link to verify the email address.
+3. Golfer clicks the magic link → email is confirmed → account status becomes "Pending Approval."
+4. Super admin and relevant program admins see the pending registration in their action items (dashboard + email notification).
+5. Admin verifies the golfer is a paid club member in good standing, then approves or denies.
+6. Once approved, status becomes "Active" and the golfer starts receiving invites for subscribed programs.
+
+### Registration Validation
+- Email: Smart format validation + magic link confirmation (real email required).
+- Phone: US 10-digit format validation. Stored in consistent format.
+- GHIN: Required field stored as-is. Future: API validation.
+- All required fields can be modified later by the golfer through their profile settings (new phone, new email, new GHIN, etc.).
+
+### Member Management
+- Super admins and program admins can deactivate a golfer (stops invites, preserves account and history) or remove/delete them entirely.
+- Deactivated golfers can be reactivated by an admin.
+
+---
+
+## Programs
+The first program is **"FRCC Saturday Morning Group"**. The platform is designed from day one to support multiple programs, each with independent configuration.
+
+### Program Settings
+- Name and description
+- Frequency: weekly, bi-weekly, or monthly
+- Day of week
+- Default weekly capacity (e.g., 16 = 4 foursomes)
+- Timezone: America/Los_Angeles (Pacific Time)
+- Invite send time (default: Monday 10:00 AM PT)
+- Reminder send time (default: Thursday 10:00 AM PT)
+- RSVP cutoff time (default: Friday 10:00 AM PT)
+- Confirmation email time (default: Friday 1:00 PM PT — automated)
+- Pro shop contacts (multiple email addresses)
+- Primary and secondary program admins
+
+### Schedule Management
+- Admin dashboard has a rolling 8-week schedule view.
+- Each week defaults to "Game On."
+- Admins can toggle any week to "No Game" (e.g., club tournament).
+- If toggled off before Monday invite time, system sends a notification instead: "No game scheduled for Saturday [Month] [Date]. Next scheduled game: Saturday [Month] [Date]."
+
+---
+
+## Weekly RSVP Flow
+
+### Monday — Invite (10:00 AM PT)
+- Automated email sent to all active, subscribed members.
+- Each golfer gets a unique tokenized link (no login required for RSVP).
+- Three one-tap response options: **"I'm In"** | **"I'm Out"** | **"Not Sure Yet (ask me again Thursday)"**
+- Confirmation shown immediately after responding, with a "Change My Response" link.
+- Tokens are unique per golfer per week — cannot be guessed.
+
+### Monday–Thursday — Open RSVP Period
+- Golfers can change their response at any time via the link in their confirmation email or by logging in.
+- Capacity is first-come-first-served. Once the weekly cap is reached, subsequent "I'm In" responses go to the waitlist (ranked by response time).
+- Members who are "In" can request to bring guests (provide guest name, email, GHIN). Guest requests go to a pending state.
+
+### Thursday — Reminder (10:00 AM PT)
+- Automated reminder sent ONLY to golfers who haven't responded OR who responded "Not Sure Yet."
+- Golfers who already responded "In" or "Out" do NOT receive the reminder.
+
+### Friday — Cutoff (10:00 AM PT)
+- Self-service RSVP locks. Golfers can no longer change their response.
+- After cutoff, only program admins and super admins can modify RSVP status.
+- Admins review the waitlist and guest requests. Admins manually select who to pull from the waitlist (not auto-promoted — admin discretion for factors beyond arrival order).
+- Guest requests are approved or denied by admins. Guests only fill spots that members haven't claimed.
+
+### Friday — Confirmation Emails (1:00 PM PT, automated)
+**Email 1 — Golfer Confirmation:**
+- TO: All confirmed golfers and approved guests for that week
+- CC: Super admin, program admins, pro shop contacts
+- Subject: "[Program Name]: [Month] [Date]: Registration Confirmation"
+- Body: Program name, date, list of confirmed player names (first initial + last name). Guests shown with their sponsoring member.
+- Purpose: Anyone can "Reply All" to share game details, tee times, course conditions, etc. "Reply" goes to primary program admin.
+
+**Email 2 — Pro Shop Detail:**
+- TO: Pro shop contacts
+- CC: Super admin, program admins
+- Body: Golfer full names, contact info (email, phone), and GHIN numbers. Includes guest info.
+- Purpose: Pro shop uses this for Golf Genius setup and contacting players if needed.
+
+### RSVP Visibility (Evite-Style)
+- Golfers who are "In" can see the list of other "In" golfers (first initial + last name only, e.g., "J. Herrera"). No email addresses, phone numbers, or full distribution list visible.
+- Golfers who are "Out," "Not Sure," or haven't responded cannot see the "In" list until they opt in.
+- Super admins and program admins can see ALL categories at all times: In, Out, Not Sure, No Response, Waitlisted.
+
+---
+
+## Capacity & Waitlist
+- Admin sets a weekly capacity per program (default: 16 for Saturday Morning Group).
+- Capacity can be overridden per week (e.g., 20 one week, 12 another).
+- RSVPs are first-come-first-served. After capacity is met, additional "I'm In" responses go to a waitlist ranked by response time.
+- Admin manually selects who to pull from the waitlist when spots open (not auto-promoted).
+- Waitlisted golfers are notified of their waitlist position.
+
+---
+
+## Guest System
+- Only members can request guests. Guests only fill spots when member capacity isn't full.
+- To request a guest, the member provides: guest name, guest email, guest GHIN number.
+- Guest request goes to pending/waitlisted state.
+- After Friday 10:00 AM cutoff, admins review and approve/deny guest requests.
+- Once approved, an automated confirmation email is sent showing the member name and guest name.
+- Guests are registered in the system (name, email, phone, GHIN on file) but are NEVER on distribution lists and never receive automated weekly invites.
+
+---
+
+## Golfer Profile & Preferences
+### Profile Fields
+- First name (required)
+- Last name (required)
+- Email (required, validated, confirmed)
+- Phone (required, US 10-digit format)
+- GHIN number (required)
+- All fields editable by the golfer at any time.
+
+### Program Subscriptions
+- Golfers choose which programs to subscribe to (one, multiple, or none).
+- Can subscribe/unsubscribe at any time.
+- Unsubscribed golfers are completely invisible from that program's weekly flow — no invites, no listing, no clutter. To rejoin, log in and re-subscribe.
+
+### Playing Partner Preferences (per program)
+- Optional. Up to 10 preferred playing partners per program.
+- Selected via searchable member dropdown (wildcard name search of registered members).
+- Standing preference (not per-week). Golfers can update anytime in profile settings.
+- Visible to admins as a suggestion when making groupings (groupings are done manually by admins/pro shop for now).
+
+### Tee Time Preferences
+- Golfers can indicate preference for earlier or later tee times.
+- Per-program setting. Visible to admins as a suggestion.
+
+---
+
+## Golfer Dashboard (logged in)
+- Upcoming RSVP status for each subscribed program (with quick-action to change response before cutoff).
+- Link to profile settings and playing partner preferences.
+- View the "In" list (evite-style) for programs where they've opted in.
+
+---
+
+## Admin Dashboard
+### Default View — Current Week Status
+- Full RSVP breakdown: In, Out, Not Sure, No Response, Waitlisted.
+- Count of confirmed vs. capacity.
+- Waitlist with ranked order.
+- Pending guest requests.
+
+### Action Items / Task Summary
+- Pending registration approvals.
+- Open spots that could be filled from waitlist or guests.
+- Any other items needing attention.
+- Action items also sent via email to admins.
+
+### Schedule View
+- Rolling 8-week calendar.
+- Toggle Game On / No Game per week.
+- Override capacity per week.
+
+### Member Directory
+- All registered members with status (active, pending, deactivated).
+- Search and filter.
+- Approve/deny pending registrations.
+- Deactivate or remove members.
+
+### Custom Emails
+- Compose and send targeted emails to specific RSVP categories (all "In," all "Not Sure" + no response, everyone, etc.).
+- Pre-built templates for common scenarios (can be added over time):
+  - **Game Cancelled**: "[Program] for [Date] has been cancelled due to [reason]. Next game: [Date]."
+  - **Extra Spots Available**: "We still have [X] spots open for [Date]! Update your RSVP."
+  - **Weather Advisory**: "Weather update for [Date]: [details]. Game is still on."
+  - **Course Update**: "Update for [Date]: [details]."
+- Plus a free-form "Compose Custom Message" option.
+- Template infrastructure built to allow adding more templates over time.
+
+---
+
+## Email Configuration
+- Sender: Resend default domain for now (customizable later).
+- Reply-To: Primary program admin's email address.
+- All automated emails CC super admin and relevant program admins.
+- Free tier: 100 emails/day. Current list is well under 100.
+- Future consideration: If distribution grows beyond 100, batch invites by golfer priority (top 100 on Monday, remainder on Tuesday). Not needed now.
+- Future consideration: SMS/text notifications via a paid service. Not enabled now.
+
+---
+
+## Golf Genius Export
+- CSV download button on admin dashboard.
+- Columns: First Name, Last Name, GHIN Number, Email.
+- Exported for the current week's confirmed players (members + approved guests).
+- Format may be refined later based on Golf Genius import requirements.
+
+---
+
+## Participation History
+- Every RSVP response is timestamped and stored permanently.
+- Queryable by golfer, program, and date range.
+- Future use cases:
+  - League qualification tracking (e.g., minimum rounds for prizes in Thursday league).
+  - Admin reporting on inactive members (registered but never responds).
+  - Attendance statistics per golfer.
+
+---
+
+## Technical Architecture
+
+### Database: Supabase (PostgreSQL)
+Key tables: profiles, programs, program_admins, program_subscriptions, program_schedules, rsvps, guest_requests, playing_partner_preferences, pro_shop_contacts, email_templates, email_log.
+
+### Authentication: Supabase Auth
+- Magic link (OTP) for passwordless login.
+- Tokenized RSVP links for one-tap weekly responses (no login required).
+- Session management via Supabase SSR middleware.
+
+### Email: Resend
+- Automated scheduled emails (Monday invite, Thursday reminder, Friday confirmation).
+- Custom admin-triggered emails.
+- Default sending domain for now; custom domain possible later.
+
+### Hosting: Vercel
+- Next.js App Router with Server Actions.
+- Cron jobs (Vercel Cron or Supabase Edge Functions) for scheduled emails.
+- Free tier.
+
+---
+
+## Build Phases
+### Phase 1 — Foundation (Complete)
+- [x] Project scaffold (Next.js, Tailwind, Supabase, Resend)
+- [x] Join the Group registration page
+- [x] Supabase database schema
+- [x] Login page (magic link)
+- [x] Golfer dashboard (basic)
+- [x] Profile settings page
+- [x] Admin dashboard (basic)
+- [x] Registration approval workflow
+
+### Phase 2 — Weekly RSVP Cycle (Complete)
+- [x] RSVP page with tokenized links
+- [x] Monday automated invite email
+- [x] Thursday automated reminder email
+- [x] Friday automated confirmation emails (golfer + pro shop)
+- [x] RSVP visibility (evite-style "In" list)
+- [x] Capacity and waitlist management
+- [x] Admin RSVP override (post-cutoff)
+
+### Phase 3 — Guest System & Preferences
+- [ ] Guest request workflow
+- [ ] Guest registration and approval
+- [ ] Playing partner preferences (searchable dropdown)
+- [ ] Tee time preferences
+- [ ] Golf Genius CSV export
+
+### Phase 4 — Admin Tools & Communication
+- [ ] Schedule management (8-week rolling view)
+- [ ] Custom email composer with templates
+- [ ] Action items / task summary
+- [ ] Member directory with search/filter
+- [ ] Admin notification emails
+
+### Phase 5 — Multi-Program & Future
+- [ ] Add additional programs (Thursday league, Friday afternoon, etc.)
+- [ ] Per-program admin scoping
+- [ ] Participation history / reporting
+- [ ] Priority-based invite batching (100+/day)
+- [ ] SMS/text notifications
+- [ ] GHIN API integration
+- [ ] Custom email sending domain

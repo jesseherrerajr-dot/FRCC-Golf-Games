@@ -1,0 +1,226 @@
+import { NextResponse } from "next/server";
+import { createAdminClient } from "@/lib/schedule";
+import {
+  sendEmail,
+  generateConfirmationEmail,
+  generateProShopEmail,
+} from "@/lib/email";
+
+/**
+ * Friday Confirmation Cron
+ * Sends two emails:
+ *   1. Golfer confirmation (TO: confirmed players, CC: admins + pro shop)
+ *   2. Pro shop detail email (TO: pro shop, CC: admins) with full contact info + GHIN
+ */
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const isTest = searchParams.get("test") === "true";
+
+  const cronSecret = process.env.CRON_SECRET;
+  if (cronSecret) {
+    const authHeader = request.headers.get("authorization");
+    if (authHeader !== `Bearer ${cronSecret}`) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+  }
+
+  const supabase = createAdminClient();
+
+  // Find schedules that have had invites sent, not yet confirmed,
+  // with game dates in the next 2 days (Friday → Saturday)
+  const today = new Date().toISOString().split("T")[0];
+  const twoDaysOut = new Date();
+  twoDaysOut.setDate(twoDaysOut.getDate() + 2);
+  const maxDate = twoDaysOut.toISOString().split("T")[0];
+
+  const { data: schedules } = await supabase
+    .from("program_schedules")
+    .select("*, program:programs(*)")
+    .eq("invite_sent", true)
+    .eq("confirmation_sent", false)
+    .eq("status", "scheduled")
+    .gte("game_date", today)
+    .lte("game_date", maxDate);
+
+  if (!schedules?.length) {
+    return NextResponse.json({ message: "No confirmations to send" });
+  }
+
+  const results = [];
+
+  for (const schedule of schedules) {
+    const program = schedule.program;
+
+    // Get confirmed ("in") RSVPs with full profile info
+    const { data: confirmedRsvps } = await supabase
+      .from("rsvps")
+      .select(
+        "*, profile:profiles(id, first_name, last_name, email, phone, ghin_number)"
+      )
+      .eq("schedule_id", schedule.id)
+      .eq("status", "in")
+      .order("responded_at", { ascending: true });
+
+    if (!confirmedRsvps?.length) {
+      results.push({ program: program.name, skipped: "No confirmed players" });
+      continue;
+    }
+
+    // Get approved guests for this schedule
+    const { data: approvedGuests } = await supabase
+      .from("guest_requests")
+      .select("*, requested_by_profile:profiles!guest_requests_requested_by_fkey(first_name, last_name)")
+      .eq("schedule_id", schedule.id)
+      .eq("status", "approved");
+
+    // Build player lists
+    const confirmedPlayers = confirmedRsvps.map((r: Record<string, unknown>) => {
+      const profile = r.profile as {
+        first_name: string;
+        last_name: string;
+        email: string;
+        phone: string;
+        ghin_number: string;
+      };
+      return { ...profile, is_guest: false };
+    });
+
+    const guestPlayers = (approvedGuests || []).map((g: Record<string, unknown>) => {
+      const sponsor = g.requested_by_profile as { first_name: string; last_name: string };
+      return {
+        first_name: g.guest_first_name as string,
+        last_name: g.guest_last_name as string,
+        email: g.guest_email as string,
+        phone: (g.guest_phone as string) || "",
+        ghin_number: g.guest_ghin_number as string,
+        is_guest: true,
+        sponsor_name: sponsor ? `${sponsor.first_name} ${sponsor.last_name.charAt(0)}.` : "Member",
+      };
+    });
+
+    const allPlayers = [...confirmedPlayers, ...guestPlayers];
+
+    // Get admin emails
+    const { data: programAdmins } = await supabase
+      .from("program_admins")
+      .select("role, profile:profiles(email)")
+      .eq("program_id", program.id);
+
+    const { data: superAdmins } = await supabase
+      .from("profiles")
+      .select("email")
+      .eq("is_super_admin", true);
+
+    const primaryAdmin = programAdmins?.find(
+      (a: Record<string, unknown>) => a.role === "primary"
+    );
+    const primaryAdminEmail = (primaryAdmin?.profile as { email: string })?.email;
+
+    const adminEmails = [
+      ...(superAdmins || []).map((a: { email: string }) => a.email),
+      ...(programAdmins || []).map(
+        (a: Record<string, unknown>) => (a.profile as { email: string })?.email
+      ),
+    ].filter((e): e is string => !!e);
+
+    const uniqueAdminEmails = [...new Set(adminEmails)];
+
+    // Get pro shop contacts
+    const { data: proShopContacts } = await supabase
+      .from("pro_shop_contacts")
+      .select("email")
+      .eq("program_id", program.id);
+
+    const proShopEmails = (proShopContacts || []).map(
+      (c: { email: string }) => c.email
+    );
+
+    // All CC recipients (admins + pro shop)
+    const ccEmails = [...new Set([...uniqueAdminEmails, ...proShopEmails])];
+
+    // Golfer email addresses
+    const golferEmails = allPlayers.map((p) => p.email).filter(Boolean);
+
+    const formattedDate = new Date(
+      schedule.game_date + "T12:00:00"
+    ).toLocaleDateString("en-US", { month: "long", day: "numeric" });
+
+    // --- Email 1: Golfer Confirmation ---
+    const confirmationHtml = generateConfirmationEmail({
+      programName: program.name,
+      gameDate: schedule.game_date,
+      confirmedPlayers: allPlayers,
+    });
+
+    if (isTest) {
+      console.log(`[TEST] Would send confirmation to ${golferEmails.length} golfers, CC: ${ccEmails.join(", ")}`);
+    } else {
+      await sendEmail({
+        to: golferEmails,
+        cc: ccEmails,
+        replyTo: primaryAdminEmail,
+        subject: `${program.name}: ${formattedDate}: Registration Confirmation`,
+        html: confirmationHtml,
+      });
+    }
+
+    // --- Email 2: Pro Shop Detail ---
+    if (proShopEmails.length > 0) {
+      const proShopHtml = generateProShopEmail({
+        programName: program.name,
+        gameDate: schedule.game_date,
+        players: allPlayers,
+      });
+
+      if (isTest) {
+        console.log(`[TEST] Would send pro shop detail to ${proShopEmails.join(", ")}`);
+      } else {
+        await sendEmail({
+          to: proShopEmails,
+          cc: uniqueAdminEmails,
+          replyTo: primaryAdminEmail,
+          subject: `${program.name}: ${formattedDate}: Player Details & GHIN`,
+          html: proShopHtml,
+        });
+      }
+    }
+
+    // Mark confirmation as sent
+    if (!isTest) {
+      await supabase
+        .from("program_schedules")
+        .update({ confirmation_sent: true })
+        .eq("id", schedule.id);
+
+      await supabase.from("email_log").insert([
+        {
+          program_id: program.id,
+          schedule_id: schedule.id,
+          email_type: "confirmation_golfer",
+          subject: `${program.name}: Confirmation`,
+          recipient_count: golferEmails.length,
+        },
+        ...(proShopEmails.length > 0
+          ? [
+              {
+                program_id: program.id,
+                schedule_id: schedule.id,
+                email_type: "confirmation_proshop" as const,
+                subject: `${program.name}: Pro Shop Detail`,
+                recipient_count: proShopEmails.length,
+              },
+            ]
+          : []),
+      ]);
+    }
+
+    results.push({
+      program: program.name,
+      gameDate: schedule.game_date,
+      confirmedPlayers: allPlayers.length,
+      emailsSent: isTest ? "test mode" : true,
+    });
+  }
+
+  return NextResponse.json({ results });
+}
