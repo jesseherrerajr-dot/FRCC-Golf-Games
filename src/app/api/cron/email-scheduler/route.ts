@@ -7,6 +7,12 @@ import {
   generateGolferConfirmationEmail,
   generateProShopDetailEmail,
 } from "@/lib/email-templates";
+import {
+  getNowPacific,
+  getUpcomingGameDatePacific,
+  calculateSendDateString,
+  isWithinSendWindow,
+} from "@/lib/timezone";
 
 /**
  * Dynamic Email Scheduler Cron
@@ -49,10 +55,9 @@ export async function GET(request: Request) {
     for (const event of events) {
       console.log(`Processing event: ${event.name}`);
 
-      // Get the next game date for this event
-      const gameDate = getUpcomingGameDate(event.day_of_week);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      // Get the next game date for this event (in Pacific Time)
+      const gameDateString = getUpcomingGameDatePacific(event.day_of_week);
+      const nowPT = getNowPacific();
 
       // Get enabled email schedules for this event
       const { data: schedules, error: schedulesError } = await supabase
@@ -76,20 +81,17 @@ export async function GET(request: Request) {
           continue;
         }
 
-        // Calculate the send date for this email
-        const sendDate = calculateSendDate(gameDate, schedule.send_day_offset);
-        const sendDateTime = new Date(sendDate);
-        const [hours, minutes] = schedule.send_time.split(":");
-        sendDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+        // Calculate the send date for this email (Pacific Time)
+        const sendDateStr = calculateSendDateString(gameDateString, schedule.send_day_offset);
 
-        // Check if we should send this email now
-        const now = new Date();
-        const hoursDiff = Math.abs(now.getTime() - sendDateTime.getTime()) / (1000 * 60 * 60);
+        // Check if we should send this email now (all times in Pacific)
+        const withinWindow = isWithinSendWindow(sendDateStr, schedule.send_time);
 
-        // Only send if within 1 hour window (since cron runs hourly)
-        if (hoursDiff > 1 && !isTest) {
+        if (!withinWindow && !isTest) {
           console.log(
-            `Skipping ${schedule.email_type} for ${event.name} - not time yet (scheduled for ${sendDateTime.toISOString()})`
+            `Skipping ${schedule.email_type} for ${event.name} - not time yet ` +
+            `(scheduled for ${sendDateStr} ${schedule.send_time} PT, ` +
+            `current Pacific time: ${nowPT.dateString} ${String(nowPT.hour).padStart(2, "0")}:${String(nowPT.minute).padStart(2, "0")})`
           );
           continue;
         }
@@ -104,7 +106,7 @@ export async function GET(request: Request) {
             result = await sendInviteEmails(
               supabase,
               event,
-              gameDate,
+              gameDateString,
               siteUrl,
               isTest
             );
@@ -114,7 +116,7 @@ export async function GET(request: Request) {
             result = await sendReminderEmails(
               supabase,
               event,
-              gameDate,
+              gameDateString,
               schedule.priority_order,
               siteUrl,
               isTest
@@ -125,7 +127,7 @@ export async function GET(request: Request) {
             result = await sendGolferConfirmationEmail(
               supabase,
               event,
-              gameDate,
+              gameDateString,
               isTest
             );
             break;
@@ -134,7 +136,7 @@ export async function GET(request: Request) {
             result = await sendProShopDetailEmail(
               supabase,
               event,
-              gameDate,
+              gameDateString,
               isTest
             );
             break;
@@ -176,14 +178,14 @@ export async function GET(request: Request) {
 async function sendInviteEmails(
   supabase: any,
   event: any,
-  gameDate: Date,
+  gameDateString: string,
   siteUrl: string,
   isTest: boolean
 ) {
   console.log(`Sending invite emails for ${event.name}`);
 
   // Ensure schedule exists
-  const schedule = await ensureSchedule(supabase, event.id, formatDate(gameDate));
+  const schedule = await ensureSchedule(supabase, event.id, gameDateString);
 
   if (!schedule) {
     return {
@@ -227,7 +229,7 @@ async function sendInviteEmails(
       const emailHtml = generateInviteEmail({
         golferName: profile.first_name,
         eventName: event.name,
-        gameDate: formatDate(gameDate),
+        gameDate: gameDateString,
         rsvpUrl: `${siteUrl}/rsvp/${rsvp.token}`,
         eventDetails: event.description || "",
       });
@@ -235,7 +237,7 @@ async function sendInviteEmails(
       if (!isTest) {
         await sendEmail({
           to: profile.email,
-          subject: `${event.name} - ${formatGameDate(formatDate(gameDate))}`,
+          subject: `${event.name} - ${formatGameDate(gameDateString)}`,
           html: emailHtml,
         });
       }
@@ -274,7 +276,7 @@ async function sendInviteEmails(
 async function sendReminderEmails(
   supabase: any,
   event: any,
-  gameDate: Date,
+  gameDateString: string,
   priorityOrder: number,
   siteUrl: string,
   isTest: boolean
@@ -286,7 +288,7 @@ async function sendReminderEmails(
     .from("event_schedules")
     .select("*")
     .eq("event_id", event.id)
-    .eq("game_date", formatDate(gameDate))
+    .eq("game_date", gameDateString)
     .maybeSingle();
 
   if (!schedule) {
@@ -343,7 +345,7 @@ async function sendReminderEmails(
       const emailHtml = generateReminderEmail({
         golferName: profile.first_name,
         eventName: event.name,
-        gameDate: formatGameDate(formatDate(gameDate)),
+        gameDate: formatGameDate(gameDateString),
         rsvpUrl: `${siteUrl}/rsvp/${rsvp.token}`,
         reminderNumber: priorityOrder,
       });
@@ -352,7 +354,7 @@ async function sendReminderEmails(
         await sendEmail({
           to: profile.email,
           subject: `Reminder: RSVP for ${event.name} - ${formatGameDate(
-            formatDate(gameDate)
+            gameDateString
           )}`,
           html: emailHtml,
         });
@@ -392,19 +394,18 @@ async function sendReminderEmails(
 async function sendGolferConfirmationEmail(
   supabase: any,
   event: any,
-  gameDate: Date,
+  gameDateString: string,
   isTest: boolean
 ) {
-  const formattedDate = formatDate(gameDate);
   console.log(`Sending golfer confirmation emails for ${event.name}`);
-  console.log(`Looking for schedule with game_date: ${formattedDate}`);
+  console.log(`Looking for schedule with game_date: ${gameDateString}`);
 
   // Get event schedule
   const { data: schedule, error: scheduleError } = await supabase
     .from("event_schedules")
     .select("*")
     .eq("event_id", event.id)
-    .eq("game_date", formattedDate)
+    .eq("game_date", gameDateString)
     .maybeSingle();
 
   console.log('Schedule query result:', { schedule, error: scheduleError });
@@ -445,7 +446,7 @@ async function sendGolferConfirmationEmail(
   }
 
   // Build golfer list - keep the array format for the email template
-  const confirmedPlayers = confirmedRsvps.map((r: any) => {
+  const confirmedPlayers = confirmedRsvps.map((r: { profile: { first_name: string; last_name: string } }) => {
     const profile = r.profile as { first_name: string; last_name: string };
     return {
       first_name: profile.first_name,
@@ -469,7 +470,7 @@ async function sendGolferConfirmationEmail(
       const emailHtml = generateGolferConfirmationEmail({
         golferName: profile.first_name,
         eventName: event.name,
-        gameDate: formatGameDate(formattedDate),
+        gameDate: formatGameDate(gameDateString),
         confirmedPlayers: confirmedPlayers,
         playerCount: confirmedRsvps.length,
       });
@@ -477,7 +478,7 @@ async function sendGolferConfirmationEmail(
       if (!isTest) {
         await sendEmail({
           to: profile.email,
-          subject: `Confirmed: ${event.name} - ${formatGameDate(formattedDate)}`,
+          subject: `Confirmed: ${event.name} - ${formatGameDate(gameDateString)}`,
           html: emailHtml,
         });
       }
@@ -516,7 +517,7 @@ async function sendGolferConfirmationEmail(
 async function sendProShopDetailEmail(
   supabase: any,
   event: any,
-  gameDate: Date,
+  gameDateString: string,
   isTest: boolean
 ) {
   console.log(`Sending pro shop detail email for ${event.name}`);
@@ -526,7 +527,7 @@ async function sendProShopDetailEmail(
     .from("event_schedules")
     .select("*")
     .eq("event_id", event.id)
-    .eq("game_date", formatDate(gameDate))
+    .eq("game_date", gameDateString)
     .maybeSingle();
 
   if (!schedule) {
@@ -552,7 +553,7 @@ async function sendProShopDetailEmail(
 
   const emailHtml = generateProShopDetailEmail({
     eventName: event.name,
-    gameDate: formatGameDate(formatDate(gameDate)),
+    gameDate: formatGameDate(gameDateString),
     confirmedPlayers: confirmedRsvps || [],
     playerCount: confirmedRsvps?.length || 0,
   });
@@ -565,7 +566,7 @@ async function sendProShopDetailEmail(
       await sendEmail({
         to: proShopEmail,
         subject: `Tee Times: ${event.name} - ${formatGameDate(
-          formatDate(gameDate)
+          gameDateString
         )}`,
         html: emailHtml,
       });
@@ -595,39 +596,10 @@ async function sendProShopDetailEmail(
 }
 
 /**
- * Helper: Get upcoming game date based on day of week
- */
-function getUpcomingGameDate(dayOfWeek: number): Date {
-  const today = new Date();
-  const currentDay = today.getDay();
-  const daysUntilGame = (dayOfWeek - currentDay + 7) % 7 || 7;
-  const gameDate = new Date(today);
-  gameDate.setDate(today.getDate() + daysUntilGame);
-  gameDate.setHours(0, 0, 0, 0);
-  return gameDate;
-}
-
-/**
- * Helper: Calculate send date based on game date and offset
- */
-function calculateSendDate(gameDate: Date, offset: number): Date {
-  const sendDate = new Date(gameDate);
-  sendDate.setDate(gameDate.getDate() + offset);
-  return sendDate;
-}
-
-/**
- * Helper: Format date as YYYY-MM-DD
- */
-function formatDate(date: Date): string {
-  return date.toISOString().split("T")[0];
-}
-
-/**
- * Helper: Format date for display (fixes timezone issue)
+ * Helper: Format YYYY-MM-DD date string for display.
+ * Uses local date parsing to avoid timezone shift.
  */
 function formatGameDate(dateString: string): string {
-  // Parse date components to avoid timezone issues
   const [year, month, day] = dateString.split("-").map(Number);
   const date = new Date(year, month - 1, day);
   return date.toLocaleDateString("en-US", {

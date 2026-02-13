@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/schedule";
 import { sendEmail, generateReminderEmail } from "@/lib/email";
+import { getTodayPacific, getDateOffsetPacific } from "@/lib/timezone";
 
 /**
  * Thursday Reminder Cron
@@ -23,10 +24,9 @@ export async function GET(request: Request) {
 
   // Find schedules that have had invites sent but not reminders,
   // with game dates in the next 3 days (covers Thursday → Saturday)
-  const today = new Date().toISOString().split("T")[0];
-  const threeDaysOut = new Date();
-  threeDaysOut.setDate(threeDaysOut.getDate() + 3);
-  const maxDate = threeDaysOut.toISOString().split("T")[0];
+  // Uses Pacific Time so late-night PT doesn't accidentally shift to the next day
+  const today = getTodayPacific();
+  const maxDate = getDateOffsetPacific(3);
 
   const { data: schedules } = await supabase
     .from("event_schedules")

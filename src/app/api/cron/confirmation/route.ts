@@ -5,6 +5,7 @@ import {
   generateConfirmationEmail,
   generateProShopEmail,
 } from "@/lib/email";
+import { getTodayPacific, getDateOffsetPacific } from "@/lib/timezone";
 
 /**
  * Friday Confirmation Cron
@@ -28,10 +29,9 @@ export async function GET(request: Request) {
 
   // Find schedules that have had invites sent, not yet confirmed,
   // with game dates in the next 2 days (Friday → Saturday)
-  const today = new Date().toISOString().split("T")[0];
-  const twoDaysOut = new Date();
-  twoDaysOut.setDate(twoDaysOut.getDate() + 2);
-  const maxDate = twoDaysOut.toISOString().split("T")[0];
+  // Uses Pacific Time so late-night PT doesn't accidentally shift to the next day
+  const today = getTodayPacific();
+  const maxDate = getDateOffsetPacific(2);
 
   const { data: schedules } = await supabase
     .from("event_schedules")

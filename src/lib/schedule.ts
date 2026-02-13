@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { getUpcomingGameDatePacific } from "@/lib/timezone";
 
 /**
  * Create a Supabase admin client (bypasses RLS).
@@ -13,17 +14,11 @@ export function createAdminClient() {
 }
 
 /**
- * Get the upcoming game date for a event.
- * Finds the next occurrence of the event's day_of_week from today.
+ * Get the upcoming game date for an event.
+ * Finds the next occurrence of the event's day_of_week from today in Pacific Time.
  */
 export function getUpcomingGameDate(dayOfWeek: number): string {
-  const today = new Date();
-  const currentDay = today.getDay();
-  let daysUntil = dayOfWeek - currentDay;
-  if (daysUntil <= 0) daysUntil += 7;
-  const gameDate = new Date(today);
-  gameDate.setDate(today.getDate() + daysUntil);
-  return gameDate.toISOString().split("T")[0];
+  return getUpcomingGameDatePacific(dayOfWeek);
 }
 
 /**
