@@ -17,11 +17,23 @@ import { sendAdminAlert } from "@/lib/admin-alerts";
 
 /**
  * Dynamic Email Scheduler Cron
- * Runs hourly and checks email_schedules table to determine what emails to send.
- * Supports configurable scheduling per event with multiple reminders.
+ * Triggered by specific Vercel cron entries (see vercel.json) and checks the
+ * email_schedules table to determine what emails to send. Supports configurable
+ * scheduling per event with multiple reminders.
  *
- * This replaces the individual invite/reminder/confirmation crons with a single
- * data-driven scheduler that reads timing from the email_schedules table.
+ * Vercel Hobby plan: each cron fires once per day at a fixed UTC time.
+ * Current cron entries (all times target Pacific Time send windows):
+ *   - Monday  18:00 UTC → invite emails      (10am PT)
+ *   - Thursday 18:00 UTC → reminder emails    (10am PT)
+ *   - Friday  18:00 UTC → cutoff processing   (10am PT)
+ *   - Friday  21:00 UTC → confirmation emails (1pm PT)
+ *
+ * The isWithinSendWindow() function uses a forward-only 2-hour window to
+ * account for Vercel timing imprecision (~1hr) and DST shifts (±1hr).
+ * Duplicate sends are prevented by "already sent" flags on each schedule.
+ *
+ * To add more events: the same cron triggers process ALL active events.
+ * Only add new cron entries if a new event needs emails at a different time.
  *
  * Query params:
  *   ?test=true — dry run, logs but doesn't send emails

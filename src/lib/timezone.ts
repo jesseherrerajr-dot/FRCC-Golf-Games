@@ -123,18 +123,26 @@ export function getUpcomingGameDatePacific(dayOfWeek: number): string {
 }
 
 /**
- * Check if NOW (in Pacific Time) is within a time window of a scheduled
- * send time. Used by the email scheduler cron to decide whether to fire.
+ * Check if NOW (in Pacific Time) is at or after a scheduled send time,
+ * within a forward-only window. Used by the email scheduler cron to
+ * decide whether to fire.
+ *
+ * Forward-only means we only match AFTER the scheduled time (not before).
+ * The 2-hour default window accounts for:
+ *   - Vercel Hobby plan timing imprecision (~up to 1 hour late)
+ *   - DST shifts (crons are in UTC; Pacific Time shifts ±1 hour seasonally)
+ * Duplicate sends are prevented by the "already sent" flags on each schedule
+ * (invite_sent, reminder_sent, etc.), not by this window.
  *
  * @param sendDateString - YYYY-MM-DD of the scheduled send date
  * @param sendTime - HH:MM in Pacific Time (e.g., "10:00")
- * @param windowHours - How many hours around the scheduled time to match (default 1)
- * @returns true if current Pacific Time is within the window
+ * @param windowHours - How many hours AFTER the scheduled time to match (default 2)
+ * @returns true if current Pacific Time is at/after send time and within the window
  */
 export function isWithinSendWindow(
   sendDateString: string,
   sendTime: string,
-  windowHours: number = 1
+  windowHours: number = 2
 ): boolean {
   const now = getNowPacific();
   const [sendHour, sendMinute] = sendTime.split(":").map(Number);
@@ -147,9 +155,10 @@ export function isWithinSendWindow(
   // Both times are in Pacific — simple numeric comparison
   const nowMinutes = now.hour * 60 + now.minute;
   const sendMinutes = sendHour * 60 + sendMinute;
-  const diffMinutes = Math.abs(nowMinutes - sendMinutes);
+  const diffMinutes = nowMinutes - sendMinutes;
 
-  return diffMinutes <= windowHours * 60;
+  // Only match if we're AT or AFTER the send time, within the window
+  return diffMinutes >= 0 && diffMinutes <= windowHours * 60;
 }
 
 /**
