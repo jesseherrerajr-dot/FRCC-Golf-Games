@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { sendAdminAlert } from "@/lib/admin-alerts";
 
 // Use the service role or direct connection for token-based RSVP
 // Since RSVP tokens don't require auth, we use the anon key with
@@ -154,6 +155,43 @@ export async function GET(request: Request) {
     old_status: rsvp.status,
     new_status: newStatus,
   });
+
+  // Fire admin alerts (non-blocking — don't delay the redirect)
+  if (newStatus === "in" && rsvp.status !== "in" && event) {
+    // Check if capacity was just reached
+    const { count: newInCount } = await supabase
+      .from("rsvps")
+      .select("*", { count: "exact", head: true })
+      .eq("schedule_id", rsvp.schedule_id)
+      .eq("status", "in");
+
+    if ((newInCount || 0) >= capacity) {
+      sendAdminAlert("capacity_reached", {
+        eventId: event.id,
+        eventName: event.name,
+        gameDate: schedule.game_date,
+        currentCount: newInCount || 0,
+        capacity,
+      }).catch((err) => console.error("Alert error:", err));
+    }
+  }
+
+  if (rsvp.status === "in" && newStatus !== "in" && event) {
+    // Spot opened — someone went from "in" to "out"
+    const { count: remainingIn } = await supabase
+      .from("rsvps")
+      .select("*", { count: "exact", head: true })
+      .eq("schedule_id", rsvp.schedule_id)
+      .eq("status", "in");
+
+    sendAdminAlert("spot_opened", {
+      eventId: event.id,
+      eventName: event.name,
+      gameDate: schedule.game_date,
+      currentCount: remainingIn || 0,
+      capacity,
+    }).catch((err) => console.error("Alert error:", err));
+  }
 
   return NextResponse.redirect(
     new URL(`/rsvp/${token}?updated=${newStatus}`, request.url)

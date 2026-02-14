@@ -89,3 +89,34 @@ export async function requireAdmin(): Promise<{
 
   return { supabase, user, profile, adminEvents };
 }
+
+/**
+ * Require super admin access. Redirects to /dashboard if not a super admin.
+ * Used for event creation, admin assignments, feature flag toggles.
+ */
+export async function requireSuperAdmin(): Promise<{
+  supabase: Awaited<ReturnType<typeof createClient>>;
+  user: { id: string; email?: string };
+  profile: Profile;
+}> {
+  const { supabase, user, profile } = await requireAuth();
+
+  if (!profile.is_super_admin) {
+    redirect("/dashboard");
+  }
+
+  return { supabase, user, profile };
+}
+
+/**
+ * Check if the current admin user has access to a specific event.
+ * Super admins always have access. Event admins only have access to their assigned events.
+ */
+export function hasEventAccess(
+  profile: Profile,
+  adminEvents: EventAdmin[],
+  eventId: string
+): boolean {
+  if (profile.is_super_admin) return true;
+  return adminEvents.some((e) => e.event_id === eventId);
+}

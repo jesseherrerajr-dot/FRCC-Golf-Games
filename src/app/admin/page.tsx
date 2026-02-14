@@ -112,12 +112,20 @@ export default async function AdminDashboard() {
               {profile.first_name} {profile.last_name}
             </p>
           </div>
-          <Link
-            href="/dashboard"
-            className="text-sm text-green-700 hover:text-green-600"
-          >
-            My Dashboard
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/admin/members"
+              className="text-sm text-green-700 hover:text-green-600"
+            >
+              Members
+            </Link>
+            <Link
+              href="/dashboard"
+              className="text-sm text-green-700 hover:text-green-600"
+            >
+              My Dashboard
+            </Link>
+          </div>
         </div>
 
         {/* Action Items */}
@@ -531,7 +539,17 @@ export default async function AdminDashboard() {
 
         {/* Events */}
         <section className="mt-8">
-          <h2 className="text-lg font-semibold text-gray-900">Events</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-gray-900">Events</h2>
+            {profile.is_super_admin && (
+              <Link
+                href="/admin/events/new"
+                className="rounded-lg bg-green-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-600"
+              >
+                + Create Event
+              </Link>
+            )}
+          </div>
           {!events?.length ? (
             <p className="mt-2 text-sm text-gray-500">No events set up yet.</p>
           ) : (
@@ -554,6 +572,26 @@ export default async function AdminDashboard() {
                       <p>Capacity: {event.default_capacity}</p>
                       <p className="capitalize">{event.frequency}</p>
                     </div>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2 border-t border-gray-100 pt-3">
+                    <Link
+                      href={`/admin/events/${event.id}/settings`}
+                      className="rounded border border-gray-300 px-2.5 py-1 text-xs text-gray-600 hover:bg-gray-50"
+                    >
+                      Settings
+                    </Link>
+                    <Link
+                      href={`/admin/events/${event.id}/schedule`}
+                      className="rounded border border-gray-300 px-2.5 py-1 text-xs text-gray-600 hover:bg-gray-50"
+                    >
+                      Schedule
+                    </Link>
+                    <Link
+                      href={`/admin/events/${event.id}/email/compose`}
+                      className="rounded border border-gray-300 px-2.5 py-1 text-xs text-gray-600 hover:bg-gray-50"
+                    >
+                      Send Email
+                    </Link>
                   </div>
                 </div>
               ))}

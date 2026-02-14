@@ -1,23 +1,27 @@
 import { NextResponse } from "next/server";
 import { createAdminClient, ensureSchedule, ensureRsvps } from "@/lib/schedule";
-import { sendEmail } from "@/lib/email";
 import {
+  sendEmail,
   generateInviteEmail,
   generateReminderEmail,
-  generateGolferConfirmationEmail,
-  generateProShopDetailEmail,
-} from "@/lib/email-templates";
+  generateConfirmationEmail,
+  generateProShopEmail,
+} from "@/lib/email";
 import {
   getNowPacific,
   getUpcomingGameDatePacific,
   calculateSendDateString,
   isWithinSendWindow,
 } from "@/lib/timezone";
+import { sendAdminAlert } from "@/lib/admin-alerts";
 
 /**
  * Dynamic Email Scheduler Cron
- * Runs hourly and checks email_schedules table to determine what emails to send
- * Supports configurable scheduling per event
+ * Runs hourly and checks email_schedules table to determine what emails to send.
+ * Supports configurable scheduling per event with multiple reminders.
+ *
+ * This replaces the individual invite/reminder/confirmation crons with a single
+ * data-driven scheduler that reads timing from the email_schedules table.
  *
  * Query params:
  *   ?test=true — dry run, logs but doesn't send emails
@@ -28,13 +32,22 @@ export async function GET(request: Request) {
   const isTest = searchParams.get("test") === "true";
   const testType = searchParams.get("type");
 
+  // Verify cron secret if set (for production security)
+  const cronSecret = process.env.CRON_SECRET;
+  if (cronSecret) {
+    const authHeader = request.headers.get("authorization");
+    if (authHeader !== `Bearer ${cronSecret}`) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+  }
+
   console.log("Email scheduler cron triggered", { isTest, testType });
 
   try {
     const supabase = createAdminClient();
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
-    // Get all enabled events
+    // Get all active events
     const { data: events, error: eventsError } = await supabase
       .from("events")
       .select("*")
@@ -51,7 +64,6 @@ export async function GET(request: Request) {
 
     const results = [];
 
-    // Process each event
     for (const event of events) {
       console.log(`Processing event: ${event.name}`);
 
@@ -60,7 +72,7 @@ export async function GET(request: Request) {
       const nowPT = getNowPacific();
 
       // Get enabled email schedules for this event
-      const { data: schedules, error: schedulesError } = await supabase
+      const { data: emailSchedules, error: schedulesError } = await supabase
         .from("email_schedules")
         .select("*")
         .eq("event_id", event.id)
@@ -69,41 +81,47 @@ export async function GET(request: Request) {
 
       if (schedulesError) throw schedulesError;
 
-      if (!schedules || schedules.length === 0) {
+      if (!emailSchedules || emailSchedules.length === 0) {
         console.log(`No enabled email schedules for event: ${event.name}`);
         continue;
       }
 
-      // Process each schedule
-      for (const schedule of schedules) {
+      // Process each email schedule entry
+      for (const emailSchedule of emailSchedules) {
         // If testing specific type, skip others
-        if (testType && schedule.email_type !== testType) {
+        if (testType && emailSchedule.email_type !== testType) {
           continue;
         }
 
         // Calculate the send date for this email (Pacific Time)
-        const sendDateStr = calculateSendDateString(gameDateString, schedule.send_day_offset);
+        const sendDateStr = calculateSendDateString(
+          gameDateString,
+          emailSchedule.send_day_offset
+        );
 
-        // Check if we should send this email now (all times in Pacific)
-        const withinWindow = isWithinSendWindow(sendDateStr, schedule.send_time);
+        // Check if we should send this email now
+        const withinWindow = isWithinSendWindow(
+          sendDateStr,
+          emailSchedule.send_time
+        );
 
         if (!withinWindow && !isTest) {
           console.log(
-            `Skipping ${schedule.email_type} for ${event.name} - not time yet ` +
-            `(scheduled for ${sendDateStr} ${schedule.send_time} PT, ` +
-            `current Pacific time: ${nowPT.dateString} ${String(nowPT.hour).padStart(2, "0")}:${String(nowPT.minute).padStart(2, "0")})`
+            `Skipping ${emailSchedule.email_type} (priority ${emailSchedule.priority_order}) for ${event.name} - ` +
+              `not time yet (scheduled for ${sendDateStr} ${emailSchedule.send_time} PT, ` +
+              `current: ${nowPT.dateString} ${String(nowPT.hour).padStart(2, "0")}:${String(nowPT.minute).padStart(2, "0")})`
           );
           continue;
         }
 
         console.log(
-          `Processing ${schedule.email_type} for ${event.name} (priority ${schedule.priority_order})`
+          `Processing ${emailSchedule.email_type} (priority ${emailSchedule.priority_order}) for ${event.name}`
         );
 
         let result;
-        switch (schedule.email_type) {
+        switch (emailSchedule.email_type) {
           case "invite":
-            result = await sendInviteEmails(
+            result = await handleInviteEmails(
               supabase,
               event,
               gameDateString,
@@ -113,18 +131,18 @@ export async function GET(request: Request) {
             break;
 
           case "reminder":
-            result = await sendReminderEmails(
+            result = await handleReminderEmails(
               supabase,
               event,
               gameDateString,
-              schedule.priority_order,
+              emailSchedule.priority_order,
               siteUrl,
               isTest
             );
             break;
 
           case "golfer_confirmation":
-            result = await sendGolferConfirmationEmail(
+            result = await handleGolferConfirmation(
               supabase,
               event,
               gameDateString,
@@ -133,7 +151,7 @@ export async function GET(request: Request) {
             break;
 
           case "pro_shop_detail":
-            result = await sendProShopDetailEmail(
+            result = await handleProShopDetail(
               supabase,
               event,
               gameDateString,
@@ -142,16 +160,25 @@ export async function GET(request: Request) {
             break;
 
           default:
-            console.log(`Unknown email type: ${schedule.email_type}`);
+            console.log(`Unknown email type: ${emailSchedule.email_type}`);
             continue;
         }
 
         results.push({
           event: event.name,
-          type: schedule.email_type,
-          priority: schedule.priority_order,
+          type: emailSchedule.email_type,
+          priority: emailSchedule.priority_order,
           ...result,
         });
+      }
+
+      // Check low_response alert for this event
+      if (!isTest) {
+        try {
+          await checkLowResponseAlert(supabase, event, gameDateString);
+        } catch (err) {
+          console.error(`Low response alert check failed for ${event.name}:`, err);
+        }
       }
     }
 
@@ -172,73 +199,75 @@ export async function GET(request: Request) {
   }
 }
 
-/**
- * Send invite emails to all active, subscribed members
- */
-async function sendInviteEmails(
-  supabase: any,
-  event: any,
+// ============================================================
+// INVITE EMAILS
+// ============================================================
+
+async function handleInviteEmails(
+  supabase: ReturnType<typeof createAdminClient>,
+  event: Record<string, unknown>,
   gameDateString: string,
   siteUrl: string,
   isTest: boolean
 ) {
-  console.log(`Sending invite emails for ${event.name}`);
-
   // Ensure schedule exists
-  const schedule = await ensureSchedule(supabase, event.id, gameDateString);
+  const schedule = await ensureSchedule(
+    supabase,
+    event.id as string,
+    gameDateString
+  );
 
   if (!schedule) {
-    return {
-      message: "Failed to create/get schedule",
-      sent: 0,
-    };
+    return { message: "Failed to create/get schedule", sent: 0 };
+  }
+
+  // Skip cancelled games
+  if (schedule.status === "cancelled") {
+    return { message: "Game cancelled — skipping invite", sent: 0 };
   }
 
   // Check if already sent
   if (schedule.invite_sent) {
-    return {
-      message: "Invite already sent",
-      sent: 0,
-    };
+    return { message: "Invite already sent", sent: 0 };
   }
 
   // Ensure RSVP rows exist for all subscribers
-  const rsvps = await ensureRsvps(supabase, schedule.id, event.id);
+  const rsvps = await ensureRsvps(
+    supabase,
+    schedule.id,
+    event.id as string
+  );
 
   if (!rsvps || rsvps.length === 0) {
-    return {
-      message: "No subscribers found",
-      sent: 0,
-    };
+    return { message: "No subscribers found", sent: 0 };
   }
 
   let sent = 0;
-  const errors = [];
+  const errors: { email: string; error: string }[] = [];
 
-  // Send invite to each golfer
   for (const rsvp of rsvps) {
     const profile = rsvp.profile as {
       first_name: string;
       last_name: string;
       email: string;
     };
-
     if (!profile?.email) continue;
 
     try {
-      const emailHtml = generateInviteEmail({
+      const html = generateInviteEmail({
         golferName: profile.first_name,
-        eventName: event.name,
+        eventName: event.name as string,
         gameDate: gameDateString,
-        rsvpUrl: `${siteUrl}/rsvp/${rsvp.token}`,
-        eventDetails: event.description || "",
+        rsvpToken: rsvp.token,
+        siteUrl,
+        adminNote: schedule.admin_notes,
       });
 
       if (!isTest) {
         await sendEmail({
           to: profile.email,
-          subject: `${event.name} - ${formatGameDate(gameDateString)}`,
-          html: emailHtml,
+          subject: `${event.name}: ${formatGameDate(gameDateString)} — Are You In?`,
+          html,
         });
       }
 
@@ -255,12 +284,20 @@ async function sendInviteEmails(
     }
   }
 
-  // Mark as sent in schedule (if not test)
-  if (!isTest) {
+  // Mark as sent
+  if (!isTest && sent > 0) {
     await supabase
       .from("event_schedules")
       .update({ invite_sent: true })
       .eq("id", schedule.id);
+
+    await supabase.from("email_log").insert({
+      event_id: event.id,
+      schedule_id: schedule.id,
+      email_type: "invite",
+      subject: `${event.name}: Weekly Invite`,
+      recipient_count: sent,
+    });
   }
 
   return {
@@ -270,18 +307,19 @@ async function sendInviteEmails(
   };
 }
 
-/**
- * Send reminder emails to members who haven't RSVP'd
- */
-async function sendReminderEmails(
-  supabase: any,
-  event: any,
+// ============================================================
+// REMINDER EMAILS (supports multiple: priority 1, 2, 3)
+// ============================================================
+
+async function handleReminderEmails(
+  supabase: ReturnType<typeof createAdminClient>,
+  event: Record<string, unknown>,
   gameDateString: string,
   priorityOrder: number,
   siteUrl: string,
   isTest: boolean
 ) {
-  console.log(`Sending reminder ${priorityOrder} emails for ${event.name}`);
+  console.log(`Sending reminder ${priorityOrder} for ${event.name}`);
 
   // Get event schedule
   const { data: schedule } = await supabase
@@ -292,28 +330,27 @@ async function sendReminderEmails(
     .maybeSingle();
 
   if (!schedule) {
-    return {
-      message: "No schedule found for this game date",
-      sent: 0,
-    };
+    return { message: "No schedule found", sent: 0 };
   }
 
-  // Check if this reminder was already sent
+  if (schedule.status === "cancelled") {
+    return { message: "Game cancelled — skipping reminder", sent: 0 };
+  }
+
+  // Check if this specific reminder was already sent
+  // Priority 1 = reminder_sent, Priority 2 = reminder_2_sent, Priority 3 = reminder_3_sent
   const reminderField =
     priorityOrder === 1
       ? "reminder_sent"
       : priorityOrder === 2
-      ? "reminder_2_sent"
-      : "reminder_3_sent";
+        ? "reminder_2_sent"
+        : "reminder_3_sent";
 
   if (schedule[reminderField]) {
-    return {
-      message: `Reminder ${priorityOrder} already sent`,
-      sent: 0,
-    };
+    return { message: `Reminder ${priorityOrder} already sent`, sent: 0 };
   }
 
-  // Get members who haven't RSVP'd yet
+  // Get members who haven't RSVP'd or said "not sure"
   const { data: pendingRsvps, error } = await supabase
     .from("rsvps")
     .select("*, profile:profiles(id, first_name, last_name, email)")
@@ -323,45 +360,59 @@ async function sendReminderEmails(
   if (error) throw error;
 
   if (!pendingRsvps || pendingRsvps.length === 0) {
-    return {
-      message: "No pending RSVPs found",
-      sent: 0,
-    };
+    // Mark as sent even if no one to remind (all responded)
+    if (!isTest) {
+      await supabase
+        .from("event_schedules")
+        .update({ [reminderField]: true })
+        .eq("id", schedule.id);
+    }
+    return { message: "Everyone has responded — no reminders needed", sent: 0 };
   }
 
+  // Calculate spots remaining for the reminder message
+  const { count: inCount } = await supabase
+    .from("rsvps")
+    .select("*", { count: "exact", head: true })
+    .eq("schedule_id", schedule.id)
+    .eq("status", "in");
+
+  const capacity =
+    schedule.capacity || (event.default_capacity as number) || 16;
+  const spotsRemaining = Math.max(0, capacity - (inCount || 0));
+
   let sent = 0;
-  const errors = [];
+  const errors: { email: string; error: string }[] = [];
 
   for (const rsvp of pendingRsvps) {
     const profile = rsvp.profile as {
-      email: string;
       first_name: string;
       last_name: string;
+      email: string;
     };
-
     if (!profile?.email) continue;
 
     try {
-      const emailHtml = generateReminderEmail({
+      const html = generateReminderEmail({
         golferName: profile.first_name,
-        eventName: event.name,
-        gameDate: formatGameDate(gameDateString),
-        rsvpUrl: `${siteUrl}/rsvp/${rsvp.token}`,
-        reminderNumber: priorityOrder,
+        eventName: event.name as string,
+        gameDate: gameDateString,
+        rsvpToken: rsvp.token,
+        siteUrl,
+        spotsRemaining,
+        adminNote: schedule.admin_notes,
       });
 
       if (!isTest) {
         await sendEmail({
           to: profile.email,
-          subject: `Reminder: RSVP for ${event.name} - ${formatGameDate(
-            gameDateString
-          )}`,
-          html: emailHtml,
+          subject: `${event.name}: ${formatGameDate(gameDateString)} — ${priorityOrder === 1 ? "Last Chance to RSVP" : "Final Reminder"}`,
+          html,
         });
       }
 
       console.log(
-        `${isTest ? "[TEST] Would send" : "Sent"} reminder to ${profile.email}`
+        `${isTest ? "[TEST] Would send" : "Sent"} reminder ${priorityOrder} to ${profile.email}`
       );
       sent++;
     } catch (err) {
@@ -379,6 +430,14 @@ async function sendReminderEmails(
       .from("event_schedules")
       .update({ [reminderField]: true })
       .eq("id", schedule.id);
+
+    await supabase.from("email_log").insert({
+      event_id: event.id,
+      schedule_id: schedule.id,
+      email_type: `reminder_${priorityOrder}`,
+      subject: `${event.name}: Reminder ${priorityOrder}`,
+      recipient_count: sent,
+    });
   }
 
   return {
@@ -388,140 +447,16 @@ async function sendReminderEmails(
   };
 }
 
-/**
- * Send confirmation email to confirmed golfers
- */
-async function sendGolferConfirmationEmail(
-  supabase: any,
-  event: any,
+// ============================================================
+// GOLFER CONFIRMATION EMAIL
+// ============================================================
+
+async function handleGolferConfirmation(
+  supabase: ReturnType<typeof createAdminClient>,
+  event: Record<string, unknown>,
   gameDateString: string,
   isTest: boolean
 ) {
-  console.log(`Sending golfer confirmation emails for ${event.name}`);
-  console.log(`Looking for schedule with game_date: ${gameDateString}`);
-
-  // Get event schedule
-  const { data: schedule, error: scheduleError } = await supabase
-    .from("event_schedules")
-    .select("*")
-    .eq("event_id", event.id)
-    .eq("game_date", gameDateString)
-    .maybeSingle();
-
-  console.log('Schedule query result:', { schedule, error: scheduleError });
-
-  if (!schedule) {
-    return {
-      message: "No schedule found for this game date",
-      sent: 0,
-    };
-  }
-
-  console.log(`Found schedule with ID: ${schedule.id}`);
-
-  if (schedule.golfer_confirmation_sent) {
-    return {
-      message: "Golfer confirmation already sent",
-      sent: 0,
-    };
-  }
-
-  // Get confirmed golfers
-  console.log(`Querying for RSVPs with schedule_id: ${schedule.id} and status: "in"`);
-  const { data: confirmedRsvps, error } = await supabase
-    .from("rsvps")
-    .select("*, profile:profiles(id, first_name, last_name, email)")
-    .eq("schedule_id", schedule.id)
-    .eq("status", "in");
-
-  console.log('RSVP query result:', { confirmedRsvps, error });
-
-  if (error) throw error;
-
-  if (!confirmedRsvps || confirmedRsvps.length === 0) {
-    return {
-      message: "No confirmed golfers found",
-      sent: 0,
-    };
-  }
-
-  // Build golfer list - keep the array format for the email template
-  const confirmedPlayers = confirmedRsvps.map((r: { profile: { first_name: string; last_name: string } }) => {
-    const profile = r.profile as { first_name: string; last_name: string };
-    return {
-      first_name: profile.first_name,
-      last_name: profile.last_name,
-    };
-  });
-
-  let sent = 0;
-  const errors = [];
-
-  for (const rsvp of confirmedRsvps) {
-    const profile = rsvp.profile as {
-      email: string;
-      first_name: string;
-      last_name: string;
-    };
-
-    if (!profile?.email) continue;
-
-    try {
-      const emailHtml = generateGolferConfirmationEmail({
-        golferName: profile.first_name,
-        eventName: event.name,
-        gameDate: formatGameDate(gameDateString),
-        confirmedPlayers: confirmedPlayers,
-        playerCount: confirmedRsvps.length,
-      });
-
-      if (!isTest) {
-        await sendEmail({
-          to: profile.email,
-          subject: `Confirmed: ${event.name} - ${formatGameDate(gameDateString)}`,
-          html: emailHtml,
-        });
-      }
-
-      console.log(
-        `${isTest ? "[TEST] Would send" : "Sent"} confirmation to ${profile.email}`
-      );
-      sent++;
-    } catch (err) {
-      console.error(`Failed to send confirmation to ${profile.email}:`, err);
-      errors.push({
-        email: profile.email,
-        error: err instanceof Error ? err.message : "Unknown error",
-      });
-    }
-  }
-
-  // Mark as sent
-  if (!isTest) {
-    await supabase
-      .from("event_schedules")
-      .update({ golfer_confirmation_sent: true })
-      .eq("id", schedule.id);
-  }
-
-  return {
-    message: `Golfer confirmation emails ${isTest ? "would be" : ""} sent`,
-    sent,
-    errors: errors.length > 0 ? errors : undefined,
-  };
-}
-
-/**
- * Send pro shop detail email with tee times and pairings
- */
-async function sendProShopDetailEmail(
-  supabase: any,
-  event: any,
-  gameDateString: string,
-  isTest: boolean
-) {
-  console.log(`Sending pro shop detail email for ${event.name}`);
-
   // Get event schedule
   const { data: schedule } = await supabase
     .from("event_schedules")
@@ -531,62 +466,334 @@ async function sendProShopDetailEmail(
     .maybeSingle();
 
   if (!schedule) {
-    return {
-      message: "No schedule found for this game date",
-      sent: 0,
-    };
+    return { message: "No schedule found", sent: 0 };
   }
 
-  if (schedule.pro_shop_sent) {
-    return {
-      message: "Pro shop email already sent",
-      sent: 0,
-    };
+  if (schedule.status === "cancelled") {
+    return { message: "Game cancelled — skipping confirmation", sent: 0 };
   }
 
-  // Get confirmed golfers for the email
+  if (schedule.golfer_confirmation_sent) {
+    return { message: "Golfer confirmation already sent", sent: 0 };
+  }
+
+  // Get confirmed ("in") RSVPs with full profile info
   const { data: confirmedRsvps } = await supabase
     .from("rsvps")
-    .select("*, profile:profiles(id, first_name, last_name, email)")
+    .select(
+      "*, profile:profiles(id, first_name, last_name, email, phone, ghin_number)"
+    )
     .eq("schedule_id", schedule.id)
-    .eq("status", "in");
+    .eq("status", "in")
+    .order("responded_at", { ascending: true });
 
-  const emailHtml = generateProShopDetailEmail({
-    eventName: event.name,
-    gameDate: formatGameDate(gameDateString),
-    confirmedPlayers: confirmedRsvps || [],
-    playerCount: confirmedRsvps?.length || 0,
+  if (!confirmedRsvps || confirmedRsvps.length === 0) {
+    return { message: "No confirmed golfers found", sent: 0 };
+  }
+
+  // Get approved guests for this schedule
+  const { data: approvedGuests } = await supabase
+    .from("guest_requests")
+    .select(
+      "*, requested_by_profile:profiles!guest_requests_requested_by_fkey(first_name, last_name)"
+    )
+    .eq("schedule_id", schedule.id)
+    .eq("status", "approved");
+
+  // Build player list
+  const confirmedPlayers = confirmedRsvps.map(
+    (r: Record<string, unknown>) => {
+      const profile = r.profile as {
+        first_name: string;
+        last_name: string;
+        email: string;
+      };
+      return { ...profile, is_guest: false };
+    }
+  );
+
+  const guestPlayers = (approvedGuests || []).map(
+    (g: Record<string, unknown>) => {
+      const sponsor = g.requested_by_profile as {
+        first_name: string;
+        last_name: string;
+      };
+      return {
+        first_name: g.guest_first_name as string,
+        last_name: g.guest_last_name as string,
+        email: g.guest_email as string,
+        is_guest: true,
+        sponsor_name: sponsor
+          ? `${sponsor.first_name} ${sponsor.last_name.charAt(0)}.`
+          : "Member",
+      };
+    }
+  );
+
+  const allPlayers = [...confirmedPlayers, ...guestPlayers];
+
+  // Get admin emails for CC
+  const { data: eventAdmins } = await supabase
+    .from("event_admins")
+    .select("role, profile:profiles(email)")
+    .eq("event_id", event.id);
+
+  const { data: superAdmins } = await supabase
+    .from("profiles")
+    .select("email")
+    .eq("is_super_admin", true);
+
+  const primaryAdmin = eventAdmins?.find(
+    (a: Record<string, unknown>) => a.role === "primary"
+  );
+  const primaryAdminEmail = (primaryAdmin?.profile as unknown as { email: string })
+    ?.email;
+
+  const adminEmails = [
+    ...(superAdmins || []).map((a: { email: string }) => a.email),
+    ...(eventAdmins || []).map(
+      (a: Record<string, unknown>) =>
+        (a.profile as unknown as { email: string })?.email
+    ),
+  ].filter((e): e is string => !!e);
+
+  const uniqueAdminEmails = [...new Set(adminEmails)];
+
+  // Get pro shop contacts for CC
+  const { data: proShopContacts } = await supabase
+    .from("pro_shop_contacts")
+    .select("email")
+    .eq("event_id", event.id);
+
+  const proShopEmails = (proShopContacts || []).map(
+    (c: { email: string }) => c.email
+  );
+  const ccEmails = [...new Set([...uniqueAdminEmails, ...proShopEmails])];
+
+  // Generate confirmation email
+  const golferEmails = allPlayers
+    .map((p) => p.email)
+    .filter(Boolean);
+
+  const confirmationHtml = generateConfirmationEmail({
+    eventName: event.name as string,
+    gameDate: gameDateString,
+    confirmedPlayers: allPlayers,
+    adminNote: schedule.admin_notes,
   });
 
-  const proShopEmail =
-    process.env.PRO_SHOP_EMAIL || "proshop@fairbanksranch.com";
+  const formattedDate = formatGameDate(gameDateString);
 
   try {
     if (!isTest) {
       await sendEmail({
-        to: proShopEmail,
-        subject: `Tee Times: ${event.name} - ${formatGameDate(
-          gameDateString
-        )}`,
-        html: emailHtml,
+        to: golferEmails,
+        cc: ccEmails,
+        replyTo: primaryAdminEmail,
+        subject: `${event.name}: ${formattedDate}: Registration Confirmation`,
+        html: confirmationHtml,
+      });
+
+      await supabase
+        .from("event_schedules")
+        .update({ golfer_confirmation_sent: true })
+        .eq("id", schedule.id);
+
+      await supabase.from("email_log").insert({
+        event_id: event.id,
+        schedule_id: schedule.id,
+        email_type: "confirmation_golfer",
+        subject: `${event.name}: Confirmation`,
+        recipient_count: golferEmails.length,
+      });
+    }
+
+    console.log(
+      `${isTest ? "[TEST] Would send" : "Sent"} golfer confirmation to ${golferEmails.length} golfers`
+    );
+
+    return {
+      message: `Golfer confirmation ${isTest ? "would be" : ""} sent`,
+      sent: golferEmails.length,
+    };
+  } catch (err) {
+    console.error("Failed to send golfer confirmation:", err);
+    return {
+      message: "Failed to send golfer confirmation",
+      sent: 0,
+      error: err instanceof Error ? err.message : "Unknown error",
+    };
+  }
+}
+
+// ============================================================
+// PRO SHOP DETAIL EMAIL
+// ============================================================
+
+async function handleProShopDetail(
+  supabase: ReturnType<typeof createAdminClient>,
+  event: Record<string, unknown>,
+  gameDateString: string,
+  isTest: boolean
+) {
+  // Get event schedule
+  const { data: schedule } = await supabase
+    .from("event_schedules")
+    .select("*")
+    .eq("event_id", event.id)
+    .eq("game_date", gameDateString)
+    .maybeSingle();
+
+  if (!schedule) {
+    return { message: "No schedule found", sent: 0 };
+  }
+
+  if (schedule.status === "cancelled") {
+    return { message: "Game cancelled — skipping pro shop email", sent: 0 };
+  }
+
+  if (schedule.pro_shop_sent) {
+    return { message: "Pro shop email already sent", sent: 0 };
+  }
+
+  // Get confirmed golfers with full details
+  const { data: confirmedRsvps } = await supabase
+    .from("rsvps")
+    .select(
+      "*, profile:profiles(id, first_name, last_name, email, phone, ghin_number)"
+    )
+    .eq("schedule_id", schedule.id)
+    .eq("status", "in")
+    .order("responded_at", { ascending: true });
+
+  // Get approved guests
+  const { data: approvedGuests } = await supabase
+    .from("guest_requests")
+    .select(
+      "*, requested_by_profile:profiles!guest_requests_requested_by_fkey(first_name, last_name)"
+    )
+    .eq("schedule_id", schedule.id)
+    .eq("status", "approved");
+
+  // Build full player list with contact details
+  const confirmedPlayers = (confirmedRsvps || []).map(
+    (r: Record<string, unknown>) => {
+      const profile = r.profile as {
+        first_name: string;
+        last_name: string;
+        email: string;
+        phone: string;
+        ghin_number: string;
+      };
+      return { ...profile, is_guest: false };
+    }
+  );
+
+  const guestPlayers = (approvedGuests || []).map(
+    (g: Record<string, unknown>) => {
+      const sponsor = g.requested_by_profile as {
+        first_name: string;
+        last_name: string;
+      };
+      return {
+        first_name: g.guest_first_name as string,
+        last_name: g.guest_last_name as string,
+        email: (g.guest_email as string) || "",
+        phone: (g.guest_phone as string) || "",
+        ghin_number: (g.guest_ghin_number as string) || "",
+        is_guest: true,
+        sponsor_name: sponsor
+          ? `${sponsor.first_name} ${sponsor.last_name.charAt(0)}.`
+          : "Member",
+      };
+    }
+  );
+
+  const allPlayers = [...confirmedPlayers, ...guestPlayers];
+
+  // Get pro shop contacts
+  const { data: proShopContacts } = await supabase
+    .from("pro_shop_contacts")
+    .select("email")
+    .eq("event_id", event.id);
+
+  const proShopEmails = (proShopContacts || []).map(
+    (c: { email: string }) => c.email
+  );
+
+  if (proShopEmails.length === 0) {
+    return { message: "No pro shop contacts configured", sent: 0 };
+  }
+
+  // Get admin emails for CC
+  const { data: eventAdmins } = await supabase
+    .from("event_admins")
+    .select("role, profile:profiles(email)")
+    .eq("event_id", event.id);
+
+  const { data: superAdmins } = await supabase
+    .from("profiles")
+    .select("email")
+    .eq("is_super_admin", true);
+
+  const primaryAdmin = eventAdmins?.find(
+    (a: Record<string, unknown>) => a.role === "primary"
+  );
+  const primaryAdminEmail = (primaryAdmin?.profile as unknown as { email: string })
+    ?.email;
+
+  const adminEmails = [
+    ...(superAdmins || []).map((a: { email: string }) => a.email),
+    ...(eventAdmins || []).map(
+      (a: Record<string, unknown>) =>
+        (a.profile as unknown as { email: string })?.email
+    ),
+  ].filter((e): e is string => !!e);
+
+  const uniqueAdminEmails = [...new Set(adminEmails)];
+
+  const proShopHtml = generateProShopEmail({
+    eventName: event.name as string,
+    gameDate: gameDateString,
+    players: allPlayers,
+  });
+
+  const formattedDate = formatGameDate(gameDateString);
+
+  try {
+    if (!isTest) {
+      await sendEmail({
+        to: proShopEmails,
+        cc: uniqueAdminEmails,
+        replyTo: primaryAdminEmail,
+        subject: `${event.name}: ${formattedDate}: Player Details & GHIN`,
+        html: proShopHtml,
       });
 
       await supabase
         .from("event_schedules")
         .update({ pro_shop_sent: true })
         .eq("id", schedule.id);
+
+      await supabase.from("email_log").insert({
+        event_id: event.id,
+        schedule_id: schedule.id,
+        email_type: "confirmation_proshop",
+        subject: `${event.name}: Pro Shop Detail`,
+        recipient_count: proShopEmails.length,
+      });
     }
 
     console.log(
-      `${isTest ? "[TEST] Would send" : "Sent"} pro shop email to ${proShopEmail}`
+      `${isTest ? "[TEST] Would send" : "Sent"} pro shop detail to ${proShopEmails.join(", ")}`
     );
 
     return {
       message: `Pro shop email ${isTest ? "would be" : ""} sent`,
-      sent: 1,
+      sent: proShopEmails.length,
     };
   } catch (err) {
-    console.error(`Failed to send pro shop email:`, err);
+    console.error("Failed to send pro shop email:", err);
     return {
       message: "Failed to send pro shop email",
       sent: 0,
@@ -595,17 +802,91 @@ async function sendProShopDetailEmail(
   }
 }
 
-/**
- * Helper: Format YYYY-MM-DD date string for display.
- * Uses local date parsing to avoid timezone shift.
- */
+// ============================================================
+// LOW RESPONSE ALERT CHECK
+// ============================================================
+
+async function checkLowResponseAlert(
+  supabase: ReturnType<typeof createAdminClient>,
+  event: Record<string, unknown>,
+  gameDateString: string
+) {
+  // Get the low_response alert setting for this event
+  const { data: alertSetting } = await supabase
+    .from("event_alert_settings")
+    .select("*")
+    .eq("event_id", event.id)
+    .eq("alert_type", "low_response")
+    .maybeSingle();
+
+  if (!alertSetting?.is_enabled) return;
+
+  // Parse config: { day: number (0-6), time: "HH:MM" }
+  const config = alertSetting.config as {
+    day?: number;
+    time?: string;
+  } | null;
+  if (!config?.time) return;
+
+  const nowPT = getNowPacific();
+
+  // Check if the configured day/time matches "now"
+  // config.day is days-of-week (0=Sun..6=Sat), check if today matches
+  const alertDay = config.day ?? 4; // default Thursday
+  if (nowPT.dayOfWeek !== alertDay) return;
+
+  // Check if within 1 hour of configured time
+  const [alertHour, alertMinute] = config.time.split(":").map(Number);
+  const nowMinutes = nowPT.hour * 60 + nowPT.minute;
+  const alertMinutes = alertHour * 60 + alertMinute;
+  if (Math.abs(nowMinutes - alertMinutes) > 60) return;
+
+  // Get schedule for this game date
+  const { data: schedule } = await supabase
+    .from("event_schedules")
+    .select("id, status")
+    .eq("event_id", event.id)
+    .eq("game_date", gameDateString)
+    .maybeSingle();
+
+  if (!schedule || schedule.status === "cancelled") return;
+
+  // Count responses
+  const { count: totalRsvps } = await supabase
+    .from("rsvps")
+    .select("*", { count: "exact", head: true })
+    .eq("schedule_id", schedule.id);
+
+  const { count: respondedCount } = await supabase
+    .from("rsvps")
+    .select("*", { count: "exact", head: true })
+    .eq("schedule_id", schedule.id)
+    .in("status", ["in", "out"]);
+
+  const total = totalRsvps || 0;
+  const responded = respondedCount || 0;
+
+  // Alert if less than 50% have responded
+  if (total > 0 && responded / total < 0.5) {
+    await sendAdminAlert("low_response", {
+      eventId: event.id as string,
+      eventName: event.name as string,
+      gameDate: gameDateString,
+      respondedCount: responded,
+      totalSubscribers: total,
+    });
+  }
+}
+
+// ============================================================
+// HELPERS
+// ============================================================
+
 function formatGameDate(dateString: string): string {
   const [year, month, day] = dateString.split("-").map(Number);
   const date = new Date(year, month - 1, day);
   return date.toLocaleDateString("en-US", {
-    weekday: "long",
     month: "long",
     day: "numeric",
-    year: "numeric",
   });
 }

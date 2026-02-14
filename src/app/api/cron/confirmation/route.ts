@@ -114,12 +114,12 @@ export async function GET(request: Request) {
     const primaryAdmin = eventAdmins?.find(
       (a: Record<string, unknown>) => a.role === "primary"
     );
-    const primaryAdminEmail = (primaryAdmin?.profile as { email: string })?.email;
+    const primaryAdminEmail = (primaryAdmin?.profile as unknown as { email: string })?.email;
 
     const adminEmails = [
       ...(superAdmins || []).map((a: { email: string }) => a.email),
       ...(eventAdmins || []).map(
-        (a: Record<string, unknown>) => (a.profile as { email: string })?.email
+        (a: Record<string, unknown>) => (a.profile as unknown as { email: string })?.email
       ),
     ].filter((e): e is string => !!e);
 
@@ -150,6 +150,7 @@ export async function GET(request: Request) {
       eventName: event.name,
       gameDate: schedule.game_date,
       confirmedPlayers: allPlayers,
+      adminNote: schedule.admin_notes,
     });
 
     if (isTest) {

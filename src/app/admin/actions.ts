@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { sendAdminAlert } from "@/lib/admin-alerts";
 
 export async function approveRegistration(profileId: string) {
   const supabase = await createClient();

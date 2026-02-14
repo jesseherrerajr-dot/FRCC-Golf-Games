@@ -14,7 +14,7 @@ export function ApproveButton({ profileId }: { profileId: string }) {
   return (
     <button
       disabled={isPending}
-      onClick={() => startTransition(() => approveRegistration(profileId))}
+      onClick={() => startTransition(async () => { await approveRegistration(profileId); })}
       className="rounded-md bg-green-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-600 disabled:opacity-50"
     >
       {isPending ? "..." : "Approve"}
@@ -30,7 +30,7 @@ export function DenyButton({ profileId }: { profileId: string }) {
       disabled={isPending}
       onClick={() => {
         if (confirm("Deny this registration? They will be deactivated.")) {
-          startTransition(() => denyRegistration(profileId));
+          startTransition(async () => { await denyRegistration(profileId); });
         }
       }}
       className="rounded-md border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"

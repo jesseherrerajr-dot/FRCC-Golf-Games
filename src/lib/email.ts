@@ -44,18 +44,26 @@ export function generateInviteEmail({
   gameDate,
   rsvpToken,
   siteUrl,
+  adminNote,
 }: {
   golferName: string;
   eventName: string;
   gameDate: string;
   rsvpToken: string;
   siteUrl: string;
+  adminNote?: string | null;
 }) {
   const formattedDate = new Date(gameDate + "T12:00:00").toLocaleDateString(
     "en-US",
     { weekday: "long", month: "long", day: "numeric" }
   );
   const rsvpBase = `${siteUrl}/api/rsvp?token=${rsvpToken}`;
+
+  const adminNoteHtml = adminNote
+    ? `<div style="background: #eff6ff; border-left: 4px solid #3b82f6; padding: 12px 16px; margin: 16px 0; border-radius: 4px;">
+        <p style="margin: 0; font-size: 14px; color: #1e40af;"><strong>Note from admin:</strong> ${adminNote}</p>
+      </div>`
+    : "";
 
   return `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
@@ -64,6 +72,8 @@ export function generateInviteEmail({
 
       <p style="color: #374151;">Hey ${golferName},</p>
       <p style="color: #374151;">Are you playing this Saturday? Tap one of the buttons below to let us know.</p>
+
+      ${adminNoteHtml}
 
       <div style="margin: 24px 0;">
         <a href="${rsvpBase}&action=in" style="display: block; background: #15803d; color: white; text-align: center; padding: 14px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px; margin-bottom: 10px;">I'm In</a>
@@ -87,6 +97,7 @@ export function generateReminderEmail({
   rsvpToken,
   siteUrl,
   spotsRemaining,
+  adminNote,
 }: {
   golferName: string;
   eventName: string;
@@ -94,6 +105,7 @@ export function generateReminderEmail({
   rsvpToken: string;
   siteUrl: string;
   spotsRemaining: number;
+  adminNote?: string | null;
 }) {
   const formattedDate = new Date(gameDate + "T12:00:00").toLocaleDateString(
     "en-US",
@@ -114,6 +126,10 @@ export function generateReminderEmail({
       }</p>
       <p style="color: #374151;">The RSVP deadline is <strong>tomorrow (Friday) at 10:00 AM PT</strong>.</p>
 
+      ${adminNote ? `<div style="background: #eff6ff; border-left: 4px solid #3b82f6; padding: 12px 16px; margin: 16px 0; border-radius: 4px;">
+        <p style="margin: 0; font-size: 14px; color: #1e40af;"><strong>Note from admin:</strong> ${adminNote}</p>
+      </div>` : ""}
+
       <div style="margin: 24px 0;">
         <a href="${rsvpBase}&action=in" style="display: block; background: #15803d; color: white; text-align: center; padding: 14px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px; margin-bottom: 10px;">I'm In</a>
         <a href="${rsvpBase}&action=out" style="display: block; background: white; color: #b91c1c; text-align: center; padding: 14px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px; border: 2px solid #fca5a5;">I'm Out</a>
@@ -131,10 +147,12 @@ export function generateConfirmationEmail({
   eventName,
   gameDate,
   confirmedPlayers,
+  adminNote,
 }: {
   eventName: string;
   gameDate: string;
   confirmedPlayers: { first_name: string; last_name: string; is_guest?: boolean; sponsor_name?: string }[];
+  adminNote?: string | null;
 }) {
   const formattedDate = new Date(gameDate + "T12:00:00").toLocaleDateString(
     "en-US",
@@ -155,6 +173,10 @@ export function generateConfirmationEmail({
       <p style="color: #6b7280; font-size: 16px; margin-top: 0;">${formattedDate} — Registration Confirmation</p>
 
       <p style="color: #374151;">The following ${confirmedPlayers.length} players are confirmed for this Saturday:</p>
+
+      ${adminNote ? `<div style="background: #eff6ff; border-left: 4px solid #3b82f6; padding: 12px 16px; margin: 16px 0; border-radius: 4px;">
+        <p style="margin: 0; font-size: 14px; color: #1e40af;"><strong>Note from admin:</strong> ${adminNote}</p>
+      </div>` : ""}
 
       <ol style="padding-left: 20px; margin: 16px 0;">
         ${playerListHtml}
