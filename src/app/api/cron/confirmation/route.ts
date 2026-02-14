@@ -98,7 +98,9 @@ export async function GET(request: Request) {
       };
     });
 
-    const allPlayers = [...confirmedPlayers, ...guestPlayers];
+    const allPlayers = [...confirmedPlayers, ...guestPlayers].sort((a, b) =>
+      a.last_name.localeCompare(b.last_name) || a.first_name.localeCompare(b.first_name)
+    );
 
     // Get admin emails
     const { data: eventAdmins } = await supabase

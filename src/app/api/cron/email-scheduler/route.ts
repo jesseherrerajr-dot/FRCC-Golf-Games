@@ -530,7 +530,9 @@ async function handleGolferConfirmation(
     }
   );
 
-  const allPlayers = [...confirmedPlayers, ...guestPlayers];
+  const allPlayers = [...confirmedPlayers, ...guestPlayers].sort((a, b) =>
+    a.last_name.localeCompare(b.last_name) || a.first_name.localeCompare(b.first_name)
+  );
 
   // Get admin emails for CC
   const { data: eventAdmins } = await supabase
@@ -709,7 +711,9 @@ async function handleProShopDetail(
     }
   );
 
-  const allPlayers = [...confirmedPlayers, ...guestPlayers];
+  const allPlayers = [...confirmedPlayers, ...guestPlayers].sort((a, b) =>
+    a.last_name.localeCompare(b.last_name) || a.first_name.localeCompare(b.first_name)
+  );
 
   // Get pro shop contacts
   const { data: proShopContacts } = await supabase
