@@ -37,7 +37,7 @@ export function GuestApprovalButton({
     <button
       onClick={handleApprove}
       disabled={loading}
-      className="rounded-md bg-green-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-600 disabled:bg-gray-400"
+      className="rounded-md bg-teal-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-teal-500 disabled:bg-gray-400"
     >
       {loading ? "..." : "Approve"}
     </button>

@@ -172,8 +172,8 @@ export function EmailComposerForm({
     <div className="space-y-6">
       {/* Success/Error */}
       {result?.success && (
-        <div className="rounded-lg border border-green-200 bg-green-50 p-4">
-          <p className="text-sm font-medium text-green-700">
+        <div className="rounded-lg border border-teal-200 bg-navy-50 p-4">
+          <p className="text-sm font-medium text-teal-600">
             Email sent to {result.recipientCount} recipient
             {result.recipientCount !== 1 ? "s" : ""}!
           </p>
@@ -219,7 +219,7 @@ export function EmailComposerForm({
               key={opt.key}
               className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition ${
                 target === opt.key
-                  ? "border-green-500 bg-green-50"
+                  ? "border-teal-500 bg-navy-50"
                   : "border-gray-200 hover:bg-gray-50"
               }`}
             >
@@ -229,7 +229,7 @@ export function EmailComposerForm({
                 value={opt.key}
                 checked={target === opt.key}
                 onChange={() => setTarget(opt.key)}
-                className="text-green-700 focus:ring-green-500"
+                className="text-teal-600 focus:ring-teal-500"
               />
               <div>
                 <p className="text-sm font-medium text-gray-900">
@@ -254,7 +254,7 @@ export function EmailComposerForm({
               onClick={() => applyTemplate(tmpl.key)}
               className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
                 template === tmpl.key
-                  ? "bg-green-700 text-white"
+                  ? "bg-teal-600 text-white"
                   : "bg-gray-100 text-gray-600 hover:bg-gray-200"
               }`}
             >
@@ -314,7 +314,7 @@ export function EmailComposerForm({
           disabled={
             isPending || !selectedSchedule || !subject.trim() || !body.trim()
           }
-          className="rounded-lg bg-green-700 px-6 py-2.5 text-sm font-medium text-white hover:bg-green-600 disabled:opacity-50"
+          className="rounded-lg bg-teal-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-teal-500 disabled:opacity-50"
         >
           {isPending ? "Sending..." : "Send Email"}
         </button>

@@ -96,7 +96,7 @@ export function ScheduleRow({
         <div className="flex items-center gap-2">
           {!isCancelled && (
             <div className="text-right">
-              <span className="text-sm font-bold text-green-700">
+              <span className="text-sm font-bold text-teal-600">
                 {schedule.inCount}/{schedule.effectiveCapacity}
               </span>
               {schedule.waitlistCount > 0 && (
@@ -119,7 +119,7 @@ export function ScheduleRow({
             disabled={isPending}
             className={`rounded px-2 py-1 text-xs font-medium disabled:opacity-50 ${
               isCancelled
-                ? "border border-green-300 text-green-700 hover:bg-green-50"
+                ? "border border-teal-300 text-teal-600 hover:bg-navy-50"
                 : "border border-red-300 text-red-700 hover:bg-red-50"
             }`}
           >
@@ -148,7 +148,7 @@ export function ScheduleRow({
             className={`h-full rounded-full ${
               schedule.inCount >= schedule.effectiveCapacity
                 ? "bg-red-500"
-                : "bg-green-500"
+                : "bg-teal-500"
             }`}
             style={{ width: `${fillPct}%` }}
           />
@@ -214,7 +214,7 @@ export function ScheduleRow({
           <button
             onClick={handleSave}
             disabled={isPending}
-            className="rounded bg-green-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-600 disabled:opacity-50"
+            className="rounded bg-teal-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-teal-500 disabled:opacity-50"
           >
             {isPending ? "Saving..." : "Save Changes"}
           </button>

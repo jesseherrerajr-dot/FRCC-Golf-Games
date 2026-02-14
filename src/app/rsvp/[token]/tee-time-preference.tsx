@@ -66,7 +66,7 @@ export function TeeTimePreference({
               checked={preference === option}
               onChange={() => handleChange(option)}
               disabled={isUpdating}
-              className="mt-0.5 h-4 w-4 border-gray-300 text-green-700 focus:ring-2 focus:ring-green-600/20 disabled:cursor-not-allowed"
+              className="mt-0.5 h-4 w-4 border-gray-300 text-teal-600 focus:ring-2 focus:ring-teal-500/20 disabled:cursor-not-allowed"
             />
             <span className="ml-3 text-sm text-gray-700">
               {preferenceLabels[option]}

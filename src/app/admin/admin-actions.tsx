@@ -15,7 +15,7 @@ export function ApproveButton({ profileId }: { profileId: string }) {
     <button
       disabled={isPending}
       onClick={() => startTransition(async () => { await approveRegistration(profileId); })}
-      className="rounded-md bg-green-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-600 disabled:opacity-50"
+      className="rounded-md bg-teal-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-teal-500 disabled:opacity-50"
     >
       {isPending ? "..." : "Approve"}
     </button>
@@ -65,7 +65,7 @@ export function ReactivateButton({ profileId }: { profileId: string }) {
     <button
       disabled={isPending}
       onClick={() => startTransition(() => reactivateMember(profileId))}
-      className="rounded-md bg-green-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-600 disabled:opacity-50"
+      className="rounded-md bg-teal-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-teal-500 disabled:opacity-50"
     >
       {isPending ? "..." : "Reactivate"}
     </button>

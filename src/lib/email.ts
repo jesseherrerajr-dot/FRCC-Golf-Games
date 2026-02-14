@@ -35,6 +35,15 @@ export async function sendEmail({ to, cc, replyTo, subject, html }: SendEmailPar
   }
 }
 
+/** Shared email header with FRCC branding */
+function emailHeader(title: string, subtitle?: string) {
+  return `
+    <div style="border-bottom: 3px solid #3d7676; padding-bottom: 16px; margin-bottom: 20px;">
+      <h2 style="font-family: Georgia, 'Times New Roman', serif; color: #1b2a4a; margin: 0 0 4px 0; text-transform: uppercase; letter-spacing: 1px; font-size: 20px;">${title}</h2>
+      ${subtitle ? `<p style="color: #6b7280; font-size: 16px; margin: 0;">${subtitle}</p>` : ""}
+    </div>`;
+}
+
 /**
  * Generate the Monday invite email HTML
  */
@@ -60,15 +69,14 @@ export function generateInviteEmail({
   const rsvpBase = `${siteUrl}/api/rsvp?token=${rsvpToken}`;
 
   const adminNoteHtml = adminNote
-    ? `<div style="background: #eff6ff; border-left: 4px solid #3b82f6; padding: 12px 16px; margin: 16px 0; border-radius: 4px;">
-        <p style="margin: 0; font-size: 14px; color: #1e40af;"><strong>Note from admin:</strong> ${adminNote}</p>
+    ? `<div style="background: #f0f3f7; border-left: 4px solid #3d7676; padding: 12px 16px; margin: 16px 0; border-radius: 4px;">
+        <p style="margin: 0; font-size: 14px; color: #1b2a4a;"><strong>Note from admin:</strong> ${adminNote}</p>
       </div>`
     : "";
 
   return `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
-      <h2 style="color: #15803d; margin-bottom: 4px;">${eventName}</h2>
-      <p style="color: #6b7280; font-size: 16px; margin-top: 0;">${formattedDate}</p>
+      ${emailHeader(eventName, formattedDate)}
 
       <p style="color: #374151;">Hey ${golferName},</p>
       <p style="color: #374151;">Are you playing this Saturday? Tap one of the buttons below to let us know.</p>
@@ -76,13 +84,13 @@ export function generateInviteEmail({
       ${adminNoteHtml}
 
       <div style="margin: 24px 0;">
-        <a href="${rsvpBase}&action=in" style="display: block; background: #15803d; color: white; text-align: center; padding: 14px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px; margin-bottom: 10px;">I'm In</a>
+        <a href="${rsvpBase}&action=in" style="display: block; background: #3d7676; color: white; text-align: center; padding: 14px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px; margin-bottom: 10px;">I'm In</a>
         <a href="${rsvpBase}&action=out" style="display: block; background: white; color: #b91c1c; text-align: center; padding: 14px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px; border: 2px solid #fca5a5; margin-bottom: 10px;">I'm Out</a>
         <a href="${rsvpBase}&action=not_sure" style="display: block; background: white; color: #a16207; text-align: center; padding: 14px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px; border: 2px solid #fcd34d;">Not Sure Yet (ask me Thursday)</a>
       </div>
 
-      <p style="color: #9ca3af; font-size: 12px;">Deadline: Friday at 10:00 AM PT. After that, contact a event admin to change your RSVP.</p>
-      <p style="color: #9ca3af; font-size: 12px;"><a href="${siteUrl}/dashboard" style="color: #15803d;">Go to Dashboard</a></p>
+      <p style="color: #9ca3af; font-size: 12px;">Deadline: Friday at 10:00 AM PT. After that, contact an event admin to change your RSVP.</p>
+      <p style="color: #9ca3af; font-size: 12px;"><a href="${siteUrl}/dashboard" style="color: #3d7676;">Go to Dashboard</a></p>
     </div>
   `;
 }
@@ -115,8 +123,7 @@ export function generateReminderEmail({
 
   return `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
-      <h2 style="color: #15803d; margin-bottom: 4px;">${eventName}</h2>
-      <p style="color: #6b7280; font-size: 16px; margin-top: 0;">${formattedDate}</p>
+      ${emailHeader(eventName, formattedDate)}
 
       <p style="color: #374151;">Hey ${golferName},</p>
       <p style="color: #374151;">We haven't heard from you yet for this Saturday's game. ${
@@ -126,16 +133,16 @@ export function generateReminderEmail({
       }</p>
       <p style="color: #374151;">The RSVP deadline is <strong>tomorrow (Friday) at 10:00 AM PT</strong>.</p>
 
-      ${adminNote ? `<div style="background: #eff6ff; border-left: 4px solid #3b82f6; padding: 12px 16px; margin: 16px 0; border-radius: 4px;">
-        <p style="margin: 0; font-size: 14px; color: #1e40af;"><strong>Note from admin:</strong> ${adminNote}</p>
+      ${adminNote ? `<div style="background: #f0f3f7; border-left: 4px solid #3d7676; padding: 12px 16px; margin: 16px 0; border-radius: 4px;">
+        <p style="margin: 0; font-size: 14px; color: #1b2a4a;"><strong>Note from admin:</strong> ${adminNote}</p>
       </div>` : ""}
 
       <div style="margin: 24px 0;">
-        <a href="${rsvpBase}&action=in" style="display: block; background: #15803d; color: white; text-align: center; padding: 14px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px; margin-bottom: 10px;">I'm In</a>
+        <a href="${rsvpBase}&action=in" style="display: block; background: #3d7676; color: white; text-align: center; padding: 14px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px; margin-bottom: 10px;">I'm In</a>
         <a href="${rsvpBase}&action=out" style="display: block; background: white; color: #b91c1c; text-align: center; padding: 14px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px; border: 2px solid #fca5a5;">I'm Out</a>
       </div>
 
-      <p style="color: #9ca3af; font-size: 12px;"><a href="${siteUrl}/dashboard" style="color: #15803d;">Go to Dashboard</a></p>
+      <p style="color: #9ca3af; font-size: 12px;"><a href="${siteUrl}/dashboard" style="color: #3d7676;">Go to Dashboard</a></p>
     </div>
   `;
 }
@@ -169,13 +176,12 @@ export function generateConfirmationEmail({
 
   return `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
-      <h2 style="color: #15803d; margin-bottom: 4px;">${eventName}</h2>
-      <p style="color: #6b7280; font-size: 16px; margin-top: 0;">${formattedDate} — Registration Confirmation</p>
+      ${emailHeader(eventName, `${formattedDate} — Registration Confirmation`)}
 
       <p style="color: #374151;">The following ${confirmedPlayers.length} players are confirmed for this Saturday:</p>
 
-      ${adminNote ? `<div style="background: #eff6ff; border-left: 4px solid #3b82f6; padding: 12px 16px; margin: 16px 0; border-radius: 4px;">
-        <p style="margin: 0; font-size: 14px; color: #1e40af;"><strong>Note from admin:</strong> ${adminNote}</p>
+      ${adminNote ? `<div style="background: #f0f3f7; border-left: 4px solid #3d7676; padding: 12px 16px; margin: 16px 0; border-radius: 4px;">
+        <p style="margin: 0; font-size: 14px; color: #1b2a4a;"><strong>Note from admin:</strong> ${adminNote}</p>
       </div>` : ""}
 
       <ol style="padding-left: 20px; margin: 16px 0;">
@@ -228,18 +234,17 @@ export function generateProShopEmail({
 
   return `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 640px; margin: 0 auto; padding: 24px;">
-      <h2 style="color: #15803d; margin-bottom: 4px;">${eventName}</h2>
-      <p style="color: #6b7280; font-size: 16px; margin-top: 0;">${formattedDate} — Player Details</p>
+      ${emailHeader(eventName, `${formattedDate} — Player Details`)}
 
       <p style="color: #374151;">${players.length} confirmed players:</p>
 
       <table style="width: 100%; border-collapse: collapse; font-size: 13px; margin: 16px 0;">
         <thead>
-          <tr style="background: #f3f4f6;">
-            <th style="padding: 8px; text-align: left; border-bottom: 2px solid #d1d5db;">Name</th>
-            <th style="padding: 8px; text-align: left; border-bottom: 2px solid #d1d5db;">Email</th>
-            <th style="padding: 8px; text-align: left; border-bottom: 2px solid #d1d5db;">Phone</th>
-            <th style="padding: 8px; text-align: left; border-bottom: 2px solid #d1d5db;">GHIN</th>
+          <tr style="background: #f0f3f7;">
+            <th style="padding: 8px; text-align: left; border-bottom: 2px solid #1b2a4a; color: #1b2a4a; font-family: Georgia, 'Times New Roman', serif; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px;">Name</th>
+            <th style="padding: 8px; text-align: left; border-bottom: 2px solid #1b2a4a; color: #1b2a4a; font-family: Georgia, 'Times New Roman', serif; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px;">Email</th>
+            <th style="padding: 8px; text-align: left; border-bottom: 2px solid #1b2a4a; color: #1b2a4a; font-family: Georgia, 'Times New Roman', serif; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px;">Phone</th>
+            <th style="padding: 8px; text-align: left; border-bottom: 2px solid #1b2a4a; color: #1b2a4a; font-family: Georgia, 'Times New Roman', serif; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px;">GHIN</th>
           </tr>
         </thead>
         <tbody>

@@ -103,9 +103,9 @@ export function GuestRequestForm({ token, remainingSlots }: { token: string; rem
 
   if (success) {
     return (
-      <div className="mt-6 rounded-lg border border-green-200 bg-green-50 p-4">
-        <h3 className="font-semibold text-green-800">Guest Request Submitted</h3>
-        <p className="mt-1 text-sm text-green-700">
+      <div className="mt-6 rounded-lg border border-teal-200 bg-navy-50 p-4">
+        <h3 className="font-semibold text-navy-900">Guest Request Submitted</h3>
+        <p className="mt-1 text-sm text-teal-600">
           Your guest request has been submitted. An admin will review it after the
           Friday cutoff and notify you if approved.
         </p>
@@ -163,7 +163,7 @@ export function GuestRequestForm({ token, remainingSlots }: { token: string; rem
               id="past_guest"
               value={selectedGuestEmail}
               onChange={(e) => handleSelectPastGuest(e.target.value)}
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
+              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
             >
               <option value="">-- Or enter new guest details below --</option>
               {pastGuests.map((guest) => (
@@ -193,7 +193,7 @@ export function GuestRequestForm({ token, remainingSlots }: { token: string; rem
               required
               value={firstName}
               onChange={(e) => setFirstName(e.target.value)}
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
+              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
             />
           </div>
           <div>
@@ -210,7 +210,7 @@ export function GuestRequestForm({ token, remainingSlots }: { token: string; rem
               required
               value={lastName}
               onChange={(e) => setLastName(e.target.value)}
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
+              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
             />
           </div>
         </div>
@@ -229,7 +229,7 @@ export function GuestRequestForm({ token, remainingSlots }: { token: string; rem
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
+            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
           />
         </div>
 
@@ -248,7 +248,7 @@ export function GuestRequestForm({ token, remainingSlots }: { token: string; rem
             value={phone}
             onChange={(e) => setPhone(formatPhone(e.target.value))}
             placeholder="(555) 123-4567"
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
+            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
           />
           <p className="mt-1 text-xs text-gray-400">US 10-digit format</p>
         </div>
@@ -266,7 +266,7 @@ export function GuestRequestForm({ token, remainingSlots }: { token: string; rem
             name="guest_ghin"
             value={ghin}
             onChange={(e) => setGhin(e.target.value)}
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
+            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
           />
         </div>
 
@@ -274,7 +274,7 @@ export function GuestRequestForm({ token, remainingSlots }: { token: string; rem
           <button
             type="submit"
             disabled={loading}
-            className="flex-1 rounded-lg bg-green-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-green-600 disabled:bg-gray-400"
+            className="flex-1 rounded-lg bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-teal-500 disabled:bg-gray-400"
           >
             {loading ? "Submitting..." : "Submit Request"}
           </button>
@@ -313,7 +313,7 @@ export function GuestRequestStatus({
 }) {
   const statusColors: Record<string, string> = {
     pending: "border-yellow-200 bg-yellow-50 text-yellow-700",
-    approved: "border-green-200 bg-green-50 text-green-700",
+    approved: "border-teal-200 bg-navy-50 text-teal-600",
     denied: "border-red-200 bg-red-50 text-red-700",
   };
 

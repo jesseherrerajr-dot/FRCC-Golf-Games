@@ -1,6 +1,7 @@
 import { requireAdmin } from "@/lib/auth";
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import Header from "@/components/header";
 import {
   StatusDropdown,
   PromoteButton,
@@ -20,7 +21,7 @@ const statusLabels: Record<RsvpStatus, string> = {
 };
 
 const statusBadgeColors: Record<RsvpStatus, string> = {
-  in: "bg-green-100 text-green-800",
+  in: "bg-teal-100 text-navy-900",
   out: "bg-red-100 text-red-800",
   not_sure: "bg-yellow-100 text-yellow-800",
   no_response: "bg-gray-100 text-gray-600",
@@ -188,11 +189,11 @@ export default async function AdminRsvpPage({
         <div className="mb-6">
           <Link
             href="/admin"
-            className="text-sm text-green-700 hover:text-green-600"
+            className="text-sm text-teal-600 hover:text-teal-500"
           >
             &larr; Back to Admin Dashboard
           </Link>
-          <h1 className="mt-2 text-2xl font-bold text-green-800">
+          <h1 className="mt-2 text-2xl font-bold text-navy-900">
             RSVP Management
           </h1>
           <p className="mt-1 text-lg text-gray-600">
@@ -212,9 +213,9 @@ export default async function AdminRsvpPage({
 
         {/* Stats */}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-          <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-center">
-            <p className="text-2xl font-bold text-green-700">{inCount}</p>
-            <p className="text-xs text-green-600">Confirmed</p>
+          <div className="rounded-lg border border-teal-200 bg-navy-50 p-3 text-center">
+            <p className="text-2xl font-bold text-teal-600">{inCount}</p>
+            <p className="text-xs text-teal-500">Confirmed</p>
           </div>
           <div className="rounded-lg border border-orange-200 bg-orange-50 p-3 text-center">
             <p className="text-2xl font-bold text-orange-700">
@@ -248,7 +249,7 @@ export default async function AdminRsvpPage({
             </span>
             <span
               className={`font-medium ${
-                spotsRemaining > 0 ? "text-green-600" : "text-red-600"
+                spotsRemaining > 0 ? "text-teal-500" : "text-red-600"
               }`}
             >
               {spotsRemaining > 0
@@ -259,7 +260,7 @@ export default async function AdminRsvpPage({
           <div className="mt-2 h-2.5 w-full overflow-hidden rounded-full bg-gray-200">
             <div
               className={`h-full rounded-full transition-all ${
-                inCount >= capacity ? "bg-red-500" : "bg-green-500"
+                inCount >= capacity ? "bg-red-500" : "bg-teal-500"
               }`}
               style={{
                 width: `${Math.min((inCount / capacity) * 100, 100)}%`,
@@ -270,7 +271,7 @@ export default async function AdminRsvpPage({
 
         {/* Confirmed Players */}
         <section className="mt-8">
-          <h2 className="text-lg font-semibold text-green-800">
+          <h2 className="text-lg font-semibold text-navy-900">
             Confirmed ({inCount})
           </h2>
           {inCount === 0 ? (
@@ -628,7 +629,7 @@ export default async function AdminRsvpPage({
                               scheduleId={scheduleId}
                               action="in"
                               label="Set In"
-                              className="bg-green-700 text-white hover:bg-green-600"
+                              className="bg-teal-600 text-white hover:bg-teal-500"
                             />
                             <StatusDropdown
                               rsvpId={rsvp.id as string}
@@ -692,7 +693,7 @@ export default async function AdminRsvpPage({
                               scheduleId={scheduleId}
                               action="in"
                               label="Set In"
-                              className="bg-green-700 text-white hover:bg-green-600"
+                              className="bg-teal-600 text-white hover:bg-teal-500"
                             />
                             <StatusDropdown
                               rsvpId={rsvp.id as string}
@@ -756,7 +757,7 @@ export default async function AdminRsvpPage({
                               scheduleId={scheduleId}
                               action="in"
                               label="Set In"
-                              className="border border-green-300 text-green-700 hover:bg-green-50"
+                              className="border border-teal-300 text-teal-600 hover:bg-navy-50"
                             />
                             <StatusDropdown
                               rsvpId={rsvp.id as string}

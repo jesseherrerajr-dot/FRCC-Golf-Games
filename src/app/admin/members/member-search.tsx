@@ -73,7 +73,7 @@ export function MemberSearch({
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             placeholder="Search by name, email, or GHIN..."
-            className="block w-full rounded-lg border border-gray-300 px-4 py-2.5 pl-10 text-sm shadow-sm focus:border-green-500 focus:ring-green-500"
+            className="block w-full rounded-lg border border-gray-300 px-4 py-2.5 pl-10 text-sm shadow-sm focus:border-teal-500 focus:ring-teal-500"
           />
           <svg
             className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
@@ -92,7 +92,7 @@ export function MemberSearch({
         <button
           type="submit"
           disabled={isPending}
-          className="rounded-lg bg-green-700 px-4 py-2.5 text-sm font-medium text-white hover:bg-green-600 disabled:opacity-50"
+          className="rounded-lg bg-teal-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-teal-500 disabled:opacity-50"
         >
           Search
         </button>
@@ -120,7 +120,7 @@ export function MemberSearch({
               className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
                 currentStatus === filter.key ||
                 (filter.key === "all" && !currentStatus)
-                  ? "bg-green-700 text-white"
+                  ? "bg-teal-600 text-white"
                   : "bg-gray-100 text-gray-600 hover:bg-gray-200"
               }`}
             >

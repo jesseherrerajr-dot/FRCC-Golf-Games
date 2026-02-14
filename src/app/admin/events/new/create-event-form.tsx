@@ -55,7 +55,7 @@ export function CreateEventForm({
             name="name"
             required
             placeholder="e.g., FRCC Saturday Morning Group"
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
+            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
           />
         </div>
 
@@ -67,7 +67,7 @@ export function CreateEventForm({
             name="description"
             rows={2}
             placeholder="Brief description shown in dashboards and emails"
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
+            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
           />
         </div>
 
@@ -154,7 +154,7 @@ export function CreateEventForm({
                 value={opt.value}
                 checked={durationMode === opt.value}
                 onChange={() => setDurationMode(opt.value)}
-                className="text-green-700 focus:ring-green-500"
+                className="text-teal-600 focus:ring-teal-500"
               />
               {opt.label}
             </label>
@@ -267,7 +267,7 @@ export function CreateEventForm({
         <button
           type="submit"
           disabled={isPending}
-          className="rounded-md bg-green-700 px-6 py-2.5 text-sm font-medium text-white hover:bg-green-600 disabled:opacity-50"
+          className="rounded-md bg-teal-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-teal-500 disabled:opacity-50"
         >
           {isPending ? "Creating Event..." : "Create Event"}
         </button>

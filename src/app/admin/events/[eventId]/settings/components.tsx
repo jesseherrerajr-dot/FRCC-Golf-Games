@@ -52,7 +52,7 @@ export function BasicSettingsForm({ event }: { event: any }) {
             name="name"
             defaultValue={event.name}
             required
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
+            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
           />
         </div>
 
@@ -64,7 +64,7 @@ export function BasicSettingsForm({ event }: { event: any }) {
             name="description"
             defaultValue={event.description || ""}
             rows={2}
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
+            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
           />
         </div>
 
@@ -75,7 +75,7 @@ export function BasicSettingsForm({ event }: { event: any }) {
           <select
             name="frequency"
             defaultValue={event.frequency}
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
+            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
           >
             <option value="weekly">Weekly</option>
             <option value="biweekly">Bi-weekly</option>
@@ -90,7 +90,7 @@ export function BasicSettingsForm({ event }: { event: any }) {
           <select
             name="day_of_week"
             defaultValue={event.day_of_week}
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
+            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
           >
             {DAY_NAMES.map((name, i) => (
               <option key={i} value={i}>
@@ -110,7 +110,7 @@ export function BasicSettingsForm({ event }: { event: any }) {
             min="1"
             defaultValue={event.default_capacity}
             required
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
+            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
           />
         </div>
 
@@ -124,7 +124,7 @@ export function BasicSettingsForm({ event }: { event: any }) {
             min="1"
             defaultValue={event.min_players || ""}
             placeholder="Optional"
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
+            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
           />
           <p className="mt-1 text-xs text-gray-500">
             Triggers a low-response alert if not met by cutoff.
@@ -139,13 +139,13 @@ export function BasicSettingsForm({ event }: { event: any }) {
         <button
           type="submit"
           disabled={isPending}
-          className="rounded-md bg-green-700 px-4 py-2 text-sm font-medium text-white hover:bg-green-600 disabled:opacity-50"
+          className="rounded-md bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-500 disabled:opacity-50"
         >
           {isPending ? "Saving..." : "Save Settings"}
         </button>
         {message && (
           <p
-            className={`text-sm ${message.includes("error") || message.includes("Failed") ? "text-red-600" : "text-green-600"}`}
+            className={`text-sm ${message.includes("error") || message.includes("Failed") ? "text-red-600" : "text-teal-500"}`}
           >
             {message}
           </p>
@@ -176,7 +176,7 @@ function DurationModeSection({ event }: { event: any }) {
               value={opt.value}
               checked={mode === opt.value}
               onChange={() => setMode(opt.value)}
-              className="text-green-700 focus:ring-green-500"
+              className="text-teal-600 focus:ring-teal-500"
             />
             {opt.label}
           </label>
@@ -329,13 +329,13 @@ export function EmailScheduleForm({ event }: { event: any }) {
         <button
           type="submit"
           disabled={isPending}
-          className="rounded-md bg-green-700 px-4 py-2 text-sm font-medium text-white hover:bg-green-600 disabled:opacity-50"
+          className="rounded-md bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-500 disabled:opacity-50"
         >
           {isPending ? "Saving..." : "Save Email Schedule"}
         </button>
         {message && (
           <p
-            className={`text-sm ${message.includes("error") || message.includes("Failed") ? "text-red-600" : "text-green-600"}`}
+            className={`text-sm ${message.includes("error") || message.includes("Failed") ? "text-red-600" : "text-teal-500"}`}
           >
             {message}
           </p>
@@ -486,8 +486,8 @@ function AlertToggle({
       <button
         onClick={toggle}
         disabled={isPending}
-        className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 ${
-          enabled ? "bg-green-600" : "bg-gray-200"
+        className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 ${
+          enabled ? "bg-teal-500" : "bg-gray-200"
         } ${isPending ? "opacity-50" : ""}`}
       >
         <span
@@ -601,7 +601,7 @@ export function ProShopContactsForm({
         <button
           onClick={handleAdd}
           disabled={isPending || !email.trim()}
-          className="rounded-md bg-green-700 px-4 py-2 text-sm font-medium text-white hover:bg-green-600 disabled:opacity-50"
+          className="rounded-md bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-500 disabled:opacity-50"
         >
           {isPending ? "..." : "Add"}
         </button>
@@ -715,7 +715,7 @@ export function AdminAssignmentsForm({
         <button
           onClick={handleAssign}
           disabled={isPending || !selectedGolfer}
-          className="rounded-md bg-green-700 px-4 py-2 text-sm font-medium text-white hover:bg-green-600 disabled:opacity-50"
+          className="rounded-md bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-500 disabled:opacity-50"
         >
           {isPending ? "..." : "Assign"}
         </button>
@@ -754,7 +754,7 @@ function AdminRow({ admin, eventId }: { admin: any; eventId: string }) {
         <span
           className={`ml-2 inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
             admin.role === "primary"
-              ? "bg-green-100 text-green-700"
+              ? "bg-teal-100 text-teal-600"
               : "bg-gray-100 text-gray-600"
           }`}
         >
@@ -821,8 +821,8 @@ export function FeatureFlagsForm({ event }: { event: any }) {
           <button
             onClick={() => handleToggle(flag.key, event[flag.key])}
             disabled={isPending}
-            className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 ${
-              event[flag.key] ? "bg-green-600" : "bg-gray-200"
+            className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 ${
+              event[flag.key] ? "bg-teal-500" : "bg-gray-200"
             } ${isPending ? "opacity-50" : ""}`}
           >
             <span
@@ -885,7 +885,7 @@ export function DangerZone({
         className={`rounded-md px-4 py-2 text-sm font-medium disabled:opacity-50 ${
           isActive
             ? "border border-red-300 text-red-700 hover:bg-red-50"
-            : "bg-green-700 text-white hover:bg-green-600"
+            : "bg-teal-600 text-white hover:bg-teal-500"
         }`}
       >
         {isPending

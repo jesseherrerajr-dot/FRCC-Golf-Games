@@ -1,6 +1,7 @@
 import { requireAdmin } from "@/lib/auth";
 import Link from "next/link";
 import { formatPhoneDisplay } from "@/lib/format";
+import Header from "@/components/header";
 import {
   ApproveButton,
   DenyButton,
@@ -73,21 +74,23 @@ export default async function MemberDirectory({
     allMembers?.filter((m) => m.status === "deactivated").length || 0;
 
   return (
-    <main className="min-h-screen px-4 py-8">
-      <div className="mx-auto max-w-5xl">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-green-800">
-              Member Directory
-            </h1>
+    <>
+      <Header />
+      <main className="min-h-screen px-4 py-8">
+        <div className="mx-auto max-w-5xl">
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-serif uppercase tracking-wide font-bold text-navy-900">
+                Member Directory
+              </h1>
             <p className="text-sm text-gray-500">
               {totalCount} total members
             </p>
           </div>
           <Link
             href="/admin"
-            className="text-sm text-green-700 hover:text-green-600"
+            className="text-sm text-teal-700 hover:text-teal-600"
           >
             ← Back to Admin
           </Link>
@@ -189,6 +192,7 @@ export default async function MemberDirectory({
         </div>
       </div>
     </main>
+    </>
   );
 }
 
@@ -201,7 +205,7 @@ function StatusBadge({
 }) {
   if (isSuperAdmin) {
     return (
-      <span className="inline-flex rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-700">
+      <span className="inline-flex rounded-full bg-navy-100 px-2 py-0.5 text-xs font-medium text-navy-700">
         Super Admin
       </span>
     );
@@ -210,7 +214,7 @@ function StatusBadge({
   switch (status) {
     case "active":
       return (
-        <span className="inline-flex rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
+        <span className="inline-flex rounded-full bg-teal-100 px-2 py-0.5 text-xs font-medium text-teal-700">
           Active
         </span>
       );

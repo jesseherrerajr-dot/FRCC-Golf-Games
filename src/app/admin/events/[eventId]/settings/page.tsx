@@ -72,11 +72,11 @@ export default async function EventSettingsPage({
           <div>
             <Link
               href="/admin"
-              className="text-sm text-green-700 hover:text-green-600"
+              className="text-sm text-teal-600 hover:text-teal-500"
             >
               ← Back to Dashboard
             </Link>
-            <h1 className="mt-1 text-2xl font-bold text-green-800">
+            <h1 className="mt-1 text-2xl font-bold text-navy-900">
               Event Settings
             </h1>
             <p className="text-sm text-gray-500">{event.name}</p>

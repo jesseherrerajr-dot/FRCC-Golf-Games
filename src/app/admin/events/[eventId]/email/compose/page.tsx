@@ -40,14 +40,14 @@ export default async function EmailComposerPage({
       <div className="mx-auto max-w-2xl">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-green-800">
+            <h1 className="text-2xl font-bold text-navy-900">
               Send Email
             </h1>
             <p className="text-sm text-gray-500">{event.name}</p>
           </div>
           <Link
             href={`/admin/events/${eventId}/settings`}
-            className="text-sm text-green-700 hover:text-green-600"
+            className="text-sm text-teal-600 hover:text-teal-500"
           >
             ← Event Settings
           </Link>

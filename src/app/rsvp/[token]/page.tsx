@@ -25,7 +25,7 @@ const statusLabels: Record<RsvpStatus, string> = {
 };
 
 const statusColors: Record<RsvpStatus, string> = {
-  in: "bg-green-100 text-green-800 border-green-200",
+  in: "bg-teal-100 text-teal-800 border-teal-200",
   out: "bg-red-100 text-red-800 border-red-200",
   not_sure: "bg-yellow-100 text-yellow-800 border-yellow-200",
   no_response: "bg-gray-100 text-gray-600 border-gray-200",
@@ -133,7 +133,7 @@ export default async function RsvpPage({
       <div className="w-full max-w-md">
         {/* Header */}
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-green-800">
+          <h1 className="text-2xl font-serif uppercase tracking-wide font-bold text-navy-900">
             {event?.name || "FRCC Golf Games"}
           </h1>
           <p className="mt-1 text-lg text-gray-600">
@@ -146,7 +146,7 @@ export default async function RsvpPage({
 
         {/* Status update confirmation */}
         {updated && (
-          <div className="mt-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-center text-sm text-green-700">
+          <div className="mt-4 rounded-lg border border-teal-200 bg-teal-50 px-4 py-3 text-center text-sm text-teal-700">
             {updated === "waitlisted"
               ? "The game is full — you've been added to the waitlist. We'll let you know if a spot opens up."
               : `Got it! You're marked as "${statusLabels[updated as RsvpStatus] || updated}".`}
@@ -190,8 +190,8 @@ export default async function RsvpPage({
               href={`${baseUrl}&action=in`}
               className={`block w-full rounded-lg px-4 py-3.5 text-center text-base font-semibold shadow-sm transition ${
                 currentStatus === "in"
-                  ? "bg-green-800 text-white"
-                  : "border-2 border-green-700 text-green-700 hover:bg-green-50"
+                  ? "bg-teal-600 text-white"
+                  : "border-2 border-teal-600 text-teal-700 hover:bg-teal-50"
               }`}
             >
               {currentStatus === "in" ? "✓ I'm In" : "I'm In"}
@@ -236,7 +236,7 @@ export default async function RsvpPage({
           <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-gray-200">
             <div
               className={`h-full rounded-full transition-all ${
-                inCount >= capacity ? "bg-red-500" : "bg-green-500"
+                inCount >= capacity ? "bg-red-500" : "bg-teal-500"
               }`}
               style={{ width: `${Math.min((inCount / capacity) * 100, 100)}%` }}
             />
@@ -306,7 +306,7 @@ export default async function RsvpPage({
         <div className="mt-8 text-center">
           <Link
             href="/dashboard"
-            className="text-sm text-green-700 hover:text-green-600"
+            className="text-sm text-teal-700 hover:text-teal-600"
           >
             Go to Dashboard
           </Link>

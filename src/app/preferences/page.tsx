@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import {
   getEvents,
   getActiveMembers,
@@ -124,7 +125,7 @@ export default function PreferencesPage() {
           <p className="text-gray-500">No events available.</p>
           <Link
             href="/dashboard"
-            className="mt-4 inline-block text-sm text-green-700 hover:text-green-600"
+            className="mt-4 inline-block text-sm text-teal-700 hover:text-teal-600"
           >
             &larr; Back to Dashboard
           </Link>
@@ -135,18 +136,18 @@ export default function PreferencesPage() {
 
   return (
     <main className="min-h-screen px-4 py-8">
-      <div className="mx-auto max-w-2xl">
-        {/* Header */}
-        <div className="mb-6">
-          <Link
-            href="/dashboard"
-            className="text-sm text-green-700 hover:text-green-600"
-          >
-            &larr; Back to Dashboard
-          </Link>
-          <h1 className="mt-2 text-2xl font-bold text-green-800">
-            Playing Partner Preferences
-          </h1>
+        <div className="mx-auto max-w-2xl">
+          {/* Header */}
+          <div className="mb-6">
+            <Link
+              href="/dashboard"
+              className="text-sm text-teal-700 hover:text-teal-600"
+            >
+              &larr; Back to Dashboard
+            </Link>
+            <h1 className="mt-2 text-2xl font-serif uppercase tracking-wide font-bold text-navy-900">
+              Playing Partner Preferences
+            </h1>
           <p className="mt-1 text-sm text-gray-500">
             Manage your preferred playing partners for each event.
           </p>
@@ -157,7 +158,7 @@ export default function PreferencesPage() {
           <div
             className={`mb-6 rounded-lg border px-4 py-3 text-sm ${
               message.type === "success"
-                ? "border-green-200 bg-green-50 text-green-700"
+                ? "border-teal-200 bg-navy-50 text-teal-600"
                 : "border-red-200 bg-red-50 text-red-700"
             }`}
           >
@@ -178,7 +179,7 @@ export default function PreferencesPage() {
               id="event"
               value={selectedEvent}
               onChange={(e) => setSelectedEvent(e.target.value)}
-              className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-900 shadow-sm focus:border-green-600 focus:outline-none focus:ring-2 focus:ring-green-600/20"
+              className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-900 shadow-sm focus:border-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-600/20"
             >
               {events.map((event) => (
                 <option key={event.id} value={event.id}>
@@ -225,7 +226,7 @@ export default function PreferencesPage() {
                 }}
                 onFocus={() => setShowDropdown(true)}
                 placeholder="Search by name or email..."
-                className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-green-600 focus:outline-none focus:ring-2 focus:ring-green-600/20"
+                className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-600/20"
               />
 
               {/* Dropdown */}
@@ -289,7 +290,7 @@ export default function PreferencesPage() {
           </p>
         </div>
         )}
-      </div>
-    </main>
+        </div>
+      </main>
   );
 }

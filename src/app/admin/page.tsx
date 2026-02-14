@@ -1,6 +1,7 @@
 import { requireAdmin } from "@/lib/auth";
 import Link from "next/link";
 import { formatPhoneDisplay } from "@/lib/format";
+import Header from "@/components/header";
 import {
   ApproveButton,
   DenyButton,
@@ -99,14 +100,16 @@ export default async function AdminDashboard() {
   const pendingGuestCount = pendingGuestRequests?.length || 0;
 
   return (
-    <main className="min-h-screen px-4 py-8">
-      <div className="mx-auto max-w-4xl">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-green-800">
-              Admin Dashboard
-            </h1>
+    <>
+      <Header />
+      <main className="min-h-screen px-4 py-8">
+        <div className="mx-auto max-w-4xl">
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-serif uppercase tracking-wide font-bold text-navy-900">
+                Admin Dashboard
+              </h1>
             <p className="text-sm text-gray-500">
               {profile.is_super_admin ? "Super Admin" : "Event Admin"} —{" "}
               {profile.first_name} {profile.last_name}
@@ -115,13 +118,13 @@ export default async function AdminDashboard() {
           <div className="flex items-center gap-3">
             <Link
               href="/admin/members"
-              className="text-sm text-green-700 hover:text-green-600"
+              className="text-sm text-teal-700 hover:text-teal-600"
             >
               Members
             </Link>
             <Link
               href="/dashboard"
-              className="text-sm text-green-700 hover:text-green-600"
+              className="text-sm text-teal-700 hover:text-teal-600"
             >
               My Dashboard
             </Link>
@@ -154,7 +157,7 @@ export default async function AdminDashboard() {
         {/* Stats */}
         <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
           <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-            <p className="text-2xl font-bold text-green-700">{activeCount}</p>
+            <p className="text-2xl font-bold text-teal-700">{activeCount}</p>
             <p className="text-sm text-gray-500">Active Members</p>
           </div>
           <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
@@ -300,7 +303,7 @@ export default async function AdminDashboard() {
                         <td className="whitespace-nowrap px-4 py-3 text-right">
                           <Link
                             href={`/admin/rsvp/${schedule.id}`}
-                            className="text-sm text-green-700 hover:text-green-600"
+                            className="text-sm text-teal-700 hover:text-teal-600"
                           >
                             Review →
                           </Link>
@@ -370,7 +373,7 @@ export default async function AdminDashboard() {
                             Super Admin
                           </span>
                         ) : (
-                          <span className="inline-flex rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
+                          <span className="inline-flex rounded-full bg-teal-100 px-2 py-0.5 text-xs font-medium text-teal-600">
                             Golfer
                           </span>
                         )}
@@ -457,7 +460,7 @@ export default async function AdminDashboard() {
                     className={`block rounded-lg border bg-white p-4 shadow-sm transition hover:shadow-md ${
                       isCancelled
                         ? "border-red-200 opacity-60"
-                        : "border-gray-200 hover:border-green-300"
+                        : "border-gray-200 hover:border-teal-300"
                     }`}
                   >
                     <div className="flex items-center justify-between">
@@ -476,7 +479,7 @@ export default async function AdminDashboard() {
                       </div>
                       <div className="flex items-center gap-4 text-right">
                         <div>
-                          <p className="text-lg font-bold text-green-700">
+                          <p className="text-lg font-bold text-teal-700">
                             {game.inCount}/{game.capacity}
                           </p>
                           <p className="text-xs text-gray-500">Confirmed</p>
@@ -519,7 +522,7 @@ export default async function AdminDashboard() {
                           className={`h-full rounded-full ${
                             game.inCount >= game.capacity
                               ? "bg-red-500"
-                              : "bg-green-500"
+                              : "bg-teal-500"
                           }`}
                           style={{
                             width: `${Math.min(
@@ -544,7 +547,7 @@ export default async function AdminDashboard() {
             {profile.is_super_admin && (
               <Link
                 href="/admin/events/new"
-                className="rounded-lg bg-green-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-600"
+                className="rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-500"
               >
                 + Create Event
               </Link>
@@ -600,5 +603,6 @@ export default async function AdminDashboard() {
         </section>
       </div>
     </main>
+    </>
   );
 }

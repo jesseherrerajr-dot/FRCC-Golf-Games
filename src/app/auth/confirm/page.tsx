@@ -11,9 +11,9 @@ export default async function ConfirmPage({
   return (
     <main className="flex min-h-screen flex-col items-center justify-center px-4">
       <div className="w-full max-w-md text-center">
-        <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
+        <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-teal-100">
           <svg
-            className="h-8 w-8 text-green-700"
+            className="h-8 w-8 text-teal-700"
             fill="none"
             viewBox="0 0 24 24"
             strokeWidth={1.5}
@@ -26,7 +26,7 @@ export default async function ConfirmPage({
             />
           </svg>
         </div>
-        <h1 className="text-2xl font-bold text-green-800">Check Your Email</h1>
+        <h1 className="text-2xl font-serif uppercase tracking-wide font-bold text-navy-900">Check Your Email</h1>
         <p className="mt-3 text-gray-600">
           {isLogin
             ? "We sent a magic link to your email address. Click the link to sign in."
@@ -36,7 +36,7 @@ export default async function ConfirmPage({
           Didn&apos;t get it? Check your spam folder or{" "}
           <Link
             href={isLogin ? "/login" : "/join"}
-            className="font-medium text-green-700 hover:text-green-600"
+            className="font-medium text-teal-700 hover:text-teal-600"
           >
             try again
           </Link>

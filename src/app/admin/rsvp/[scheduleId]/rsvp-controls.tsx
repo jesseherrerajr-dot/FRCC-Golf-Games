@@ -44,7 +44,7 @@ export function StatusDropdown({
       value={currentStatus}
       onChange={handleChange}
       disabled={isPending}
-      className="rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs font-medium text-gray-700 shadow-sm focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500 disabled:opacity-50"
+      className="rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs font-medium text-gray-700 shadow-sm focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:opacity-50"
     >
       {statusOptions.map((opt) => (
         <option key={opt.value} value={opt.value}>
@@ -81,7 +81,7 @@ export function PromoteButton({
     <button
       onClick={handleClick}
       disabled={isPending}
-      className="rounded-md bg-green-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-600 disabled:opacity-50"
+      className="rounded-md bg-teal-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-teal-500 disabled:opacity-50"
     >
       {isPending ? "..." : "Move to In"}
     </button>

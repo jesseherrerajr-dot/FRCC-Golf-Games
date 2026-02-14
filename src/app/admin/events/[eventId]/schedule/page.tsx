@@ -82,18 +82,18 @@ export default async function ScheduleManagementPage({
           <div>
             <Link
               href={`/admin/events/${eventId}/settings`}
-              className="text-sm text-green-700 hover:text-green-600"
+              className="text-sm text-teal-600 hover:text-teal-500"
             >
               ← Event Settings
             </Link>
-            <h1 className="mt-1 text-2xl font-bold text-green-800">
+            <h1 className="mt-1 text-2xl font-bold text-navy-900">
               Schedule Management
             </h1>
             <p className="text-sm text-gray-500">{event.name}</p>
           </div>
           <Link
             href="/admin"
-            className="text-sm text-green-700 hover:text-green-600"
+            className="text-sm text-teal-600 hover:text-teal-500"
           >
             Dashboard
           </Link>

@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { login, type LoginFormState } from "./actions";
 import Link from "next/link";
+import Image from "next/image";
 
 const initialState: LoginFormState = {};
 
@@ -14,8 +15,15 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         {/* Header */}
         <div className="mb-8 text-center">
-          <Link href="/" className="text-green-800 hover:text-green-700">
-            <h1 className="text-3xl font-bold tracking-tight">
+          <Link href="/" className="inline-block">
+            <Image
+              src="/logo.png"
+              alt="Fairbanks Ranch Country Club"
+              width={64}
+              height={64}
+              className="mx-auto mb-4 h-16 w-16 object-contain"
+            />
+            <h1 className="font-serif text-3xl font-bold uppercase tracking-wide text-navy-900">
               FRCC Golf Games
             </h1>
           </Link>
@@ -49,7 +57,7 @@ export default function LoginPage() {
               required
               autoComplete="email"
               autoFocus
-              className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-green-600 focus:outline-none focus:ring-2 focus:ring-green-600/20"
+              className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-600/20"
               placeholder="you@example.com"
             />
           </div>
@@ -58,7 +66,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={isPending}
-            className="w-full rounded-lg bg-green-700 px-4 py-3 text-base font-semibold text-white shadow-sm hover:bg-green-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-700 disabled:cursor-not-allowed disabled:opacity-60"
+            className="w-full rounded-lg bg-teal-600 px-4 py-3 text-base font-semibold text-white shadow-sm transition-colors hover:bg-teal-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isPending ? "Sending Magic Link..." : "Send Magic Link"}
           </button>
@@ -67,7 +75,7 @@ export default function LoginPage() {
         {/* Footer link */}
         <p className="mt-6 text-center text-sm text-gray-500">
           Not a member yet?{" "}
-          <Link href="/join" className="font-medium text-green-700 hover:text-green-600">
+          <Link href="/join" className="font-medium text-teal-700 hover:text-teal-600">
             Join the Group
           </Link>
         </p>
