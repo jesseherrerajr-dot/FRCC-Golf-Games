@@ -37,11 +37,13 @@ import { sendAdminAlert } from "@/lib/admin-alerts";
  *
  * Query params:
  *   ?test=true — dry run, logs but doesn't send emails
- *   ?type=invite|reminder|golfer_confirmation|pro_shop_detail — test specific email type
+ *   ?force=true — bypass time window check (sends immediately, still requires auth)
+ *   ?type=invite|reminder|golfer_confirmation|pro_shop_detail — filter to specific email type
  */
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const isTest = searchParams.get("test") === "true";
+  const isForce = searchParams.get("force") === "true";
   const testType = searchParams.get("type");
 
   // Verify cron secret if set (for production security)
@@ -53,7 +55,7 @@ export async function GET(request: Request) {
     }
   }
 
-  console.log("Email scheduler cron triggered", { isTest, testType });
+  console.log("Email scheduler cron triggered", { isTest, isForce, testType });
 
   try {
     const supabase = createAdminClient();
@@ -117,7 +119,7 @@ export async function GET(request: Request) {
           emailSchedule.send_time
         );
 
-        if (!withinWindow && !isTest) {
+        if (!withinWindow && !isTest && !isForce) {
           console.log(
             `Skipping ${emailSchedule.email_type} (priority ${emailSchedule.priority_order}) for ${event.name} - ` +
               `not time yet (scheduled for ${sendDateStr} ${emailSchedule.send_time} PT, ` +
