@@ -42,6 +42,32 @@ export async function approveRegistration(profileId: string) {
     return { error: "Failed to approve registration." };
   }
 
+  // Auto-subscribe the newly approved golfer to all active events
+  const { data: activeEvents } = await supabase
+    .from("events")
+    .select("id")
+    .eq("is_active", true);
+
+  if (activeEvents && activeEvents.length > 0) {
+    const subscriptions = activeEvents.map((event) => ({
+      event_id: event.id,
+      profile_id: profileId,
+      is_active: true,
+    }));
+
+    const { error: subError } = await supabase
+      .from("event_subscriptions")
+      .upsert(subscriptions, {
+        onConflict: "event_id,profile_id",
+        ignoreDuplicates: true,
+      });
+
+    if (subError) {
+      console.error("Auto-subscribe error:", subError);
+      // Don't fail the approval — the golfer is active, just not subscribed
+    }
+  }
+
   revalidatePath("/admin");
   return { success: true };
 }
@@ -157,6 +183,28 @@ export async function reactivateMember(profileId: string) {
   if (error) {
     console.error("Reactivate error:", error);
     return { error: "Failed to reactivate member." };
+  }
+
+  // Re-subscribe to all active events
+  const { data: activeEvents } = await supabase
+    .from("events")
+    .select("id")
+    .eq("is_active", true);
+
+  if (activeEvents && activeEvents.length > 0) {
+    // Reactivate existing subscriptions
+    for (const event of activeEvents) {
+      await supabase
+        .from("event_subscriptions")
+        .upsert(
+          {
+            event_id: event.id,
+            profile_id: profileId,
+            is_active: true,
+          },
+          { onConflict: "event_id,profile_id" }
+        );
+    }
   }
 
   revalidatePath("/admin");
