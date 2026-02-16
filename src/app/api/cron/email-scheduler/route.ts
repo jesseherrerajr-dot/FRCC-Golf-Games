@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient, ensureSchedule, ensureRsvps } from "@/lib/schedule";
 import {
   sendEmail,
+  rateLimitDelay,
   generateInviteEmail,
   generateReminderEmail,
   generateConfirmationEmail,
@@ -283,6 +284,7 @@ async function handleInviteEmails(
           subject: `${event.name}: ${formatGameDate(gameDateString)} — Are You In?`,
           html,
         });
+        await rateLimitDelay();
       }
 
       console.log(
@@ -423,6 +425,7 @@ async function handleReminderEmails(
           subject: `${event.name}: ${formatGameDate(gameDateString)} — ${priorityOrder === 1 ? "Last Chance to RSVP" : "Final Reminder"}`,
           html,
         });
+        await rateLimitDelay();
       }
 
       console.log(

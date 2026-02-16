@@ -4,6 +4,13 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 
 const FROM_EMAIL = process.env.FROM_EMAIL || "onboarding@resend.dev";
 
+/**
+ * Delay helper to stay under Resend's 2 req/s rate limit.
+ * Call between consecutive sendEmail() calls in loops.
+ */
+export const rateLimitDelay = () =>
+  new Promise((resolve) => setTimeout(resolve, 600));
+
 type SendEmailParams = {
   to: string | string[];
   cc?: string | string[];
