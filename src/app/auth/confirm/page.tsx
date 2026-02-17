@@ -32,7 +32,18 @@ export default async function ConfirmPage({
             ? "We sent a magic link to your email address. Click the link to sign in."
             : "We sent a magic link to your email address. Click the link to finish joining FRCC Golf Games."}
         </p>
-        <p className="mt-2 text-sm text-gray-400">
+
+        <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-left text-sm text-gray-600">
+          <p className="font-medium text-gray-700">Tip for mobile users:</p>
+          <p className="mt-1">
+            When you get the email, open the magic link in the same browser
+            you&apos;re using now (Safari, Chrome, etc.). If your email app opens
+            it in a built-in browser, long-press the link and choose
+            &quot;Open in Safari&quot; or &quot;Open in Chrome&quot; instead.
+          </p>
+        </div>
+
+        <p className="mt-3 text-sm text-gray-400">
           Didn&apos;t get it? Check your spam folder or{" "}
           <Link
             href={isLogin ? "/login" : "/join"}

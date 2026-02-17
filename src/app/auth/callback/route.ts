@@ -51,8 +51,15 @@ export async function GET(request: Request) {
 
       return NextResponse.redirect(`${origin}${next}`);
     }
+
+    // Code exchange failed — most likely the magic link was opened
+    // in a different browser (e.g., email app's in-app browser)
+    console.error("Code exchange failed:", error);
+    return NextResponse.redirect(
+      `${origin}/auth/link-error`
+    );
   }
 
-  // If something went wrong, redirect to an error page or home
+  // No code parameter at all
   return NextResponse.redirect(`${origin}/?error=auth`);
 }
