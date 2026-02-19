@@ -81,8 +81,8 @@ export async function verifyJoinOtp(
   const email = formData.get("email") as string;
   const token = formData.get("otp") as string;
 
-  if (!token?.trim() || token.trim().length !== 6) {
-    return { error: "Please enter the 6-digit code from your email.", step: "otp", email };
+  if (!token?.trim()) {
+    return { error: "Please enter the code from your email.", step: "otp", email };
   }
 
   const supabase = await createClient();

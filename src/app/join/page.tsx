@@ -51,7 +51,7 @@ export default function JoinPage() {
           <h2 className="mt-2 text-xl text-gray-600">Join the Group</h2>
           <p className="mt-1 text-sm text-gray-500">
             {showOtp
-              ? "Enter the 6-digit code we sent to your email."
+              ? "Enter the code we sent to your email."
               : "Sign up to get weekly invites and track your rounds."}
           </p>
         </div>
@@ -165,7 +165,7 @@ export default function JoinPage() {
           /* Step 2: OTP code input */
           <div>
             <div className="mb-5 rounded-lg border border-teal-200 bg-teal-50 px-4 py-3 text-sm text-teal-800">
-              We sent a 6-digit code to <strong>{email}</strong>. Check your inbox (and spam folder).
+              We sent a verification code to <strong>{email}</strong>. Check your inbox (and spam folder).
             </div>
 
             <form action={otpAction} className="space-y-5">
@@ -184,7 +184,7 @@ export default function JoinPage() {
                   type="text"
                   inputMode="numeric"
                   pattern="[0-9]*"
-                  maxLength={6}
+                  maxLength={8}
                   required
                   autoFocus
                   autoComplete="one-time-code"
