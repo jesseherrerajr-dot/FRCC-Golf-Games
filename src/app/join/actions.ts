@@ -6,6 +6,8 @@ import { redirect } from "next/navigation";
 export type JoinFormState = {
   error?: string;
   success?: boolean;
+  step?: "form" | "otp";
+  email?: string;
 };
 
 /** Strip phone to digits only and validate it's 10 digits */
@@ -32,19 +34,19 @@ export async function joinGroup(
     !phoneRaw?.trim() ||
     !ghin?.trim()
   ) {
-    return { error: "All fields are required." };
+    return { error: "All fields are required.", step: "form" };
   }
 
   // Validate phone is exactly 10 US digits
   const phone = validatePhone(phoneRaw);
   if (!phone.valid) {
-    return { error: "Please enter a valid 10-digit US phone number." };
+    return { error: "Please enter a valid 10-digit US phone number.", step: "form" };
   }
 
   // Basic email format check
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(email.trim())) {
-    return { error: "Please enter a valid email address." };
+    return { error: "Please enter a valid email address.", step: "form" };
   }
 
   const supabase = await createClient();
@@ -66,9 +68,35 @@ export async function joinGroup(
 
   if (authError) {
     console.error("Auth error:", authError);
-    return { error: "Something went wrong. Please try again." };
+    return { error: "Something went wrong. Please try again.", step: "form" };
   }
 
-  // Redirect to confirmation page
-  redirect("/auth/confirm");
+  return { success: true, step: "otp", email: email.trim().toLowerCase() };
+}
+
+export async function verifyJoinOtp(
+  _prevState: JoinFormState,
+  formData: FormData
+): Promise<JoinFormState> {
+  const email = formData.get("email") as string;
+  const token = formData.get("otp") as string;
+
+  if (!token?.trim() || token.trim().length !== 6) {
+    return { error: "Please enter the 6-digit code from your email.", step: "otp", email };
+  }
+
+  const supabase = await createClient();
+
+  const { error } = await supabase.auth.verifyOtp({
+    email,
+    token: token.trim(),
+    type: "email",
+  });
+
+  if (error) {
+    console.error("OTP verification error:", error);
+    return { error: "Invalid or expired code. Please try again or request a new one.", step: "otp", email };
+  }
+
+  redirect("/dashboard");
 }

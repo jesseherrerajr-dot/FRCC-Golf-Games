@@ -6,6 +6,8 @@ import { redirect } from "next/navigation";
 export type LoginFormState = {
   error?: string;
   success?: boolean;
+  step?: "email" | "otp";
+  email?: string;
 };
 
 export async function login(
@@ -15,12 +17,12 @@ export async function login(
   const email = formData.get("email") as string;
 
   if (!email?.trim()) {
-    return { error: "Please enter your email address." };
+    return { error: "Please enter your email address.", step: "email" };
   }
 
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(email.trim())) {
-    return { error: "Please enter a valid email address." };
+    return { error: "Please enter a valid email address.", step: "email" };
   }
 
   const supabase = await createClient();
@@ -35,9 +37,35 @@ export async function login(
 
   if (authError) {
     console.error("Login error:", authError);
-    // Don't reveal whether the email exists or not
-    return { error: "If that email is registered, you'll receive a magic link shortly." };
+    return { error: "If that email is registered, you'll receive a sign-in code shortly.", step: "email" };
   }
 
-  redirect("/auth/confirm?type=login");
+  return { success: true, step: "otp", email: email.trim().toLowerCase() };
+}
+
+export async function verifyLoginOtp(
+  _prevState: LoginFormState,
+  formData: FormData
+): Promise<LoginFormState> {
+  const email = formData.get("email") as string;
+  const token = formData.get("otp") as string;
+
+  if (!token?.trim() || token.trim().length !== 6) {
+    return { error: "Please enter the 6-digit code from your email.", step: "otp", email };
+  }
+
+  const supabase = await createClient();
+
+  const { error } = await supabase.auth.verifyOtp({
+    email,
+    token: token.trim(),
+    type: "email",
+  });
+
+  if (error) {
+    console.error("OTP verification error:", error);
+    return { error: "Invalid or expired code. Please try again or request a new one.", step: "otp", email };
+  }
+
+  redirect("/dashboard");
 }
