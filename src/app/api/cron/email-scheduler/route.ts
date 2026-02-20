@@ -24,12 +24,16 @@ import { sendAdminAlert } from "@/lib/admin-alerts";
  *
  * Vercel Hobby plan: each cron fires once per day at a fixed UTC time.
  * Current cron entries (all times target Pacific Time send windows):
- *   - Monday  18:00 UTC → invite emails      (10am PT)
- *   - Thursday 18:00 UTC → reminder emails    (10am PT)
- *   - Friday  18:00 UTC → cutoff processing   (10am PT)
- *   - Friday  21:00 UTC → confirmation emails (1pm PT)
+ *   - Monday   18:00 UTC → invite emails           (10:00am PT)
+ *   - Thursday 18:00 UTC → reminder emails          (10:00am PT)
+ *   - Friday   17:30 UTC → golfer confirmation      ( 9:30am PT)
+ *   - Friday   19:00 UTC → pro shop detail          (11:00am PT)
  *
- * The isWithinSendWindow() function uses a forward-only 2-hour window to
+ * IMPORTANT: If admin email schedule times are changed via the settings UI,
+ * the cron entries in vercel.json must also be updated to fire at or shortly
+ * after the new scheduled times, then redeployed.
+ *
+ * The isWithinSendWindow() function uses a forward-only 3-hour window to
  * account for Vercel timing imprecision (~1hr) and DST shifts (±1hr).
  * Duplicate sends are prevented by "already sent" flags on each schedule.
  *

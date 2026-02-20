@@ -128,21 +128,22 @@ export function getUpcomingGameDatePacific(dayOfWeek: number): string {
  * decide whether to fire.
  *
  * Forward-only means we only match AFTER the scheduled time (not before).
- * The 2-hour default window accounts for:
+ * The 3-hour default window accounts for:
  *   - Vercel Hobby plan timing imprecision (~up to 1 hour late)
  *   - DST shifts (crons are in UTC; Pacific Time shifts ±1 hour seasonally)
+ *   - Small gaps between cron fire times and configured email send times
  * Duplicate sends are prevented by the "already sent" flags on each schedule
  * (invite_sent, reminder_sent, etc.), not by this window.
  *
  * @param sendDateString - YYYY-MM-DD of the scheduled send date
  * @param sendTime - HH:MM in Pacific Time (e.g., "10:00")
- * @param windowHours - How many hours AFTER the scheduled time to match (default 2)
+ * @param windowHours - How many hours AFTER the scheduled time to match (default 3)
  * @returns true if current Pacific Time is at/after send time and within the window
  */
 export function isWithinSendWindow(
   sendDateString: string,
   sendTime: string,
-  windowHours: number = 2
+  windowHours: number = 3
 ): boolean {
   const now = getNowPacific();
   const [sendHour, sendMinute] = sendTime.split(":").map(Number);
