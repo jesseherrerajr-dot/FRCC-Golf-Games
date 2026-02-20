@@ -247,11 +247,16 @@ async function syncEmailSchedules(
     }
   }
 
-  // Upsert confirmation emails
-  const confirmDay = parseInt(formData.get("confirmation_day") as string);
-  const confirmTime = formData.get("confirmation_time") as string;
-  if (!isNaN(confirmDay) && confirmTime) {
-    const offset = calcOffset(confirmDay);
+  // Upsert golfer confirmation: 30 minutes after cutoff time
+  const cutoffDayVal = parseInt(formData.get("cutoff_day") as string);
+  const cutoffTimeVal = formData.get("cutoff_time") as string;
+  if (!isNaN(cutoffDayVal) && cutoffTimeVal) {
+    const golferConfirmTime = addMinutesToTime(cutoffTimeVal, 30);
+    // If adding 30 min crosses midnight, the day shifts forward by 1
+    const golferConfirmDay =
+      golferConfirmTime < cutoffTimeVal ? ((cutoffDayVal + 1) % 7) : cutoffDayVal;
+    const golferOffset = calcOffset(golferConfirmDay);
+
     await supabase
       .from("email_schedules")
       .upsert(
@@ -259,13 +264,19 @@ async function syncEmailSchedules(
           event_id: eventId,
           email_type: "golfer_confirmation",
           priority_order: 1,
-          send_day_offset: offset,
-          send_time: confirmTime,
+          send_day_offset: golferOffset,
+          send_time: golferConfirmTime,
           is_enabled: true,
         },
         { onConflict: "event_id,email_type,priority_order" }
       );
+  }
 
+  // Upsert pro shop detail email at the admin-configured confirmation time
+  const confirmDay = parseInt(formData.get("confirmation_day") as string);
+  const confirmTime = formData.get("confirmation_time") as string;
+  if (!isNaN(confirmDay) && confirmTime) {
+    const offset = calcOffset(confirmDay);
     await supabase
       .from("email_schedules")
       .upsert(
@@ -477,6 +488,15 @@ export async function deactivateEvent(eventId: string) {
     console.error("Deactivate event error:", error);
     return { error: "Failed to deactivate event" };
   }
+}
+
+// Helper: add minutes to a "HH:MM" time string, returns "HH:MM"
+function addMinutesToTime(time: string, minutes: number): string {
+  const [h, m] = time.split(":").map(Number);
+  const totalMinutes = h * 60 + m + minutes;
+  const newH = Math.floor(totalMinutes / 60) % 24;
+  const newM = totalMinutes % 60;
+  return `${String(newH).padStart(2, "0")}:${String(newM).padStart(2, "0")}`;
 }
 
 export async function reactivateEvent(eventId: string) {

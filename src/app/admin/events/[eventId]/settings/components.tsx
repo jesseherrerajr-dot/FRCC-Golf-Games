@@ -315,10 +315,14 @@ export function EmailScheduleForm({ event }: { event: any }) {
         dayDefault={event.cutoff_day}
         timeDefault={event.cutoff_time?.slice(0, 5)}
       />
+      <p className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700">
+        A golfer confirmation email will be sent automatically 30 minutes after the cutoff time.
+        Pro shop contacts are CC&apos;d on this email for early visibility.
+      </p>
 
-      {/* Confirmation */}
+      {/* Pro Shop Detail Email */}
       <DayTimeRow
-        label="Send Confirmation"
+        label="Send Pro Shop Detail Email"
         dayName="confirmation_day"
         timeName="confirmation_time"
         dayDefault={event.confirmation_day}
