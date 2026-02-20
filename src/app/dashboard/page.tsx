@@ -60,7 +60,7 @@ export default async function DashboardPage() {
          event:events(id, name, default_capacity)
        )`
     )
-    .eq("golfer_id", user.id)
+    .eq("profile_id", user.id)
     .order("created_at", { ascending: true });
 
   // Filter to upcoming games only and sort by date
