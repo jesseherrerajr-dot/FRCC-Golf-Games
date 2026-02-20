@@ -5,7 +5,7 @@ import {
   ensureSchedule,
   ensureRsvps,
 } from "@/lib/schedule";
-import { sendEmail, generateInviteEmail } from "@/lib/email";
+import { sendEmail, generateInviteEmail, sendAdminSummaryEmail, rateLimitDelay } from "@/lib/email";
 
 /**
  * Monday Invite Cron
@@ -71,6 +71,7 @@ export async function GET(request: Request) {
 
     // Send invite to each golfer
     let sentCount = 0;
+    const sentNames: string[] = [];
     for (const rsvp of rsvps) {
       const profile = rsvp.profile as {
         first_name: string;
@@ -89,13 +90,18 @@ export async function GET(request: Request) {
 
       if (isTest) {
         console.log(`[TEST] Would send invite to ${profile.email}`);
+        sentNames.push(`${profile.first_name} ${profile.last_name}`);
       } else {
         const result = await sendEmail({
           to: profile.email,
           subject: `${event.name}: ${new Date(schedule.game_date + "T12:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric" })} — Are You In?`,
           html,
         });
-        if (result.success) sentCount++;
+        if (result.success) {
+          sentCount++;
+          sentNames.push(`${profile.first_name} ${profile.last_name}`);
+        }
+        await rateLimitDelay();
       }
     }
 
@@ -113,6 +119,16 @@ export async function GET(request: Request) {
         email_type: "invite",
         subject: `${event.name}: Weekly Invite`,
         recipient_count: sentCount,
+      });
+
+      // Send admin summary
+      await sendAdminSummaryEmail({
+        eventId: event.id,
+        eventName: event.name,
+        gameDate: schedule.game_date,
+        emailType: "invite",
+        recipientNames: sentNames,
+        totalSent: sentCount,
       });
     }
 

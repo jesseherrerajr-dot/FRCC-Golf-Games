@@ -4,6 +4,33 @@ import Link from "next/link";
 import { formatPhoneDisplay } from "@/lib/format";
 import Header from "@/components/header";
 
+type RsvpStatus = "in" | "out" | "not_sure" | "no_response" | "waitlisted";
+
+const statusLabels: Record<RsvpStatus, string> = {
+  in: "I'm In",
+  out: "I'm Out",
+  not_sure: "Not Sure Yet",
+  no_response: "No Response",
+  waitlisted: "Waitlisted",
+};
+
+const statusStyles: Record<RsvpStatus, string> = {
+  in: "bg-teal-100 text-teal-800 border-teal-200",
+  out: "bg-red-100 text-red-800 border-red-200",
+  not_sure: "bg-yellow-100 text-yellow-800 border-yellow-200",
+  no_response: "bg-gray-100 text-gray-600 border-gray-200",
+  waitlisted: "bg-orange-100 text-orange-800 border-orange-200",
+};
+
+function formatGameDate(dateStr: string): string {
+  const date = new Date(dateStr + "T12:00:00");
+  return date.toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+}
+
 export default async function DashboardPage() {
   const supabase = await createClient();
   const {
@@ -21,6 +48,32 @@ export default async function DashboardPage() {
     .select("*")
     .eq("id", user.id)
     .single();
+
+  // Fetch upcoming RSVPs for this user (games today or in the future)
+  const today = new Date().toISOString().split("T")[0];
+  const { data: upcomingRsvps } = await supabase
+    .from("rsvps")
+    .select(
+      `id, token, status, waitlist_position,
+       schedule:event_schedules(
+         id, game_date, capacity, status,
+         event:events(id, name, default_capacity)
+       )`
+    )
+    .eq("golfer_id", user.id)
+    .order("created_at", { ascending: true });
+
+  // Filter to upcoming games only and sort by date
+  const upcoming = (upcomingRsvps || [])
+    .filter((rsvp: Record<string, unknown>) => {
+      const schedule = rsvp.schedule as { game_date: string; status: string } | null;
+      return schedule && schedule.game_date >= today && schedule.status !== "cancelled";
+    })
+    .sort((a: Record<string, unknown>, b: Record<string, unknown>) => {
+      const dateA = (a.schedule as { game_date: string })?.game_date || "";
+      const dateB = (b.schedule as { game_date: string })?.game_date || "";
+      return dateA.localeCompare(dateB);
+    });
 
   return (
     <>
@@ -55,6 +108,79 @@ export default async function DashboardPage() {
               </div>
             )}
           </div>
+
+          {/* Upcoming Games & RSVPs */}
+          {upcoming.length > 0 && (
+            <div className="mt-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+              <h3 className="font-serif text-lg font-semibold uppercase tracking-wide text-navy-900">
+                Upcoming Games
+              </h3>
+              <div className="mt-3 space-y-3">
+                {upcoming.map((rsvp: Record<string, unknown>) => {
+                  const schedule = rsvp.schedule as {
+                    game_date: string;
+                    capacity: number | null;
+                    event: { id: string; name: string; default_capacity: number } | null;
+                  };
+                  const event = schedule?.event;
+                  const status = rsvp.status as RsvpStatus;
+                  const token = rsvp.token as string;
+
+                  return (
+                    <Link
+                      key={rsvp.id as string}
+                      href={`/rsvp/${token}`}
+                      className="flex items-center justify-between rounded-lg border border-gray-100 bg-gray-50 p-4 transition-colors hover:bg-gray-100"
+                    >
+                      <div>
+                        <p className="font-semibold text-gray-900">
+                          {event?.name || "Game"}
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          {formatGameDate(schedule.game_date)}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`inline-block rounded-full border px-3 py-1 text-xs font-semibold ${statusStyles[status]}`}
+                        >
+                          {statusLabels[status]}
+                        </span>
+                        <svg
+                          className="h-4 w-4 text-gray-400"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          strokeWidth={2}
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M8.25 4.5l7.5 7.5-7.5 7.5"
+                          />
+                        </svg>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+              <p className="mt-3 text-xs text-gray-400">
+                Tap any game to view details or change your response.
+              </p>
+            </div>
+          )}
+
+          {upcoming.length === 0 && profile?.status === "active" && (
+            <div className="mt-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+              <h3 className="font-serif text-lg font-semibold uppercase tracking-wide text-navy-900">
+                Upcoming Games
+              </h3>
+              <p className="mt-2 text-sm text-gray-500">
+                No upcoming games right now. You&apos;ll see your RSVPs here once
+                the next invite goes out.
+              </p>
+            </div>
+          )}
 
           {/* Profile summary */}
           {profile && (
@@ -91,12 +217,6 @@ export default async function DashboardPage() {
                   <dt className="text-gray-500">GHIN</dt>
                   <dd className="font-medium text-gray-900">
                     {profile.ghin_number || "Not set"}
-                  </dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-gray-500">Status</dt>
-                  <dd className="font-medium text-gray-900 capitalize">
-                    {profile.status?.replace(/_/g, " ")}
                   </dd>
                 </div>
               </dl>

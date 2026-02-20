@@ -4,6 +4,7 @@ import {
   sendEmail,
   generateConfirmationEmail,
   generateProShopEmail,
+  sendAdminSummaryEmail,
 } from "@/lib/email";
 import { getTodayPacific, getDateOffsetPacific } from "@/lib/timezone";
 
@@ -215,6 +216,24 @@ export async function GET(request: Request) {
             ]
           : []),
       ]);
+
+      // Send admin summary
+      const confirmedNames = allPlayers.map((p) =>
+        p.is_guest
+          ? `${p.first_name} ${p.last_name} (Guest of ${(p as Record<string, unknown>).sponsor_name || "Member"})`
+          : `${p.first_name} ${p.last_name}`
+      );
+      await sendAdminSummaryEmail({
+        eventId: event.id,
+        eventName: event.name,
+        gameDate: schedule.game_date,
+        emailType: "confirmation",
+        recipientNames: confirmedNames,
+        totalSent: golferEmails.length,
+        additionalInfo: proShopEmails.length > 0
+          ? `Pro shop detail email also sent to ${proShopEmails.length} pro shop contact${proShopEmails.length !== 1 ? "s" : ""}.`
+          : undefined,
+      });
     }
 
     results.push({

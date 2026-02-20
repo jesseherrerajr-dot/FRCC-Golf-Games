@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/schedule";
-import { sendEmail, generateReminderEmail } from "@/lib/email";
+import { sendEmail, generateReminderEmail, sendAdminSummaryEmail, rateLimitDelay } from "@/lib/email";
 import { getTodayPacific, getDateOffsetPacific } from "@/lib/timezone";
 
 /**
@@ -49,7 +49,7 @@ export async function GET(request: Request) {
     // Get RSVPs that need reminders: no_response or not_sure
     const { data: rsvps } = await supabase
       .from("rsvps")
-      .select("*, profile:profiles(id, first_name, last_name, email)")
+      .select("*, profile:profiles(id, first_name, last_name, email, phone)")
       .eq("schedule_id", schedule.id)
       .in("status", ["no_response", "not_sure"]);
 
@@ -73,9 +73,12 @@ export async function GET(request: Request) {
     const spotsRemaining = Math.max(0, capacity - (inCount || 0));
 
     let sentCount = 0;
+    const sentNames: string[] = [];
+    const rsvpStatuses: string[] = [];
     for (const rsvp of rsvps) {
       const profile = rsvp.profile as {
         first_name: string;
+        last_name?: string;
         email: string;
       };
       if (!profile?.email) continue;
@@ -89,15 +92,23 @@ export async function GET(request: Request) {
         spotsRemaining,
       });
 
+      const displayName = `${profile.first_name} ${profile.last_name || ""}`.trim();
+      const statusLabel = rsvp.status === "not_sure" ? "Not Sure" : "No Response";
+
       if (isTest) {
         console.log(`[TEST] Would send reminder to ${profile.email}`);
+        sentNames.push(`${displayName} (${statusLabel})`);
       } else {
         const result = await sendEmail({
           to: profile.email,
           subject: `${event.name}: ${new Date(schedule.game_date + "T12:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric" })} — Last Chance to RSVP`,
           html,
         });
-        if (result.success) sentCount++;
+        if (result.success) {
+          sentCount++;
+          sentNames.push(`${displayName} (${statusLabel})`);
+        }
+        await rateLimitDelay();
       }
     }
 
@@ -113,6 +124,17 @@ export async function GET(request: Request) {
         email_type: "reminder",
         subject: `${event.name}: Reminder`,
         recipient_count: sentCount,
+      });
+
+      // Send admin summary with who got reminded and why
+      await sendAdminSummaryEmail({
+        eventId: event.id,
+        eventName: event.name,
+        gameDate: schedule.game_date,
+        emailType: "reminder",
+        recipientNames: sentNames,
+        totalSent: sentCount,
+        additionalInfo: `${spotsRemaining} spot${spotsRemaining !== 1 ? "s" : ""} still available. Reminders sent to golfers who had not responded or said "Not Sure."`,
       });
     }
 
