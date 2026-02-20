@@ -26,7 +26,7 @@ type PastGuest = {
   guest_ghin_number: string;
 };
 
-export function GuestRequestForm({ token, remainingSlots }: { token: string; remainingSlots: number }) {
+export function GuestRequestForm({ token, remainingSlots, cutoffDayName }: { token: string; remainingSlots: number; cutoffDayName?: string }) {
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -107,7 +107,7 @@ export function GuestRequestForm({ token, remainingSlots }: { token: string; rem
         <h3 className="font-semibold text-navy-900">Guest Request Submitted</h3>
         <p className="mt-1 text-sm text-teal-600">
           Your guest request has been submitted. An admin will review it after the
-          Friday cutoff and notify you if approved.
+          {cutoffDayName || "Friday"} cutoff and notify you if approved.
         </p>
       </div>
     );
@@ -122,7 +122,7 @@ export function GuestRequestForm({ token, remainingSlots }: { token: string; rem
         </h3>
         <p className="mt-1 text-sm text-blue-700">
           {isFirstGuest
-            ? "Want to bring a guest this week? Submit a request and an admin will review it after the Friday cutoff."
+            ? `Want to bring a guest this week? Submit a request and an admin will review it after the ${cutoffDayName || "Friday"} cutoff.`
             : `You can request up to ${remainingSlots} more guest${remainingSlots !== 1 ? "s" : ""} for this week.`
           }
         </p>

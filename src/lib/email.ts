@@ -70,6 +70,8 @@ export function generateInviteEmail({
   rsvpToken,
   siteUrl,
   adminNote,
+  cutoffDay,
+  cutoffTime,
 }: {
   golferName: string;
   eventName: string;
@@ -77,6 +79,8 @@ export function generateInviteEmail({
   rsvpToken: string;
   siteUrl: string;
   adminNote?: string | null;
+  cutoffDay?: number;
+  cutoffTime?: string;
 }) {
   const formattedDate = new Date(gameDate + "T12:00:00").toLocaleDateString(
     "en-US",
@@ -105,7 +109,7 @@ export function generateInviteEmail({
         <a href="${rsvpBase}&action=not_sure" style="display: block; background: white; color: #a16207; text-align: center; padding: 14px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px; border: 2px solid #fcd34d;">Not Sure Yet (ask me again later)</a>
       </div>
 
-      <p style="color: #9ca3af; font-size: 12px;">Deadline: Friday at 10:00 AM PT. After that, contact an event admin to change your RSVP.</p>
+      <p style="color: #9ca3af; font-size: 12px;">Deadline: ${formatCutoffDisplay(cutoffDay, cutoffTime)}. After that, contact an event admin to change your RSVP.</p>
       <p style="color: #9ca3af; font-size: 12px;"><a href="${siteUrl}/dashboard" style="color: #3d7676;">Go to Dashboard</a></p>
     </div>
   `;
@@ -122,6 +126,8 @@ export function generateReminderEmail({
   siteUrl,
   spotsRemaining,
   adminNote,
+  cutoffDay,
+  cutoffTime,
 }: {
   golferName: string;
   eventName: string;
@@ -130,6 +136,8 @@ export function generateReminderEmail({
   siteUrl: string;
   spotsRemaining: number;
   adminNote?: string | null;
+  cutoffDay?: number;
+  cutoffTime?: string;
 }) {
   const formattedDate = new Date(gameDate + "T12:00:00").toLocaleDateString(
     "en-US",
@@ -147,7 +155,7 @@ export function generateReminderEmail({
           ? `There are still <strong>${spotsRemaining} spots</strong> available.`
           : "The game is currently full, but you can join the waitlist."
       }</p>
-      <p style="color: #374151;">The RSVP deadline is <strong>tomorrow (Friday) at 10:00 AM PT</strong>.</p>
+      <p style="color: #374151;">The RSVP deadline is <strong>${formatCutoffDisplay(cutoffDay, cutoffTime)}</strong>.</p>
 
       ${adminNote ? `<div style="background: #f0f3f7; border-left: 4px solid #3d7676; padding: 12px 16px; margin: 16px 0; border-radius: 4px;">
         <p style="margin: 0; font-size: 14px; color: #1b2a4a;"><strong>Note from admin:</strong> ${adminNote}</p>
@@ -422,4 +430,19 @@ export async function sendAdminSummaryEmail({
   } catch (err) {
     console.error("Failed to send admin summary email:", err);
   }
+}
+
+/**
+ * Format cutoff day/time for display in emails.
+ * Falls back to "Friday at 10:00 AM PT" if not provided.
+ */
+function formatCutoffDisplay(cutoffDay?: number, cutoffTime?: string): string {
+  const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const dayName = cutoffDay !== undefined ? dayNames[cutoffDay] : "Friday";
+  const time = cutoffTime || "10:00";
+  const [h, m] = time.split(":").map(Number);
+  const period = h >= 12 ? "PM" : "AM";
+  const displayHour = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  const displayMinute = m === 0 ? "" : `:${String(m).padStart(2, "0")}`;
+  return `${dayName} at ${displayHour}${displayMinute} ${period} PT`;
 }

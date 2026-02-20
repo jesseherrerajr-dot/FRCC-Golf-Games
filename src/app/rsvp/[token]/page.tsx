@@ -285,7 +285,7 @@ export default async function RsvpPage({
                   remainingSlots={remainingSlots}
                 />
               )}
-              {remainingSlots > 0 && <GuestRequestForm token={token} remainingSlots={remainingSlots} />}
+              {remainingSlots > 0 && <GuestRequestForm token={token} remainingSlots={remainingSlots} cutoffDayName={["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"][event?.cutoff_day ?? 5]} />}
               {remainingSlots === 0 && guestRequests.length === 0 && (
                 <p className="text-sm text-gray-500">No guest slots available.</p>
               )}

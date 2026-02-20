@@ -275,6 +275,8 @@ async function handleInviteEmails(
         rsvpToken: rsvp.token,
         siteUrl,
         adminNote: schedule.admin_notes,
+        cutoffDay: event.cutoff_day as number | undefined,
+        cutoffTime: event.cutoff_time as string | undefined,
       });
 
       if (!isTest) {
@@ -416,6 +418,8 @@ async function handleReminderEmails(
         siteUrl,
         spotsRemaining,
         adminNote: schedule.admin_notes,
+        cutoffDay: event.cutoff_day as number | undefined,
+        cutoffTime: event.cutoff_time as string | undefined,
       });
 
       if (!isTest) {
