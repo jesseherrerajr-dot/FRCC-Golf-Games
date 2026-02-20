@@ -161,6 +161,7 @@ export async function GET(request: Request) {
               supabase,
               event,
               gameDateString,
+              siteUrl,
               isTest
             );
             break;
@@ -472,6 +473,7 @@ async function handleGolferConfirmation(
   supabase: ReturnType<typeof createAdminClient>,
   event: Record<string, unknown>,
   gameDateString: string,
+  siteUrl: string,
   isTest: boolean
 ) {
   // Get event schedule
@@ -599,6 +601,7 @@ async function handleGolferConfirmation(
     gameDate: gameDateString,
     confirmedPlayers: allPlayers,
     adminNote: schedule.admin_notes,
+    siteUrl,
   });
 
   const formattedDate = formatGameDate(gameDateString);

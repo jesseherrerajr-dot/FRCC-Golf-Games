@@ -566,12 +566,20 @@ export function ProShopContactsForm({
 }) {
   const [isPending, startTransition] = useTransition();
   const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
   const handleAdd = () => {
     if (!email.trim()) return;
+    setError(null);
     startTransition(async () => {
-      await addProShopContact(eventId, email);
-      setEmail("");
+      const result = await addProShopContact(eventId, email, name || undefined);
+      if (result.error) {
+        setError(result.error);
+      } else {
+        setEmail("");
+        setName("");
+      }
     });
   };
 
@@ -590,13 +598,23 @@ export function ProShopContactsForm({
           ))}
         </ul>
       )}
-      <div className="flex gap-2">
+      {error && (
+        <p className="text-sm text-red-600">{error}</p>
+      )}
+      <div className="flex flex-wrap gap-2">
+        <input
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Contact name (optional)"
+          className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm sm:w-auto sm:flex-1"
+        />
         <input
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="proshop@example.com"
-          className="block flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm"
+          className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm sm:w-auto sm:flex-1"
         />
         <button
           onClick={handleAdd}
@@ -629,11 +647,16 @@ function ProShopContactRow({
 
   return (
     <li className="flex items-center justify-between rounded-md border border-gray-100 bg-gray-50 px-3 py-2">
-      <span className="text-sm text-gray-700">{contact.email}</span>
+      <div>
+        {contact.name && (
+          <span className="text-sm font-medium text-gray-900">{contact.name} — </span>
+        )}
+        <span className="text-sm text-gray-700">{contact.email}</span>
+      </div>
       <button
         onClick={handleRemove}
         disabled={isPending}
-        className="text-xs text-red-600 hover:text-red-800 disabled:opacity-50"
+        className="ml-2 text-xs text-red-600 hover:text-red-800 disabled:opacity-50"
       >
         {isPending ? "..." : "Remove"}
       </button>

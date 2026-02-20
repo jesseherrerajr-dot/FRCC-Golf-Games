@@ -171,11 +171,13 @@ export function generateConfirmationEmail({
   gameDate,
   confirmedPlayers,
   adminNote,
+  siteUrl,
 }: {
   eventName: string;
   gameDate: string;
   confirmedPlayers: { first_name: string; last_name: string; is_guest?: boolean; sponsor_name?: string }[];
   adminNote?: string | null;
+  siteUrl?: string;
 }) {
   const formattedDate = new Date(gameDate + "T12:00:00").toLocaleDateString(
     "en-US",
@@ -206,7 +208,7 @@ export function generateConfirmationEmail({
 
       <p style="color: #374151; font-size: 14px;">Reply all to this email to share tee times, game format, course conditions, or other details with the group.</p>
 
-      <p style="color: #9ca3af; font-size: 12px;">See you on the course!</p>
+      ${siteUrl ? `<p style="color: #9ca3af; font-size: 12px;"><a href="${siteUrl}/dashboard" style="color: #3d7676;">View Dashboard</a> &middot; Need to change your RSVP? Contact a event admin.</p>` : `<p style="color: #9ca3af; font-size: 12px;">See you on the course!</p>`}
     </div>
   `;
 }

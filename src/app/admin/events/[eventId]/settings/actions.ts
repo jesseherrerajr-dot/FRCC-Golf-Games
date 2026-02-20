@@ -324,16 +324,20 @@ export async function updateAlertSetting(
 // Pro Shop Contacts
 // ============================================================
 
-export async function addProShopContact(eventId: string, email: string) {
+export async function addProShopContact(eventId: string, email: string, name?: string) {
   const { profile, adminEvents, supabase } = await requireAdmin();
   if (!hasEventAccess(profile, adminEvents, eventId)) {
     return { error: "Not authorized for this event" };
   }
 
+  const trimmedEmail = email.trim().toLowerCase();
+  // Use provided name, or derive from email prefix (e.g., "proshop" from "proshop@frcc.com")
+  const contactName = name?.trim() || trimmedEmail.split("@")[0];
+
   try {
     const { error } = await supabase
       .from("pro_shop_contacts")
-      .insert({ event_id: eventId, email: email.trim().toLowerCase() });
+      .insert({ event_id: eventId, email: trimmedEmail, name: contactName });
 
     if (error) throw error;
 
