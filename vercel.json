@@ -2,19 +2,7 @@
   "crons": [
     {
       "path": "/api/cron/email-scheduler",
-      "schedule": "0 18 * * 1"
-    },
-    {
-      "path": "/api/cron/email-scheduler",
-      "schedule": "0 18 * * 4"
-    },
-    {
-      "path": "/api/cron/email-scheduler",
-      "schedule": "30 17 * * 5"
-    },
-    {
-      "path": "/api/cron/email-scheduler",
-      "schedule": "0 19 * * 5"
+      "schedule": "0 15,16,17,18,19,20,21,22,23 * * *"
     }
   ]
 }
