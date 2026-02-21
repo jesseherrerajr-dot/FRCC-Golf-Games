@@ -22,17 +22,21 @@ import { sendAdminAlert } from "@/lib/admin-alerts";
  * email_schedules table to determine what emails to send. Supports configurable
  * scheduling per event with multiple reminders.
  *
- * Vercel cron runs every hour from 7am–3pm PT (15:00–23:00 UTC), every day.
- * See vercel.json: "0 15,16,17,18,19,20,21,22,23 * * *"
+ * Vercel Hobby plan: each cron fires once per day at a fixed UTC time.
+ * Current cron entries (all times target Pacific Time send windows):
+ *   - Monday   18:00 UTC → invite emails           (10:00am PT)
+ *   - Thursday 18:00 UTC → reminder emails          (10:00am PT)
+ *   - Friday   17:30 UTC → golfer confirmation      ( 9:30am PT)
+ *   - Friday   19:00 UTC → pro shop detail          (11:00am PT)
  *
- * This broad schedule means admins can freely change email times in the
- * settings UI without needing to update vercel.json or redeploy. The
- * isWithinSendWindow() function (3-hour forward-only window) determines
- * whether each email should actually send on a given run. Duplicate sends
- * are prevented by "already sent" flags on each schedule (invite_sent,
- * reminder_sent, golfer_confirmation_sent, pro_shop_sent).
+ * IMPORTANT: If admin email schedule times are changed via the settings UI,
+ * the cron entries in vercel.json must also be updated to fire at or shortly
+ * after the new scheduled times, then redeployed. The admin settings page
+ * displays a reminder about this.
  *
- * Runs that find nothing to send exit quickly with minimal overhead.
+ * The isWithinSendWindow() function uses a forward-only 3-hour window to
+ * account for Vercel timing imprecision (~1hr) and DST shifts (±1hr).
+ * Duplicate sends are prevented by "already sent" flags on each schedule.
  *
  * Query params:
  *   ?test=true — dry run, logs but doesn't send emails

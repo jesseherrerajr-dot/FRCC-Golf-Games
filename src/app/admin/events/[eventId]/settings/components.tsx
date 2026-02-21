@@ -329,6 +329,13 @@ export function EmailScheduleForm({ event }: { event: any }) {
         timeDefault={event.confirmation_time?.slice(0, 5)}
       />
 
+      <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+        <strong>Note:</strong> After changing email times, the Vercel cron schedule in{" "}
+        <code className="rounded bg-amber-100 px-1">vercel.json</code> must also be updated
+        to match the new times and redeployed. Cron times are in UTC — convert from Pacific Time
+        by adding 8 hours (PST) or 7 hours (PDT). Without this step, emails may be delayed or missed.
+      </div>
+
       <div className="flex items-center gap-3 pt-2">
         <button
           type="submit"
