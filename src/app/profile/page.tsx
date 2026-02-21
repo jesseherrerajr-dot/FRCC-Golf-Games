@@ -190,13 +190,12 @@ export default function ProfilePage() {
               htmlFor="phone"
               className="block text-sm font-medium text-gray-700"
             >
-              Phone
+              Phone <span className="text-gray-400 font-normal">(optional)</span>
             </label>
             <input
               id="phone"
               name="phone"
               type="tel"
-              required
               autoComplete="tel"
               value={phone}
               onChange={(e) => setPhone(formatPhone(e.target.value))}

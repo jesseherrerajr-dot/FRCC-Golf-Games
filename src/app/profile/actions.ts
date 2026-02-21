@@ -32,14 +32,13 @@ export async function updateProfile(
     !firstName?.trim() ||
     !lastName?.trim() ||
     !email?.trim() ||
-    !phoneRaw?.trim() ||
     !ghin?.trim()
   ) {
-    return { error: "All fields are required." };
+    return { error: "First name, last name, email, and GHIN are required." };
   }
 
-  // Validate phone
-  const phone = validatePhone(phoneRaw);
+  // Validate phone if provided (optional, but must be valid format if entered)
+  const phone = phoneRaw?.trim() ? validatePhone(phoneRaw) : { valid: true, digits: "" };
   if (!phone.valid) {
     return { error: "Please enter a valid 10-digit US phone number." };
   }
@@ -71,7 +70,7 @@ export async function updateProfile(
       first_name: firstName.trim(),
       last_name: lastName.trim(),
       email: newEmail,
-      phone: phone.digits,
+      phone: phone.digits || null,
       ghin_number: ghin.trim(),
     })
     .eq("id", user.id);
@@ -108,7 +107,7 @@ export async function updateProfile(
     data: {
       first_name: firstName.trim(),
       last_name: lastName.trim(),
-      phone: phone.digits,
+      phone: phone.digits || null,
       ghin_number: ghin.trim(),
     },
   });
