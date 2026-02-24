@@ -277,17 +277,25 @@ export function EmailScheduleForm({ event }: { event: any }) {
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
   const [numReminders, setNumReminders] = useState(event.num_reminders || 1);
+  // A counter that increments on successful save, used as a React key
+  // to force DayTimeRow components to remount with fresh values from the DB.
+  const [saveCount, setSaveCount] = useState(0);
 
   const handleSubmit = (formData: FormData) => {
     startTransition(async () => {
       const result = await updateEmailScheduleSettings(event.id, formData);
-      setMessage(result.error || "Email schedule saved.");
-      if (!result.error) setTimeout(() => setMessage(null), 3000);
+      if (result.error) {
+        setMessage(result.error);
+      } else {
+        setMessage("Email schedule saved.");
+        setSaveCount((c) => c + 1);
+        setTimeout(() => setMessage(null), 3000);
+      }
     });
   };
 
   return (
-    <form action={handleSubmit} className="space-y-5">
+    <form action={handleSubmit} className="space-y-5" key={saveCount}>
       {/* Invite */}
       <DayTimeRow
         label="Send Invite"
@@ -384,7 +392,7 @@ export function EmailScheduleForm({ event }: { event: any }) {
         </button>
         {message && (
           <p
-            className={`text-sm ${message.includes("error") || message.includes("Failed") ? "text-red-600" : "text-teal-500"}`}
+            className={`text-sm ${message.includes("error") || message.includes("Failed") || message.includes("failed") ? "text-red-600" : "text-teal-500"}`}
           >
             {message}
           </p>

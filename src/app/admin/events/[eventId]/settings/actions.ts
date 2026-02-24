@@ -152,12 +152,18 @@ export async function updateEmailScheduleSettings(
   if (confirmTime) updates.confirmation_time = confirmTime;
 
   try {
-    const { error } = await supabase
+    const { data: updated, error } = await supabase
       .from("events")
       .update(updates)
-      .eq("id", eventId);
+      .eq("id", eventId)
+      .select("id");
 
     if (error) throw error;
+
+    if (!updated || updated.length === 0) {
+      console.error("Email schedule update affected 0 rows — likely an RLS policy issue", { eventId, updates });
+      return { error: "Save failed — no rows updated. Check admin permissions." };
+    }
 
     // Also update the email_schedules table to stay in sync
     await syncEmailSchedules(supabase, eventId, formData);
