@@ -30,10 +30,9 @@ export async function joinGroup(
   if (
     !firstName?.trim() ||
     !lastName?.trim() ||
-    !email?.trim() ||
-    !ghin?.trim()
+    !email?.trim()
   ) {
-    return { error: "First name, last name, email, and GHIN are required.", step: "form" };
+    return { error: "First name, last name, and email are required.", step: "form" };
   }
 
   // Validate phone if provided (optional, but must be valid format if entered)
@@ -58,7 +57,7 @@ export async function joinGroup(
         first_name: firstName.trim(),
         last_name: lastName.trim(),
         phone: phone.digits || null,
-        ghin_number: ghin.trim(),
+        ghin_number: ghin?.trim() || null,
         role: "golfer",
       },
       emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/auth/callback`,

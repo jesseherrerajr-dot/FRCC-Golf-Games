@@ -135,13 +135,12 @@ export default function JoinPage() {
             {/* GHIN Number */}
             <div>
               <label htmlFor="ghin" className="block text-sm font-medium text-gray-700">
-                GHIN Number
+                GHIN Number <span className="text-gray-400 font-normal">(optional)</span>
               </label>
               <input
                 id="ghin"
                 name="ghin"
                 type="text"
-                required
                 inputMode="numeric"
                 className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-600/20"
                 placeholder="1234567"
