@@ -18,23 +18,24 @@ import { sendAdminAlert } from "@/lib/admin-alerts";
 
 /**
  * Dynamic Email Scheduler Cron
- * Fires every hour (see vercel.json: "0 * * * *") and checks the
- * email_schedules table to determine what emails to send. Supports configurable
- * scheduling per event with multiple reminders.
+ * Triggered by 5 daily cron entries in vercel.json, spaced across the day
+ * at strategic UTC hours. Checks the email_schedules table to determine
+ * what emails to send. Supports configurable scheduling per event with
+ * multiple reminders.
  *
  * Architecture:
- *   - The cron fires every hour on the hour (24x/day, every day).
- *   - Admin-configured send times use :45 past the hour (e.g., 9:45 AM).
- *   - When the cron fires at the top of the next hour, isWithinSendWindow()
- *     detects that the scheduled time was ~15 minutes ago and triggers the send.
+ *   - Vercel Hobby plan limits crons to once-per-day frequency.
+ *   - 5 daily crons fire at: 15:00, 17:00, 19:00, 22:00, 01:00 UTC
+ *     covering 7:45 AM – 4:45 PM Pacific in both PST and PDT.
+ *   - Admin-configured send times use :45 past the hour (e.g., 9:45 AM PT).
+ *   - When a cron fires, isWithinSendWindow() checks if any scheduled time
+ *     falls within the past 3 hours, accounting for DST shifts (±1 hour).
  *   - Duplicate sends are prevented by "already sent" flags on each schedule
  *     (invite_sent, reminder_sent, etc.), NOT by the time window.
- *   - The 3-hour forward window in isWithinSendWindow() provides safety margin
- *     for Vercel timing imprecision and DST shifts.
  *
- * This design means admins can freely change email times in the settings UI
- * without any manual deployment steps — the hourly cron will automatically
- * pick up the new times.
+ * The admin settings UI constrains time selection to :45 slots that are
+ * guaranteed to be caught by the cron entries above, so admins can freely
+ * change email times without any manual deployment steps.
  *
  * Query params:
  *   ?test=true — dry run, logs but doesn't send emails

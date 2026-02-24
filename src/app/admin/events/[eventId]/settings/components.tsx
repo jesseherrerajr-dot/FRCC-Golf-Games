@@ -25,11 +25,17 @@ const DAY_NAMES = [
   "Saturday",
 ];
 
-// Time options at :45 past each hour. The cron job fires on the hour,
-// so scheduling at :45 means emails go out ~15 minutes after the selected time.
+// Time options at :45 past each hour, covering 7:45 AM – 4:45 PM Pacific.
+// Five daily cron entries (vercel.json) fire at strategic UTC hours to catch
+// every slot within the 3-hour send window, in both PST and PDT.
+//
+// Cron coverage map (each slot is caught by at least one cron in both timezones):
+//   0 15 * * * (7AM PST/8AM PDT) → catches 7:45, 8:45 AM (+ 6:45 AM in PDT)
+//   0 17 * * * (9AM PST/10AM PDT) → catches 7:45, 8:45, 9:45, 10:45 AM
+//   0 19 * * * (11AM PST/12PM PDT) → catches 9:45, 10:45, 11:45 AM
+//   0 22 * * * (2PM PST/3PM PDT) → catches 11:45 AM, 12:45, 1:45, 2:45 PM
+//   0  1 * * * (5PM PST/6PM PDT) → catches 2:45, 3:45, 4:45 PM
 const TIME_OPTIONS = [
-  { value: "05:45", label: "5:45 AM" },
-  { value: "06:45", label: "6:45 AM" },
   { value: "07:45", label: "7:45 AM" },
   { value: "08:45", label: "8:45 AM" },
   { value: "09:45", label: "9:45 AM" },
@@ -40,10 +46,6 @@ const TIME_OPTIONS = [
   { value: "14:45", label: "2:45 PM" },
   { value: "15:45", label: "3:45 PM" },
   { value: "16:45", label: "4:45 PM" },
-  { value: "17:45", label: "5:45 PM" },
-  { value: "18:45", label: "6:45 PM" },
-  { value: "19:45", label: "7:45 PM" },
-  { value: "20:45", label: "8:45 PM" },
 ];
 
 /**
@@ -60,7 +62,7 @@ function snapToNearest45(time: string | undefined | null): string {
   }
   // Round to nearest hour, then use that hour's :45
   const roundedHour = m >= 23 ? h + 1 : h;
-  const snappedHour = Math.max(5, Math.min(20, roundedHour));
+  const snappedHour = Math.max(7, Math.min(16, roundedHour));
   return `${String(snappedHour).padStart(2, "0")}:45`;
 }
 
