@@ -25,6 +25,45 @@ const DAY_NAMES = [
   "Saturday",
 ];
 
+// Time options at :45 past each hour. The cron job fires on the hour,
+// so scheduling at :45 means emails go out ~15 minutes after the selected time.
+const TIME_OPTIONS = [
+  { value: "05:45", label: "5:45 AM" },
+  { value: "06:45", label: "6:45 AM" },
+  { value: "07:45", label: "7:45 AM" },
+  { value: "08:45", label: "8:45 AM" },
+  { value: "09:45", label: "9:45 AM" },
+  { value: "10:45", label: "10:45 AM" },
+  { value: "11:45", label: "11:45 AM" },
+  { value: "12:45", label: "12:45 PM" },
+  { value: "13:45", label: "1:45 PM" },
+  { value: "14:45", label: "2:45 PM" },
+  { value: "15:45", label: "3:45 PM" },
+  { value: "16:45", label: "4:45 PM" },
+  { value: "17:45", label: "5:45 PM" },
+  { value: "18:45", label: "6:45 PM" },
+  { value: "19:45", label: "7:45 PM" },
+  { value: "20:45", label: "8:45 PM" },
+];
+
+/**
+ * Snap a time string (HH:MM) to the nearest :45 option.
+ * Used to migrate existing free-form times to the constrained dropdown.
+ */
+function snapToNearest45(time: string | undefined | null): string {
+  if (!time) return "09:45"; // default
+  const [h, m] = time.slice(0, 5).split(":").map(Number);
+  // If already :45, use as-is
+  if (m === 45) {
+    const val = `${String(h).padStart(2, "0")}:45`;
+    if (TIME_OPTIONS.some((o) => o.value === val)) return val;
+  }
+  // Round to nearest hour, then use that hour's :45
+  const roundedHour = m >= 23 ? h + 1 : h;
+  const snappedHour = Math.max(5, Math.min(20, roundedHour));
+  return `${String(snappedHour).padStart(2, "0")}:45`;
+}
+
 // ============================================================
 // Basic Settings Form
 // ============================================================
@@ -292,7 +331,7 @@ export function EmailScheduleForm({ event }: { event: any }) {
           dayName="reminder2_day"
           timeName="reminder2_time"
           dayDefault={event.reminder2_day ?? 4}
-          timeDefault={event.reminder2_time?.slice(0, 5) ?? "16:00"}
+          timeDefault={event.reminder2_time?.slice(0, 5) ?? "15:45"}
         />
       )}
 
@@ -303,7 +342,7 @@ export function EmailScheduleForm({ event }: { event: any }) {
           dayName="reminder3_day"
           timeName="reminder3_time"
           dayDefault={event.reminder3_day ?? 5}
-          timeDefault={event.reminder3_time?.slice(0, 5) ?? "08:00"}
+          timeDefault={event.reminder3_time?.slice(0, 5) ?? "07:45"}
         />
       )}
 
@@ -329,12 +368,9 @@ export function EmailScheduleForm({ event }: { event: any }) {
         timeDefault={event.confirmation_time?.slice(0, 5)}
       />
 
-      <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-        <strong>Note:</strong> After changing email times, the Vercel cron schedule in{" "}
-        <code className="rounded bg-amber-100 px-1">vercel.json</code> must also be updated
-        to match the new times and redeployed. Cron times are in UTC — convert from Pacific Time
-        by adding 8 hours (PST) or 7 hours (PDT). Without this step, emails may be delayed or missed.
-      </div>
+      <p className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600">
+        All times are Pacific Time. Emails are sent within approximately 15 minutes of the selected time.
+      </p>
 
       <div className="flex items-center gap-3 pt-2">
         <button
@@ -369,6 +405,8 @@ function DayTimeRow({
   dayDefault: number;
   timeDefault: string;
 }) {
+  const snappedTime = snapToNearest45(timeDefault);
+
   return (
     <div className="flex flex-wrap items-end gap-3">
       <div className="min-w-[140px]">
@@ -389,12 +427,17 @@ function DayTimeRow({
       </div>
       <div>
         <label className="block text-sm font-medium text-gray-700">at</label>
-        <input
+        <select
           name={timeName}
-          type="time"
-          defaultValue={timeDefault}
+          defaultValue={snappedTime}
           className="mt-1 block rounded-md border border-gray-300 px-3 py-2 text-sm"
-        />
+        >
+          {TIME_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
       </div>
     </div>
   );

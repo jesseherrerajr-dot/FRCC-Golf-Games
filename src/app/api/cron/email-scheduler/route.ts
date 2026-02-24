@@ -18,25 +18,23 @@ import { sendAdminAlert } from "@/lib/admin-alerts";
 
 /**
  * Dynamic Email Scheduler Cron
- * Triggered by specific Vercel cron entries (see vercel.json) and checks the
+ * Fires every hour (see vercel.json: "0 * * * *") and checks the
  * email_schedules table to determine what emails to send. Supports configurable
  * scheduling per event with multiple reminders.
  *
- * Vercel Hobby plan: each cron fires once per day at a fixed UTC time.
- * Current cron entries (all times target Pacific Time send windows):
- *   - Monday   18:00 UTC → invite emails           (10:00am PT)
- *   - Thursday 18:00 UTC → reminder emails          (10:00am PT)
- *   - Friday   17:30 UTC → golfer confirmation      ( 9:30am PT)
- *   - Friday   19:00 UTC → pro shop detail          (11:00am PT)
+ * Architecture:
+ *   - The cron fires every hour on the hour (24x/day, every day).
+ *   - Admin-configured send times use :45 past the hour (e.g., 9:45 AM).
+ *   - When the cron fires at the top of the next hour, isWithinSendWindow()
+ *     detects that the scheduled time was ~15 minutes ago and triggers the send.
+ *   - Duplicate sends are prevented by "already sent" flags on each schedule
+ *     (invite_sent, reminder_sent, etc.), NOT by the time window.
+ *   - The 3-hour forward window in isWithinSendWindow() provides safety margin
+ *     for Vercel timing imprecision and DST shifts.
  *
- * IMPORTANT: If admin email schedule times are changed via the settings UI,
- * the cron entries in vercel.json must also be updated to fire at or shortly
- * after the new scheduled times, then redeployed. The admin settings page
- * displays a reminder about this.
- *
- * The isWithinSendWindow() function uses a forward-only 3-hour window to
- * account for Vercel timing imprecision (~1hr) and DST shifts (±1hr).
- * Duplicate sends are prevented by "already sent" flags on each schedule.
+ * This design means admins can freely change email times in the settings UI
+ * without any manual deployment steps — the hourly cron will automatically
+ * pick up the new times.
  *
  * Query params:
  *   ?test=true — dry run, logs but doesn't send emails
