@@ -40,6 +40,7 @@ function formatDate(dateStr: string): string {
 function formatTime(dateStr: string | null): string {
   if (!dateStr) return "—";
   return new Date(dateStr).toLocaleString("en-US", {
+    timeZone: "America/Los_Angeles",
     month: "short",
     day: "numeric",
     hour: "numeric",

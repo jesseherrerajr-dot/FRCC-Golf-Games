@@ -42,7 +42,7 @@ export default async function Header() {
             className="h-11 w-11 object-contain"
           />
           <span className="hidden font-serif text-lg font-semibold tracking-wide text-navy-900 sm:inline">
-            FRCC Golf
+            FRCC Golf Games
           </span>
         </Link>
 

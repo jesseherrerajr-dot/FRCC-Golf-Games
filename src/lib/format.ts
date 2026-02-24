@@ -41,6 +41,7 @@ export function formatDate(dateStr: string): string {
 export function formatDateTime(dateStr: string | null): string {
   if (!dateStr) return "—";
   return new Date(dateStr).toLocaleString("en-US", {
+    timeZone: "America/Los_Angeles",
     month: "short",
     day: "numeric",
     hour: "numeric",
