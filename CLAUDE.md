@@ -18,6 +18,76 @@ An automated golf participation tracker for recurring games at Fairbanks Ranch C
 
 ---
 
+## File Map
+
+### Pages (src/app/)
+- `page.tsx` — Landing/home page
+- `layout.tsx` — Root layout (header, global styles)
+- `login/` — Magic link login page
+- `join/` — Generic self-registration (subscribes to all events on approval)
+- `join/[slug]/` — Event-specific self-registration (e.g., `/join/saturday-morning`)
+- `auth/callback/` — Supabase auth callback handler
+- `auth/confirm/` — Email OTP confirmation page
+- `auth/signout/` — Sign-out route
+- `auth/link-error/` — Expired/invalid magic link error page
+- `dashboard/` — Golfer dashboard (upcoming RSVPs, My Events, unsubscribe)
+- `profile/` — Golfer profile settings (name, email, phone, GHIN)
+- `preferences/` — Playing partner & tee time preferences
+- `rsvp/[token]/` — Tokenized RSVP page (one-tap In/Out/Not Sure, guest requests, tee time pref)
+
+### Admin Pages (src/app/admin/)
+- `page.tsx` — Admin dashboard (weekly RSVP overview, action items)
+- `actions.ts` — Admin dashboard server actions
+- `admin-actions.tsx` — Admin action items component
+- `members/page.tsx` — Member directory (search, filter, approve/deny)
+- `members/member-search.tsx` — Member search component
+- `members/[memberId]/page.tsx` — Member detail page (status, subscriptions)
+- `members/[memberId]/subscription-toggles.tsx` — Event subscription toggle component
+- `members/[memberId]/actions.ts` — Member detail server actions (approve, deactivate, delete)
+- `members/add/` — Admin "Add Golfer" page (direct add, no approval needed)
+- `rsvp/[scheduleId]/page.tsx` — Weekly RSVP management (In/Out/Waitlist breakdown)
+- `rsvp/[scheduleId]/rsvp-controls.tsx` — RSVP override controls (post-cutoff admin changes)
+- `rsvp/[scheduleId]/guest-controls.tsx` — Guest request approve/deny controls
+- `rsvp/[scheduleId]/actions.ts` — RSVP management server actions
+- `rsvp/[scheduleId]/guest-actions.ts` — Guest approval server actions
+- `events/new/` — Create new event page
+- `events/[eventId]/settings/` — Event settings (name, capacity, admins, pro shop contacts, feature flags)
+- `events/[eventId]/schedule/` — 8-week rolling schedule (Game On/No Game toggle, capacity override)
+- `events/[eventId]/email/compose/` — Custom email composer with templates
+
+### API Routes (src/app/api/)
+- `rsvp/route.ts` — RSVP submission endpoint (tokenized, no login required)
+- `rsvp/tee-time/route.ts` — Tee time preference submission
+- `cron/email-scheduler/route.ts` — Master cron endpoint (checks all events for due emails)
+- `cron/invite/route.ts` — Monday invite email sender
+- `cron/reminder/route.ts` — Thursday reminder email sender
+- `cron/confirmation/route.ts` — Friday confirmation email sender (golfer + pro shop)
+
+### Shared Libraries (src/lib/)
+- `auth.ts` — Auth helpers (get current user, check admin role)
+- `email.ts` — Resend email sending wrapper
+- `email-templates.ts` — HTML email templates (invite, reminder, confirmation, pro shop, notifications)
+- `admin-alerts.ts` — Admin notification email logic
+- `subscriptions.ts` — Subscribe/unsubscribe helpers
+- `schedule.ts` — Schedule lookup helpers (get current week, next game date)
+- `schedule-gen.ts` — Auto-generate weekly schedule rows for an event
+- `format.ts` — Formatting utilities (names, phone numbers, dates)
+- `timezone.ts` — Pacific Time timezone helpers
+- `supabase/client.ts` — Supabase browser client
+- `supabase/server.ts` — Supabase server client (for Server Actions/API routes)
+- `supabase/middleware.ts` — Supabase session middleware
+
+### Other Key Files
+- `src/middleware.ts` — Next.js middleware (auth redirects, session refresh)
+- `src/types/events.ts` — TypeScript types for events, RSVPs, profiles
+- `src/components/header.tsx` — Shared header/nav component
+- `scripts/import-golfers.ts` — Batch import golfers from Excel
+- `scripts/delete-user.ts` — Delete a user script
+- `supabase/migrations/` — Database schema migrations (001–009)
+- `vercel.json` — Vercel config (cron schedules)
+
+---
+
 ## Terminology
 - **Event**: A recurring game (e.g., "FRCC Saturday Morning Group"). Each event has its own schedule, capacity, RSVP cycle, admin assignments, and member subscriptions. Events can be weekly, bi-weekly, or monthly.
 - **Super Admin**: Full platform access. Can manage all events, add/remove admins, manage all settings. Also a golfer on the distribution list.
