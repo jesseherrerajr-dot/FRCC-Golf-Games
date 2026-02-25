@@ -25,7 +25,7 @@ An automated golf participation tracker for recurring games at Fairbanks Ranch C
 - **Event Admin (Secondary)**: Same permissions as primary for the event, CC'd on all communications. Exists for redundancy.
 - **Golfer (Member)**: A confirmed club member on the distribution list. Receives weekly invites, can RSVP, manage profile, set preferences.
 - **Guest**: A non-member registered in the system (name, email, phone, GHIN) but NOT on any distribution list. Can only play when invited by a member for a specific week.
-- **GHIN**: USGA Golf Handicap & Information Network number. Required for all members and guests. Future: GHIN API integration.
+- **GHIN**: USGA Golf Handicap & Information Network number. Optional for members and guests (can be added later via profile settings). Future: GHIN API integration.
 
 ---
 
@@ -42,22 +42,44 @@ When an admin logs in, they see their golfer dashboard (upcoming RSVPs, profile,
 ---
 
 ## Registration Flow
-1. New golfer visits "/join" and fills in: first name, last name, email, phone, GHIN number (all required).
-2. System sends a Supabase magic link to verify the email address.
-3. Golfer clicks the magic link → email is confirmed → account status becomes "Pending Approval."
-4. Super admin and relevant event admins see the pending registration in their action items (dashboard + email notification).
-5. Admin verifies the golfer is a paid club member in good standing, then approves or denies.
-6. Once approved, status becomes "Active" and the golfer starts receiving invites for subscribed events.
+There are three ways to add golfers to the system:
+
+### Path 1 — Self-Registration via Event Join Link (most common for new golfers)
+1. Admin shares the event-specific join link (e.g., `frccgolfgames.com/join/saturday-morning`). The link is available on each event's settings page with a copy button.
+2. Golfer visits the link and fills in: first name, last name, email (required), phone and GHIN (optional).
+3. System sends a verification code to the golfer's email.
+4. Golfer enters the code → email is confirmed → account status becomes "Pending Approval."
+5. Admin sees the pending registration in the Member Directory and approves or denies.
+6. Once approved, status becomes "Active" and the golfer is subscribed to that specific event only.
+
+### Path 2 — Admin Adds Golfer Directly
+1. Admin goes to Member Directory → "+ Add Golfer."
+2. Fills in name, email, optional phone/GHIN, and selects which event to subscribe them to (or "All Active Events").
+3. Golfer is created as Active immediately — no approval step needed.
+4. Golfer can log in anytime using a magic link sent to their email.
+
+### Path 3 — Batch Import via Script
+1. Admin runs the `scripts/import-golfers.ts` script with an Excel file (columns: First Name, Last Name, Email).
+2. All golfers are created as Active and subscribed to all active events.
+3. Phone and GHIN are left blank (golfers can add later via profile settings).
+
+### Generic Self-Registration (/join)
+The original `/join` page still exists for golfers who aren't referred to a specific event. On approval, they're subscribed to all active events.
 
 ### Registration Validation
-- Email: Smart format validation + magic link confirmation (real email required).
-- Phone: US 10-digit format validation. Stored in consistent format.
-- GHIN: Required field stored as-is. Future: API validation.
-- All required fields can be modified later by the golfer through their profile settings (new phone, new email, new GHIN, etc.).
+- Email: Smart format validation + OTP code confirmation (real email required).
+- Phone: US 10-digit format validation. Stored in consistent format. Optional.
+- GHIN: Optional field stored as-is. Future: API validation.
+- All fields can be modified later by the golfer through their profile settings.
 
 ### Member Management
 - Super admins and event admins can deactivate a golfer (stops invites, preserves account and history) or remove/delete them entirely.
 - Deactivated golfers can be reactivated by an admin.
+
+### Subscription Management
+- Admins can subscribe/unsubscribe any golfer to/from specific events via the member detail page (Member Directory → Manage).
+- Golfers can unsubscribe themselves from events via the "My Events" section on their dashboard.
+- Unsubscribed golfers stop receiving invites for that event but retain their account and history.
 
 ---
 
@@ -66,16 +88,18 @@ The first event is **"FRCC Saturday Morning Group"**. The platform is designed f
 
 ### Event Settings
 - Name and description
+- URL slug (e.g., `saturday-morning`) — used for event-specific join links (`/join/[slug]`). Displayed on the event settings page with a copy button.
 - Frequency: weekly, bi-weekly, or monthly
 - Day of week
 - Default weekly capacity (e.g., 16 = 4 foursomes)
 - Timezone: America/Los_Angeles (Pacific Time)
-- Invite send time (default: Monday 10:00 AM PT)
-- Reminder send time (default: Thursday 10:00 AM PT)
-- RSVP cutoff time (default: Friday 10:00 AM PT)
-- Confirmation email time (default: Friday 1:00 PM PT — automated)
+- Invite send time (configurable via admin settings)
+- Reminder send time (configurable via admin settings)
+- RSVP cutoff time (configurable via admin settings)
+- Confirmation email time (configurable via admin settings)
 - Pro shop contacts (multiple email addresses)
 - Primary and secondary event admins
+- Feature flags (guest requests, tee time preferences, playing partner preferences)
 
 ### Schedule Management
 - Admin dashboard has a rolling 8-week schedule view.
@@ -249,7 +273,12 @@ The first event is **"FRCC Saturday Morning Group"**. The platform is designed f
 ## Technical Architecture
 
 ### Database: Supabase (PostgreSQL)
-Key tables: profiles, events, event_admins, event_subscriptions, event_schedules, rsvps, guest_requests, playing_partner_preferences, pro_shop_contacts, email_templates, email_log.
+Key tables: profiles, events, event_admins, event_subscriptions, event_schedules, rsvps, guest_requests, playing_partner_preferences, pro_shop_contacts, email_templates, email_log, event_email_schedules, event_alert_settings.
+
+Notable columns added post-initial schema:
+- `events.slug` — URL-friendly identifier for join links (e.g., `saturday-morning`).
+- `profiles.registration_event_id` — tracks which event a golfer self-registered through. NULL = generic registration or batch import (subscribes to all events on approval).
+- `profiles.ghin_number` — now optional (was originally required).
 
 ### Authentication: Supabase Auth
 - Magic link (OTP) for passwordless login.
@@ -263,8 +292,16 @@ Key tables: profiles, events, event_admins, event_subscriptions, event_schedules
 
 ### Hosting: Vercel
 - Next.js App Router with Server Actions.
-- Cron jobs (Vercel Cron or Supabase Edge Functions) for scheduled emails.
-- Free tier.
+- Cron jobs: 6 daily crons synced 1:1 with admin-configurable email time slots:
+  - 16:00 UTC → 8:00 AM PST (fires for 7:45 AM setting)
+  - 17:00 UTC → 9:00 AM PST (fires for 8:45 AM setting)
+  - 18:00 UTC → 10:00 AM PST (fires for 9:45 AM setting)
+  - 19:00 UTC → 11:00 AM PST (fires for 10:45 AM setting)
+  - 20:00 UTC → 12:00 PM PST (fires for 11:45 AM setting)
+  - 01:00 UTC → 5:00 PM PST (fires for 4:45 PM setting)
+- Each cron calls `/api/cron/email-scheduler` which checks all events for emails due within a 3-hour forward window.
+- Note: During PDT (Mar–Nov), crons fire 1 hour later in Pacific Time.
+- Free tier (Hobby plan — limited to daily cron frequency, max 6 cron entries).
 
 ---
 
@@ -296,11 +333,16 @@ Key tables: profiles, events, event_admins, event_subscriptions, event_schedules
 - [ ] Golf Genius CSV export
 
 ### Phase 4 — Admin Tools & Communication (MVP for Beta Launch)
-- [ ] Schedule management (8-week rolling view)
-- [ ] Custom email composer with templates
+- [x] Schedule management (8-week rolling view)
+- [x] Custom email composer with templates
 - [ ] Action items / task summary
-- [ ] Member directory with search/filter
-- [ ] Admin notification emails
+- [x] Member directory with search/filter
+- [x] Member detail page with subscription management
+- [x] Admin "Add Golfer" page (direct add, no approval needed)
+- [x] Event-specific join links (/join/[slug]) with admin copy button
+- [x] Golfer dashboard "My Events" with self-service unsubscribe
+- [x] Configurable email schedule (6 time slots synced with Vercel crons)
+- [x] Admin notification emails
 - [ ] UI/UX improvements and branding
   - Align visual design with Fairbanks Ranch website (colors, fonts, imagery)
   - Add Fairbanks Ranch logo
