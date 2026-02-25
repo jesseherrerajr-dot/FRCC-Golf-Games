@@ -50,12 +50,23 @@ export default async function DashboardPage() {
     .eq("id", user.id)
     .single();
 
-  // Fetch the user's event subscriptions
-  const { data: subscriptions } = await supabase
+  // Fetch the user's event subscriptions (two queries to avoid FK join issues)
+  const { data: rawSubs } = await supabase
     .from("event_subscriptions")
-    .select("id, is_active, event:events(id, name, day_of_week, frequency)")
+    .select("id, event_id, is_active")
     .eq("profile_id", user.id)
     .eq("is_active", true);
+
+  const { data: allEvents } = await supabase
+    .from("events")
+    .select("id, name, day_of_week, frequency")
+    .eq("is_active", true);
+
+  // Merge subscriptions with event data
+  const subscriptions = (rawSubs || []).map((sub) => {
+    const event = (allEvents || []).find((e) => e.id === sub.event_id);
+    return { ...sub, event };
+  });
 
   // Fetch upcoming RSVPs for this user (games today or in the future)
   const today = new Date().toISOString().split("T")[0];
@@ -198,11 +209,11 @@ export default async function DashboardPage() {
               </h3>
               {subscriptions && subscriptions.length > 0 ? (
                 <div className="mt-3 space-y-3">
-                  {subscriptions.map((sub: Record<string, unknown>) => {
+                  {subscriptions.map((sub) => {
                     const event = sub.event as {
                       id: string;
                       name: string;
-                      day_of_week: string | null;
+                      day_of_week: number | null;
                       frequency: string | null;
                     } | null;
                     if (!event) return null;
@@ -212,8 +223,9 @@ export default async function DashboardPage() {
                         : event.frequency === "monthly"
                           ? "Monthly"
                           : "Weekly";
-                    const day = event.day_of_week
-                      ? event.day_of_week.charAt(0).toUpperCase() + event.day_of_week.slice(1)
+                    const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+                    const day = event.day_of_week != null
+                      ? dayNames[event.day_of_week] || ""
                       : "";
                     return (
                       <div
