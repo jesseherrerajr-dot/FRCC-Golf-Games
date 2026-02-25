@@ -934,6 +934,75 @@ export function FeatureFlagsForm({ event }: { event: any }) {
 }
 
 // ============================================================
+// Join Link
+// ============================================================
+
+export function JoinLinkSection({ slug }: { slug: string | null }) {
+  const [copied, setCopied] = useState(false);
+
+  if (!slug) {
+    return (
+      <p className="text-sm text-gray-500">
+        No join link available. Set a URL slug in Basic Settings to enable a
+        shareable join link for this event.
+      </p>
+    );
+  }
+
+  const siteUrl =
+    typeof window !== "undefined"
+      ? window.location.origin
+      : "https://frccgolfgames.com";
+  const joinUrl = `${siteUrl}/join/${slug}`;
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(joinUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Fallback for older browsers
+      const input = document.createElement("input");
+      input.value = joinUrl;
+      document.body.appendChild(input);
+      input.select();
+      document.execCommand("copy");
+      document.body.removeChild(input);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  return (
+    <div>
+      <p className="text-sm text-gray-600">
+        Share this link with golfers who want to join this event. They&apos;ll
+        fill out their info and be placed in the pending approval queue.
+      </p>
+      <div className="mt-3 flex items-center gap-2">
+        <input
+          type="text"
+          readOnly
+          value={joinUrl}
+          className="flex-1 rounded-lg border border-gray-300 bg-gray-50 px-4 py-2.5 text-sm text-gray-700"
+          onClick={(e) => (e.target as HTMLInputElement).select()}
+        />
+        <button
+          onClick={handleCopy}
+          className={`rounded-lg px-4 py-2.5 text-sm font-medium transition-colors ${
+            copied
+              ? "bg-teal-100 text-teal-700"
+              : "bg-teal-600 text-white hover:bg-teal-500"
+          }`}
+        >
+          {copied ? "Copied!" : "Copy"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
 // Danger Zone
 // ============================================================
 

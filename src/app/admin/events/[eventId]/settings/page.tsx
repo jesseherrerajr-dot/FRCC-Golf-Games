@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import {
   BasicSettingsForm,
+  JoinLinkSection,
   EmailScheduleForm,
   AlertSettingsForm,
   ProShopContactsForm,
@@ -98,6 +99,19 @@ export default async function EventSettingsPage({
           </h2>
           <div className="mt-3 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
             <BasicSettingsForm event={event} />
+          </div>
+        </section>
+
+        {/* Join Link */}
+        <section className="mt-8">
+          <h2 className="text-lg font-semibold text-gray-900">
+            Join Link
+          </h2>
+          <p className="mt-1 text-sm text-gray-500">
+            Shareable link for new golfers to request to join this event.
+          </p>
+          <div className="mt-3 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+            <JoinLinkSection slug={event.slug} />
           </div>
         </section>
 
