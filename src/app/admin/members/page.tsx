@@ -88,12 +88,20 @@ export default async function MemberDirectory({
               {totalCount} total members
             </p>
           </div>
-          <Link
-            href="/admin"
-            className="text-sm text-teal-700 hover:text-teal-600"
-          >
-            ← Back to Admin
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/admin/members/add"
+              className="rounded-md bg-teal-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-500"
+            >
+              + Add Golfer
+            </Link>
+            <Link
+              href="/admin"
+              className="text-sm text-teal-700 hover:text-teal-600"
+            >
+              ← Back to Admin
+            </Link>
+          </div>
         </div>
 
         {/* Search + Filters */}
@@ -250,22 +258,24 @@ function MemberActions({
   const id = member.id as string;
   const memberIsSuperAdmin = member.is_super_admin as boolean;
 
-  if (status === "pending_approval") {
-    return (
-      <div className="flex justify-end gap-2">
-        <ApproveButton profileId={id} />
-        <DenyButton profileId={id} />
-      </div>
-    );
-  }
-
-  if (status === "active" && !memberIsSuperAdmin) {
-    return <DeactivateButton profileId={id} />;
-  }
-
-  if (status === "deactivated") {
-    return <ReactivateButton profileId={id} />;
-  }
-
-  return null;
+  return (
+    <div className="flex items-center justify-end gap-2">
+      <Link
+        href={`/admin/members/${id}`}
+        className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+      >
+        Manage
+      </Link>
+      {status === "pending_approval" && (
+        <>
+          <ApproveButton profileId={id} />
+          <DenyButton profileId={id} />
+        </>
+      )}
+      {status === "active" && !memberIsSuperAdmin && (
+        <DeactivateButton profileId={id} />
+      )}
+      {status === "deactivated" && <ReactivateButton profileId={id} />}
+    </div>
+  );
 }

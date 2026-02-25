@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { formatPhoneDisplay } from "@/lib/format";
 import Header from "@/components/header";
+import { UnsubscribeButton } from "./subscription-actions";
 
 type RsvpStatus = "in" | "out" | "not_sure" | "no_response" | "waitlisted";
 
@@ -48,6 +49,13 @@ export default async function DashboardPage() {
     .select("*")
     .eq("id", user.id)
     .single();
+
+  // Fetch the user's event subscriptions
+  const { data: subscriptions } = await supabase
+    .from("event_subscriptions")
+    .select("id, is_active, event:events(id, name, day_of_week, frequency)")
+    .eq("profile_id", user.id)
+    .eq("is_active", true);
 
   // Fetch upcoming RSVPs for this user (games today or in the future)
   const today = new Date().toISOString().split("T")[0];
@@ -179,6 +187,56 @@ export default async function DashboardPage() {
                 No upcoming games right now. You&apos;ll see your RSVPs here once
                 the next invite goes out.
               </p>
+            </div>
+          )}
+
+          {/* My Events (subscriptions) */}
+          {profile?.status === "active" && (
+            <div className="mt-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+              <h3 className="font-serif text-lg font-semibold uppercase tracking-wide text-navy-900">
+                My Events
+              </h3>
+              {subscriptions && subscriptions.length > 0 ? (
+                <div className="mt-3 space-y-3">
+                  {subscriptions.map((sub: Record<string, unknown>) => {
+                    const event = sub.event as {
+                      id: string;
+                      name: string;
+                      day_of_week: string | null;
+                      frequency: string | null;
+                    } | null;
+                    if (!event) return null;
+                    const freq =
+                      event.frequency === "biweekly"
+                        ? "Bi-weekly"
+                        : event.frequency === "monthly"
+                          ? "Monthly"
+                          : "Weekly";
+                    const day = event.day_of_week
+                      ? event.day_of_week.charAt(0).toUpperCase() + event.day_of_week.slice(1)
+                      : "";
+                    return (
+                      <div
+                        key={sub.id as string}
+                        className="flex items-center justify-between rounded-lg border border-gray-100 bg-gray-50 p-4"
+                      >
+                        <div>
+                          <p className="font-semibold text-gray-900">{event.name}</p>
+                          <p className="text-sm text-gray-500">
+                            {freq} &middot; {day}
+                          </p>
+                        </div>
+                        <UnsubscribeButton eventId={event.id} />
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="mt-2 text-sm text-gray-500">
+                  You&apos;re not subscribed to any events yet. Contact an admin or
+                  use an event join link to get started.
+                </p>
+              )}
             </div>
           )}
 

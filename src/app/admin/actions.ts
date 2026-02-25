@@ -3,6 +3,10 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { sendAdminAlert } from "@/lib/admin-alerts";
+import {
+  subscribeToEvent,
+  subscribeToAllActiveEvents,
+} from "@/lib/subscriptions";
 
 export async function approveRegistration(profileId: string) {
   const supabase = await createClient();
@@ -31,6 +35,18 @@ export async function approveRegistration(profileId: string) {
 
   if (!isAdmin) return { error: "Not authorized" };
 
+  // Fetch the profile to check for event-specific registration
+  const { data: pendingProfile } = await supabase
+    .from("profiles")
+    .select("registration_event_id")
+    .eq("id", profileId)
+    .eq("status", "pending_approval")
+    .single();
+
+  if (!pendingProfile) {
+    return { error: "Profile not found or already approved." };
+  }
+
   const { error } = await supabase
     .from("profiles")
     .update({ status: "active" })
@@ -42,29 +58,22 @@ export async function approveRegistration(profileId: string) {
     return { error: "Failed to approve registration." };
   }
 
-  // Auto-subscribe the newly approved golfer to all active events
-  const { data: activeEvents } = await supabase
-    .from("events")
-    .select("id")
-    .eq("is_active", true);
-
-  if (activeEvents && activeEvents.length > 0) {
-    const subscriptions = activeEvents.map((event) => ({
-      event_id: event.id,
-      profile_id: profileId,
-      is_active: true,
-    }));
-
-    const { error: subError } = await supabase
-      .from("event_subscriptions")
-      .upsert(subscriptions, {
-        onConflict: "event_id,profile_id",
-        ignoreDuplicates: true,
-      });
-
-    if (subError) {
-      console.error("Auto-subscribe error:", subError);
-      // Don't fail the approval — the golfer is active, just not subscribed
+  // Subscribe based on how the golfer registered:
+  // - Event-specific join link → subscribe to that event only
+  // - Generic /join or import → subscribe to all active events
+  if (pendingProfile.registration_event_id) {
+    const result = await subscribeToEvent(
+      supabase,
+      profileId,
+      pendingProfile.registration_event_id
+    );
+    if (!result.success) {
+      console.error("Event-specific subscribe error:", result.error);
+    }
+  } else {
+    const result = await subscribeToAllActiveEvents(supabase, profileId);
+    if (!result.success) {
+      console.error("Auto-subscribe error:", result.error);
     }
   }
 
@@ -186,25 +195,9 @@ export async function reactivateMember(profileId: string) {
   }
 
   // Re-subscribe to all active events
-  const { data: activeEvents } = await supabase
-    .from("events")
-    .select("id")
-    .eq("is_active", true);
-
-  if (activeEvents && activeEvents.length > 0) {
-    // Reactivate existing subscriptions
-    for (const event of activeEvents) {
-      await supabase
-        .from("event_subscriptions")
-        .upsert(
-          {
-            event_id: event.id,
-            profile_id: profileId,
-            is_active: true,
-          },
-          { onConflict: "event_id,profile_id" }
-        );
-    }
+  const subResult = await subscribeToAllActiveEvents(supabase, profileId);
+  if (!subResult.success) {
+    console.error("Reactivation subscribe error:", subResult.error);
   }
 
   revalidatePath("/admin");
