@@ -25,26 +25,26 @@ const DAY_NAMES = [
   "Saturday",
 ];
 
-// Time options at :45 past each hour, covering 7:45 AM – 4:45 PM Pacific.
-// Five daily cron entries (vercel.json) fire at strategic UTC hours to catch
-// every slot within the 3-hour send window, in both PST and PDT.
+// Time options at :45 past each hour, each with a dedicated cron job that
+// fires 15 minutes later on the hour. Six daily cron entries (vercel.json)
+// are 1:1 with these options so emails send promptly after the configured time.
 //
-// Cron coverage map (each slot is caught by at least one cron in both timezones):
-//   0 15 * * * (7AM PST/8AM PDT) → catches 7:45, 8:45 AM (+ 6:45 AM in PDT)
-//   0 17 * * * (9AM PST/10AM PDT) → catches 7:45, 8:45, 9:45, 10:45 AM
-//   0 19 * * * (11AM PST/12PM PDT) → catches 9:45, 10:45, 11:45 AM
-//   0 22 * * * (2PM PST/3PM PDT) → catches 11:45 AM, 12:45, 1:45, 2:45 PM
-//   0  1 * * * (5PM PST/6PM PDT) → catches 2:45, 3:45, 4:45 PM
+// Dropdown → Cron (PST) → UTC
+//   7:45 AM →  8:00 AM  → 0 16 * * *
+//   8:45 AM →  9:00 AM  → 0 17 * * *
+//   9:45 AM → 10:00 AM  → 0 18 * * *
+//  10:45 AM → 11:00 AM  → 0 19 * * *
+//  11:45 AM → 12:00 PM  → 0 20 * * *
+//   4:45 PM →  5:00 PM  → 0  1 * * *
+//
+// Note: During PDT (Mar–Nov), crons fire 1 hour later in Pacific Time.
+// The 3-hour send window in isWithinSendWindow() still catches every slot.
 const TIME_OPTIONS = [
   { value: "07:45", label: "7:45 AM" },
   { value: "08:45", label: "8:45 AM" },
   { value: "09:45", label: "9:45 AM" },
   { value: "10:45", label: "10:45 AM" },
   { value: "11:45", label: "11:45 AM" },
-  { value: "12:45", label: "12:45 PM" },
-  { value: "13:45", label: "1:45 PM" },
-  { value: "14:45", label: "2:45 PM" },
-  { value: "15:45", label: "3:45 PM" },
   { value: "16:45", label: "4:45 PM" },
 ];
 
@@ -55,15 +55,24 @@ const TIME_OPTIONS = [
 function snapToNearest45(time: string | undefined | null): string {
   if (!time) return "09:45"; // default
   const [h, m] = time.slice(0, 5).split(":").map(Number);
-  // If already :45, use as-is
+  // If already :45 and in our options, use as-is
   if (m === 45) {
     const val = `${String(h).padStart(2, "0")}:45`;
     if (TIME_OPTIONS.some((o) => o.value === val)) return val;
   }
-  // Round to nearest hour, then use that hour's :45
-  const roundedHour = m >= 23 ? h + 1 : h;
-  const snappedHour = Math.max(7, Math.min(16, roundedHour));
-  return `${String(snappedHour).padStart(2, "0")}:45`;
+  // Find the closest available option
+  const totalMinutes = h * 60 + m;
+  let closest = TIME_OPTIONS[0].value;
+  let closestDiff = Infinity;
+  for (const opt of TIME_OPTIONS) {
+    const [oh, om] = opt.value.split(":").map(Number);
+    const diff = Math.abs(oh * 60 + om - totalMinutes);
+    if (diff < closestDiff) {
+      closestDiff = diff;
+      closest = opt.value;
+    }
+  }
+  return closest;
 }
 
 // ============================================================

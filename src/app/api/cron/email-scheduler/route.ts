@@ -18,24 +18,29 @@ import { sendAdminAlert } from "@/lib/admin-alerts";
 
 /**
  * Dynamic Email Scheduler Cron
- * Triggered by 5 daily cron entries in vercel.json, spaced across the day
- * at strategic UTC hours. Checks the email_schedules table to determine
- * what emails to send. Supports configurable scheduling per event with
- * multiple reminders.
+ * Triggered by 6 daily cron entries in vercel.json, each paired 1:1 with
+ * an admin-selectable time slot. Checks the email_schedules table to
+ * determine what emails to send. Supports configurable scheduling per
+ * event with multiple reminders.
  *
  * Architecture:
  *   - Vercel Hobby plan limits crons to once-per-day frequency.
- *   - 5 daily crons fire at: 15:00, 17:00, 19:00, 22:00, 01:00 UTC
- *     covering 7:45 AM – 4:45 PM Pacific in both PST and PDT.
- *   - Admin-configured send times use :45 past the hour (e.g., 9:45 AM PT).
- *   - When a cron fires, isWithinSendWindow() checks if any scheduled time
- *     falls within the past 3 hours, accounting for DST shifts (±1 hour).
+ *   - 6 daily crons, each firing 15 min after its paired dropdown option:
+ *       Dropdown    Cron (PST)   UTC
+ *        7:45 AM →  8:00 AM  → 0 16 * * *
+ *        8:45 AM →  9:00 AM  → 0 17 * * *
+ *        9:45 AM → 10:00 AM  → 0 18 * * *
+ *       10:45 AM → 11:00 AM  → 0 19 * * *
+ *       11:45 AM → 12:00 PM  → 0 20 * * *
+ *        4:45 PM →  5:00 PM  → 0  1 * * *
+ *   - During PDT (Mar–Nov), crons fire 1 hour later in Pacific Time.
+ *     The 3-hour send window in isWithinSendWindow() still catches every slot.
  *   - Duplicate sends are prevented by "already sent" flags on each schedule
  *     (invite_sent, reminder_sent, etc.), NOT by the time window.
  *
- * The admin settings UI constrains time selection to :45 slots that are
- * guaranteed to be caught by the cron entries above, so admins can freely
- * change email times without any manual deployment steps.
+ * The admin settings UI constrains time selection to 6 slots that are
+ * 1:1 with the cron entries above, so admins can freely change email
+ * times without any manual deployment steps.
  *
  * Query params:
  *   ?test=true — dry run, logs but doesn't send emails
