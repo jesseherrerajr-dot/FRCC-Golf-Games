@@ -2,6 +2,7 @@ import { requireAdmin } from "@/lib/auth";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import Header from "@/components/header";
+import { CollapsibleSection } from "@/components/collapsible-section";
 import {
   StatusDropdown,
   PromoteButton,
@@ -270,108 +271,107 @@ export default async function AdminRsvpPage({
           </div>
         </div>
 
-        {/* Confirmed Players */}
-        <section className="mt-8">
-          <h2 className="text-lg font-semibold text-navy-900">
-            Confirmed ({inCount})
-          </h2>
-          {inCount === 0 ? (
-            <p className="mt-2 text-sm text-gray-500">
-              No confirmed players yet.
-            </p>
-          ) : (
-            <div className="mt-3 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                      Name
-                    </th>
-                    <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 lg:table-cell">
-                      Preferences
-                    </th>
-                    <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 sm:table-cell">
-                      Email
-                    </th>
-                    <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 md:table-cell">
-                      Responded
-                    </th>
-                    <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {grouped.in.map((rsvp: Record<string, unknown>) => {
-                    const profile = rsvp.profile as {
-                      first_name: string;
-                      last_name: string;
-                      email: string;
-                    };
-                    const prefs = preferencesByProfile[rsvp.profile_id as string];
-                    return (
-                      <tr key={rsvp.id as string}>
-                        <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900">
-                          {profile?.first_name} {profile?.last_name}
-                          <span className="block text-xs text-gray-400 sm:hidden">
-                            {profile?.email}
-                          </span>
-                        </td>
-                        <td className="hidden px-4 py-3 text-sm text-gray-600 lg:table-cell">
-                          {prefs ? (
-                            <div className="space-y-1">
-                              {prefs.partners.length > 0 && (
-                                <div className="text-xs">
-                                  <span className="font-medium text-gray-700">Partners:</span>{" "}
-                                  {prefs.partners.slice(0, 3).join(", ")}
-                                  {prefs.partners.length > 3 && ` +${prefs.partners.length - 3}`}
-                                </div>
-                              )}
-                              {prefs.teeTime !== "no_preference" && (
-                                <div className="text-xs">
-                                  <span className="font-medium text-gray-700">Tee:</span>{" "}
-                                  {prefs.teeTime === "early" ? "🌅 Early" : "🌄 Late"}
-                                </div>
-                              )}
-                              {prefs.partners.length === 0 && prefs.teeTime === "no_preference" && (
-                                <span className="text-xs text-gray-400">None set</span>
-                              )}
-                            </div>
-                          ) : (
-                            <span className="text-xs text-gray-400">None set</span>
-                          )}
-                        </td>
-                        <td className="hidden whitespace-nowrap px-4 py-3 text-sm text-gray-600 sm:table-cell">
+        {/* Confirmed Players — always expanded */}
+        <CollapsibleSection
+          title="Confirmed"
+          count={inCount}
+          defaultOpen={true}
+          headerColor="text-navy-900"
+          emptyMessage="No confirmed players yet."
+        >
+          <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Name
+                  </th>
+                  <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 lg:table-cell">
+                    Preferences
+                  </th>
+                  <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 sm:table-cell">
+                    Email
+                  </th>
+                  <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 md:table-cell">
+                    Responded
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {grouped.in.map((rsvp: Record<string, unknown>) => {
+                  const profile = rsvp.profile as {
+                    first_name: string;
+                    last_name: string;
+                    email: string;
+                  };
+                  const prefs = preferencesByProfile[rsvp.profile_id as string];
+                  return (
+                    <tr key={rsvp.id as string}>
+                      <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900">
+                        {profile?.first_name} {profile?.last_name}
+                        <span className="block text-xs text-gray-400 sm:hidden">
                           {profile?.email}
-                        </td>
-                        <td className="hidden whitespace-nowrap px-4 py-3 text-sm text-gray-500 md:table-cell">
-                          {formatTime(rsvp.responded_at as string | null)}
-                        </td>
-                        <td className="whitespace-nowrap px-4 py-3 text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <StatusDropdown
-                              rsvpId={rsvp.id as string}
-                              scheduleId={scheduleId}
-                              currentStatus={rsvp.status as RsvpStatus}
-                            />
+                        </span>
+                      </td>
+                      <td className="hidden px-4 py-3 text-sm text-gray-600 lg:table-cell">
+                        {prefs ? (
+                          <div className="space-y-1">
+                            {prefs.partners.length > 0 && (
+                              <div className="text-xs">
+                                <span className="font-medium text-gray-700">Partners:</span>{" "}
+                                {prefs.partners.slice(0, 3).join(", ")}
+                                {prefs.partners.length > 3 && ` +${prefs.partners.length - 3}`}
+                              </div>
+                            )}
+                            {prefs.teeTime !== "no_preference" && (
+                              <div className="text-xs">
+                                <span className="font-medium text-gray-700">Tee:</span>{" "}
+                                {prefs.teeTime === "early" ? "Early" : "Late"}
+                              </div>
+                            )}
+                            {prefs.partners.length === 0 && prefs.teeTime === "no_preference" && (
+                              <span className="text-xs text-gray-400">None set</span>
+                            )}
                           </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </section>
+                        ) : (
+                          <span className="text-xs text-gray-400">None set</span>
+                        )}
+                      </td>
+                      <td className="hidden whitespace-nowrap px-4 py-3 text-sm text-gray-600 sm:table-cell">
+                        {profile?.email}
+                      </td>
+                      <td className="hidden whitespace-nowrap px-4 py-3 text-sm text-gray-500 md:table-cell">
+                        {formatTime(rsvp.responded_at as string | null)}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <StatusDropdown
+                            rsvpId={rsvp.id as string}
+                            scheduleId={scheduleId}
+                            currentStatus={rsvp.status as RsvpStatus}
+                          />
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </CollapsibleSection>
 
-        {/* Approved Guests */}
+        {/* Approved Guests — expanded */}
         {approvedGuests.length > 0 && (
-          <section className="mt-8">
-            <h2 className="text-lg font-semibold text-blue-800">
-              Approved Guests ({approvedGuests.length})
-            </h2>
-            <div className="mt-3 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+          <CollapsibleSection
+            title="Approved Guests"
+            count={approvedGuests.length}
+            defaultOpen={true}
+            headerColor="text-blue-800"
+          >
+            <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
@@ -422,20 +422,22 @@ export default async function AdminRsvpPage({
                 </tbody>
               </table>
             </div>
-          </section>
+          </CollapsibleSection>
         )}
 
-        {/* Pending Guest Requests */}
+        {/* Pending Guest Requests — expanded (actionable) */}
         {pendingGuests.length > 0 && (
-          <section className="mt-8">
-            <h2 className="text-lg font-semibold text-yellow-800">
-              Pending Guest Requests ({pendingGuests.length})
-            </h2>
-            <p className="mt-1 text-sm text-gray-500">
+          <CollapsibleSection
+            title="Pending Guest Requests"
+            count={pendingGuests.length}
+            defaultOpen={true}
+            headerColor="text-yellow-800"
+          >
+            <p className="mb-3 text-sm text-gray-500">
               Review these guest requests and approve or deny after the Friday
               cutoff.
             </p>
-            <div className="mt-3 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+            <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
@@ -503,20 +505,22 @@ export default async function AdminRsvpPage({
                 </tbody>
               </table>
             </div>
-          </section>
+          </CollapsibleSection>
         )}
 
-        {/* Waitlisted */}
+        {/* Waitlisted — expanded (actionable) */}
         {waitlistCount > 0 && (
-          <section className="mt-8">
-            <h2 className="text-lg font-semibold text-orange-800">
-              Waitlisted ({waitlistCount})
-            </h2>
-            <p className="mt-1 text-sm text-gray-500">
+          <CollapsibleSection
+            title="Waitlisted"
+            count={waitlistCount}
+            defaultOpen={true}
+            headerColor="text-orange-800"
+          >
+            <p className="mb-3 text-sm text-gray-500">
               Select golfers to promote to confirmed. Order is by response
               time, but you can promote anyone.
             </p>
-            <div className="mt-3 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+            <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
@@ -581,16 +585,18 @@ export default async function AdminRsvpPage({
                 </tbody>
               </table>
             </div>
-          </section>
+          </CollapsibleSection>
         )}
 
-        {/* Not Sure */}
+        {/* Not Sure — collapsed by default (less actionable) */}
         {notSureCount > 0 && (
-          <section className="mt-8">
-            <h2 className="text-lg font-semibold text-yellow-800">
-              Not Sure ({notSureCount})
-            </h2>
-            <div className="mt-3 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+          <CollapsibleSection
+            title="Not Sure"
+            count={notSureCount}
+            defaultOpen={false}
+            headerColor="text-yellow-800"
+          >
+            <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
@@ -645,16 +651,18 @@ export default async function AdminRsvpPage({
                 </tbody>
               </table>
             </div>
-          </section>
+          </CollapsibleSection>
         )}
 
-        {/* No Response */}
+        {/* No Response — collapsed by default */}
         {noResponseCount > 0 && (
-          <section className="mt-8">
-            <h2 className="text-lg font-semibold text-gray-700">
-              No Response ({noResponseCount})
-            </h2>
-            <div className="mt-3 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+          <CollapsibleSection
+            title="No Response"
+            count={noResponseCount}
+            defaultOpen={false}
+            headerColor="text-gray-700"
+          >
+            <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
@@ -709,16 +717,18 @@ export default async function AdminRsvpPage({
                 </tbody>
               </table>
             </div>
-          </section>
+          </CollapsibleSection>
         )}
 
-        {/* Out */}
+        {/* Out — collapsed by default */}
         {outCount > 0 && (
-          <section className="mt-8">
-            <h2 className="text-lg font-semibold text-red-800">
-              Out ({outCount})
-            </h2>
-            <div className="mt-3 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+          <CollapsibleSection
+            title="Out"
+            count={outCount}
+            defaultOpen={false}
+            headerColor="text-red-800"
+          >
+            <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
@@ -773,7 +783,7 @@ export default async function AdminRsvpPage({
                 </tbody>
               </table>
             </div>
-          </section>
+          </CollapsibleSection>
         )}
 
         {/* No RSVPs at all */}
