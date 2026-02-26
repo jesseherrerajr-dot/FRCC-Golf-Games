@@ -51,6 +51,7 @@ export interface Event {
   allow_guest_requests: boolean;
   allow_tee_time_preferences: boolean;
   allow_playing_partner_preferences: boolean;
+  allow_auto_grouping: boolean;
 
   is_active: boolean;
   created_at: string;
@@ -154,6 +155,60 @@ export interface CreateEventInput {
   cutoff_time: string;
   confirmation_day: number;
   confirmation_time: string;
+}
+
+// ============================================================
+// Grouping Engine Types
+// ============================================================
+
+export type TeeTimePreference = 'early' | 'late' | 'no_preference';
+
+/** Input to the grouping engine — one per confirmed golfer */
+export interface GroupingGolfer {
+  profileId: string;
+  teeTimePreference: TeeTimePreference;
+}
+
+/** A ranked partner preference */
+export interface PartnerPreference {
+  profileId: string;          // the golfer who set the preference
+  preferredPartnerId: string; // the partner they want
+  rank: number;               // 1 = most preferred, up to 10
+}
+
+/** Output from the grouping engine — one per golfer assignment */
+export interface GroupingAssignment {
+  groupNumber: number;  // 1-based group number
+  teeOrder: number;     // 1 = first off, 2 = second off, etc.
+  profileId: string;
+  guestRequestId?: string; // future: for guest assignments
+}
+
+/** A complete group with its members and score */
+export interface GroupResult {
+  groupNumber: number;
+  teeOrder: number;       // tee position (1 = first off)
+  members: string[];      // profile IDs
+  harmonyScore: number;   // sum of pairwise partner scores
+}
+
+/** Full engine output */
+export interface GroupingResult {
+  groups: GroupResult[];
+  assignments: GroupingAssignment[];
+  totalHarmonyScore: number;
+}
+
+/** Stored grouping row (matches DB schema) */
+export interface Grouping {
+  id: string;
+  schedule_id: string;
+  group_number: number;
+  tee_order: number;
+  profile_id: string | null;
+  guest_request_id: string | null;
+  harmony_score: number | null;
+  created_at: string;
 }
 
 export interface UpdateEventSettingsInput {
