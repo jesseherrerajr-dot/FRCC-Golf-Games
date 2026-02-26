@@ -242,7 +242,6 @@ export default function PreferencesPage() {
                       <div className="font-medium text-gray-900">
                         {member.first_name} {member.last_name}
                       </div>
-                      <div className="text-xs text-gray-500">{member.email}</div>
                     </button>
                   ))}
                 </div>
@@ -267,9 +266,6 @@ export default function PreferencesPage() {
                     <div className="text-sm font-medium text-gray-900">
                       {index + 1}. {partner.profiles.first_name}{" "}
                       {partner.profiles.last_name}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      {partner.profiles.email}
                     </div>
                   </div>
                   <button

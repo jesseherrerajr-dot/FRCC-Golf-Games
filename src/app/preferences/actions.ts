@@ -118,11 +118,23 @@ export async function addPlayingPartner(
     return { error: "Maximum 10 playing partners allowed per event" };
   }
 
+  // Determine next rank (1-based, sequential)
+  const { data: existingPrefs } = await supabase
+    .from("playing_partner_preferences")
+    .select("rank")
+    .eq("profile_id", user.id)
+    .eq("event_id", eventId)
+    .order("rank", { ascending: false })
+    .limit(1);
+
+  const nextRank = existingPrefs && existingPrefs.length > 0 ? existingPrefs[0].rank + 1 : 1;
+
   // Add preference
   const { error } = await supabase.from("playing_partner_preferences").insert({
     profile_id: user.id,
     event_id: eventId,
     preferred_partner_id: partnerId,
+    rank: nextRank,
   });
 
   if (error) {
