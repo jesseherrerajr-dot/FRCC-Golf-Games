@@ -65,6 +65,7 @@ export async function getPlayingPartnerPreferences(eventId: string) {
       `
       id,
       preferred_partner_id,
+      rank,
       profiles!playing_partner_preferences_preferred_partner_id_fkey(
         id,
         first_name,
@@ -75,7 +76,7 @@ export async function getPlayingPartnerPreferences(eventId: string) {
     )
     .eq("profile_id", user.id)
     .eq("event_id", eventId)
-    .order("created_at", { ascending: true });
+    .order("rank", { ascending: true });
 
   if (error) {
     console.error("Error fetching preferences:", error);
@@ -151,10 +152,11 @@ export async function addPlayingPartner(
 }
 
 /**
- * Remove a playing partner preference
+ * Remove a playing partner preference and re-compact ranks
  */
 export async function removePlayingPartner(
-  preferenceId: string
+  preferenceId: string,
+  eventId: string
 ): Promise<{ success?: boolean; error?: string }> {
   const supabase = await createClient();
 
@@ -170,11 +172,112 @@ export async function removePlayingPartner(
     .from("playing_partner_preferences")
     .delete()
     .eq("id", preferenceId)
-    .eq("profile_id", user.id); // Ensure user can only delete their own
+    .eq("profile_id", user.id);
 
   if (error) {
     console.error("Error removing partner:", error);
     return { error: "Failed to remove playing partner" };
+  }
+
+  // Re-compact ranks (close any gaps left by the deletion)
+  const { data: remaining } = await supabase
+    .from("playing_partner_preferences")
+    .select("id, rank")
+    .eq("profile_id", user.id)
+    .eq("event_id", eventId)
+    .order("rank", { ascending: true });
+
+  if (remaining && remaining.length > 0) {
+    for (let i = 0; i < remaining.length; i++) {
+      const newRank = i + 1;
+      if (remaining[i].rank !== newRank) {
+        await supabase
+          .from("playing_partner_preferences")
+          .update({ rank: newRank })
+          .eq("id", remaining[i].id);
+      }
+    }
+  }
+
+  revalidatePath("/preferences");
+  return { success: true };
+}
+
+/**
+ * Update a partner's rank (swap with whoever currently holds the target rank)
+ */
+export async function updatePartnerRank(
+  preferenceId: string,
+  eventId: string,
+  newRank: number
+): Promise<{ success?: boolean; error?: string }> {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "You must be logged in" };
+  }
+
+  if (newRank < 1 || newRank > 10) {
+    return { error: "Rank must be between 1 and 10" };
+  }
+
+  // Get the current preference being moved
+  const { data: currentPref } = await supabase
+    .from("playing_partner_preferences")
+    .select("id, rank")
+    .eq("id", preferenceId)
+    .eq("profile_id", user.id)
+    .single();
+
+  if (!currentPref) {
+    return { error: "Preference not found" };
+  }
+
+  const oldRank = currentPref.rank;
+  if (oldRank === newRank) {
+    return { success: true }; // No change needed
+  }
+
+  // Find the preference currently at the target rank (if any)
+  const { data: targetPref } = await supabase
+    .from("playing_partner_preferences")
+    .select("id, rank")
+    .eq("profile_id", user.id)
+    .eq("event_id", eventId)
+    .eq("rank", newRank)
+    .maybeSingle();
+
+  // Swap: move current to a temp rank (-1), move target to old rank, move current to new rank
+  // Using temp rank to avoid unique constraint violation during swap
+  const tempRank = 99;
+
+  // Step 1: Move current to temp
+  await supabase
+    .from("playing_partner_preferences")
+    .update({ rank: tempRank })
+    .eq("id", preferenceId);
+
+  // Step 2: Move target to old rank (if there was someone at the target rank)
+  if (targetPref) {
+    await supabase
+      .from("playing_partner_preferences")
+      .update({ rank: oldRank })
+      .eq("id", targetPref.id);
+  }
+
+  // Step 3: Move current to new rank
+  const { error } = await supabase
+    .from("playing_partner_preferences")
+    .update({ rank: newRank })
+    .eq("id", preferenceId);
+
+  if (error) {
+    console.error("Error updating rank:", error);
+    return { error: "Failed to update rank" };
   }
 
   revalidatePath("/preferences");

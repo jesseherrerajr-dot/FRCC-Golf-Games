@@ -2,13 +2,13 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import {
   getEvents,
   getActiveMembers,
   getPlayingPartnerPreferences,
   addPlayingPartner,
   removePlayingPartner,
+  updatePartnerRank,
 } from "./actions";
 
 type Event = {
@@ -27,6 +27,7 @@ type Member = {
 type Partner = {
   id: string;
   preferred_partner_id: string;
+  rank: number;
   profiles: {
     id: string;
     first_name: string;
@@ -43,6 +44,7 @@ export default function PreferencesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [reordering, setReordering] = useState<string | null>(null); // track which row is being moved
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   // Load events on mount
@@ -100,7 +102,8 @@ export default function PreferencesPage() {
   }
 
   async function handleRemovePartner(preferenceId: string) {
-    const result = await removePlayingPartner(preferenceId);
+    if (!selectedEvent) return;
+    const result = await removePlayingPartner(preferenceId, selectedEvent);
     if (result.error) {
       setMessage({ type: "error", text: result.error });
     } else {
@@ -108,6 +111,25 @@ export default function PreferencesPage() {
       loadEventPreferences();
     }
     setTimeout(() => setMessage(null), 3000);
+  }
+
+  async function handleMovePartner(preferenceId: string, direction: "up" | "down") {
+    if (!selectedEvent) return;
+    const partner = partners.find((p) => p.id === preferenceId);
+    if (!partner) return;
+
+    const newRank = direction === "up" ? partner.rank - 1 : partner.rank + 1;
+    if (newRank < 1 || newRank > partners.length) return;
+
+    setReordering(preferenceId);
+    const result = await updatePartnerRank(preferenceId, selectedEvent, newRank);
+    if (result.error) {
+      setMessage({ type: "error", text: result.error });
+      setTimeout(() => setMessage(null), 3000);
+    } else {
+      await loadEventPreferences();
+    }
+    setReordering(null);
   }
 
   if (loading) {
@@ -225,7 +247,7 @@ export default function PreferencesPage() {
                   setShowDropdown(true);
                 }}
                 onFocus={() => setShowDropdown(true)}
-                placeholder="Search by name or email..."
+                placeholder="Search by name..."
                 className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-600/20"
               />
 
@@ -260,9 +282,40 @@ export default function PreferencesPage() {
               {partners.map((partner, index) => (
                 <div
                   key={partner.id}
-                  className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3"
+                  className={`flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 ${
+                    reordering === partner.id ? "opacity-50" : ""
+                  }`}
                 >
-                  <div>
+                  <div className="flex items-center gap-3">
+                    {/* Up/Down arrows */}
+                    <div className="flex flex-col gap-0.5">
+                      <button
+                        type="button"
+                        onClick={() => handleMovePartner(partner.id, "up")}
+                        disabled={index === 0 || reordering !== null}
+                        className={`rounded px-1.5 py-0.5 text-xs leading-none ${
+                          index === 0 || reordering !== null
+                            ? "text-gray-300 cursor-not-allowed"
+                            : "text-gray-500 hover:bg-gray-200 hover:text-gray-700"
+                        }`}
+                        aria-label="Move up"
+                      >
+                        ▲
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleMovePartner(partner.id, "down")}
+                        disabled={index === partners.length - 1 || reordering !== null}
+                        className={`rounded px-1.5 py-0.5 text-xs leading-none ${
+                          index === partners.length - 1 || reordering !== null
+                            ? "text-gray-300 cursor-not-allowed"
+                            : "text-gray-500 hover:bg-gray-200 hover:text-gray-700"
+                        }`}
+                        aria-label="Move down"
+                      >
+                        ▼
+                      </button>
+                    </div>
                     <div className="text-sm font-medium text-gray-900">
                       {index + 1}. {partner.profiles.first_name}{" "}
                       {partner.profiles.last_name}
@@ -271,7 +324,8 @@ export default function PreferencesPage() {
                   <button
                     type="button"
                     onClick={() => handleRemovePartner(partner.id)}
-                    className="text-sm text-red-600 hover:text-red-700"
+                    disabled={reordering !== null}
+                    className="text-sm text-red-600 hover:text-red-700 disabled:opacity-50"
                   >
                     Remove
                   </button>
@@ -282,7 +336,7 @@ export default function PreferencesPage() {
 
           <p className="mt-4 text-xs text-gray-400">
             These preferences are suggestions and help admins with groupings. They
-            do not guarantee you'll be paired with these players.
+            do not guarantee you&apos;ll be paired with these players.
           </p>
         </div>
         )}
