@@ -32,11 +32,11 @@ An automated golf participation tracker for recurring games at Fairbanks Ranch C
 - `auth/link-error/` — Expired/invalid magic link error page
 - `dashboard/` — Golfer dashboard (upcoming RSVPs, My Events, unsubscribe)
 - `profile/` — Golfer profile settings (name, email, phone, GHIN)
-- `preferences/` — Playing partner & tee time preferences
+- `preferences/` — Playing partner preferences (ranked list with up/down reordering, searchable add)
 - `rsvp/[token]/` — Tokenized RSVP page (one-tap In/Out/Not Sure, guest requests, tee time pref)
 
 ### Admin Pages (src/app/admin/)
-- `page.tsx` — Admin dashboard (weekly RSVP overview, action items)
+- `page.tsx` — Admin dashboard (weekly RSVP overview, action items, collapsible sections)
 - `actions.ts` — Admin dashboard server actions
 - `admin-actions.tsx` — Admin action items component
 - `members/page.tsx` — Member directory (search, filter, approve/deny)
@@ -45,7 +45,7 @@ An automated golf participation tracker for recurring games at Fairbanks Ranch C
 - `members/[memberId]/subscription-toggles.tsx` — Event subscription toggle component
 - `members/[memberId]/actions.ts` — Member detail server actions (approve, deactivate, delete)
 - `members/add/` — Admin "Add Golfer" page (direct add, no approval needed)
-- `rsvp/[scheduleId]/page.tsx` — Weekly RSVP management (In/Out/Waitlist breakdown)
+- `rsvp/[scheduleId]/page.tsx` — Weekly RSVP management (In/Out/Waitlist breakdown, collapsible sections)
 - `rsvp/[scheduleId]/rsvp-controls.tsx` — RSVP override controls (post-cutoff admin changes)
 - `rsvp/[scheduleId]/guest-controls.tsx` — Guest request approve/deny controls
 - `rsvp/[scheduleId]/actions.ts` — RSVP management server actions
@@ -62,6 +62,7 @@ An automated golf participation tracker for recurring games at Fairbanks Ranch C
 - `cron/invite/route.ts` — Monday invite email sender
 - `cron/reminder/route.ts` — Thursday reminder email sender
 - `cron/confirmation/route.ts` — Friday confirmation email sender (golfer + pro shop)
+- `cron/grouping/route.ts` — Grouping engine cron endpoint (runs at cutoff time, generates suggested foursomes)
 
 ### Shared Libraries (src/lib/)
 - `auth.ts` — Auth helpers (get current user, check admin role)
@@ -76,11 +77,15 @@ An automated golf participation tracker for recurring games at Fairbanks Ranch C
 - `supabase/client.ts` — Supabase browser client
 - `supabase/server.ts` — Supabase server client (for Server Actions/API routes)
 - `supabase/middleware.ts` — Supabase session middleware
+- `grouping-engine.ts` — Core foursome grouping algorithm (pure function, no DB calls)
+- `grouping-engine.test.ts` — Unit tests for grouping algorithm (36 tests)
+- `grouping-db.ts` — DB queries: fetch grouping inputs, store grouping outputs
 
 ### Other Key Files
 - `src/middleware.ts` — Next.js middleware (auth redirects, session refresh)
-- `src/types/events.ts` — TypeScript types for events, RSVPs, profiles
+- `src/types/events.ts` — TypeScript types for events, RSVPs, profiles, groupings
 - `src/components/header.tsx` — Shared header/nav component
+- `src/components/collapsible-section.tsx` — Shared collapsible section component (expand/collapse with chevron, count badge, optional "View All" link)
 - `scripts/import-golfers.ts` — Batch import golfers from Excel
 - `scripts/delete-user.ts` — Delete a user script
 - `supabase/migrations/` — Database schema migrations (001–009)
@@ -258,14 +263,17 @@ The first event is **"FRCC Saturday Morning Group"**. The platform is designed f
 - Unsubscribed golfers are completely invisible from that event's weekly flow — no invites, no listing, no clutter. To rejoin, log in and re-subscribe.
 
 ### Playing Partner Preferences (per event)
-- Optional. Up to 10 preferred playing partners per event.
-- Selected via searchable member dropdown (wildcard name search of registered members).
-- Standing preference (not per-week). Golfers can update anytime in profile settings.
-- Visible to admins as a suggestion when making groupings (groupings are done manually by admins/pro shop for now).
+- Optional. Up to 10 preferred playing partners per event, ranked 1–10 (1 = most preferred).
+- Selected via searchable member dropdown (search by name or email; email is not displayed to users).
+- Partners can be reordered via up/down arrows on the preferences page.
+- Standing preference (not per-week). Golfers can update anytime via the Playing Partner Preferences page.
+- Ranking drives the grouping engine's weighted harmony scoring: rank 1 = 100 pts, rank 2 = 50 pts, etc. Mutual preferences are naturally weighted higher (bidirectional scoring).
+- Only active golfers subscribed to the same event appear in the partner search dropdown.
 
 ### Tee Time Preferences
-- Golfers can indicate preference for earlier or later tee times.
-- Per-event setting. Visible to admins as a suggestion.
+- Golfers can indicate preference for earlier or later tee times (early, late, or no preference).
+- Set per-week during RSVP (not a standing preference). The standing tee time preferences table exists but is ignored by the grouping engine.
+- The grouping engine uses the per-week RSVP tee time preference to place early golfers in lower-numbered groups and late golfers in higher-numbered groups.
 
 ---
 
@@ -398,8 +406,8 @@ Notable columns added post-initial schema:
 ### Phase 3 — Guest System & Preferences
 - [ ] Guest request workflow
 - [ ] Guest registration and approval
-- [ ] Playing partner preferences (searchable dropdown)
-- [ ] Tee time preferences
+- [x] Playing partner preferences (searchable dropdown, ranked 1–10 with up/down reordering)
+- [x] Tee time preferences (per-week on RSVP page; standing preferences table exists but ignored by engine)
 - [ ] Golf Genius CSV export
 
 ### Phase 4 — Admin Tools & Communication (MVP for Beta Launch)
@@ -427,7 +435,14 @@ Notable columns added post-initial schema:
 - [ ] Add additional events (Thursday league, Friday afternoon, etc.)
 - [ ] Per-event admin scoping
 - [ ] Participation history / reporting
-- [ ] Recommended Foursome Algorithm (automated grouping suggestions with multiple methods):
+- [x] Recommended Foursome Algorithm — core engine built (greedy heuristic with weighted partner preferences and tee time constraints). See `docs/GROUPING_ENGINE_SPEC.md`.
+  - [x] Grouping engine algorithm (`grouping-engine.ts`) with 36 unit tests
+  - [x] Database schema: `groupings` table, `rank` column on partner preferences, `allow_auto_grouping` feature flag
+  - [ ] DB layer (`grouping-db.ts`) — fetch inputs, store outputs
+  - [ ] Cron endpoint (`cron/grouping/route.ts`) — trigger engine at cutoff
+  - [ ] Pro shop email integration — show grouped roster when flag is enabled
+  - [ ] Admin RSVP page — display suggested groupings (read-only)
+- [ ] Additional grouping methods (future):
   - Random groupings
   - Like-skill / like-handicap based groupings (using GHIN)
   - Balanced skill / equitable groupings (mix skill levels)
