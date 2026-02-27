@@ -253,14 +253,13 @@ async function syncEmailSchedules(
     }
   }
 
-  // Upsert golfer confirmation: 30 minutes after cutoff time
+  // Upsert golfer confirmation: same time as cutoff (the ~15 min cron
+  // delay from :45 settings to :00 cron runs provides sufficient buffer)
   const cutoffDayVal = parseInt(formData.get("cutoff_day") as string);
   const cutoffTimeVal = formData.get("cutoff_time") as string;
   if (!isNaN(cutoffDayVal) && cutoffTimeVal) {
-    const golferConfirmTime = addMinutesToTime(cutoffTimeVal, 30);
-    // If adding 30 min crosses midnight, the day shifts forward by 1
-    const golferConfirmDay =
-      golferConfirmTime < cutoffTimeVal ? ((cutoffDayVal + 1) % 7) : cutoffDayVal;
+    const golferConfirmDay = cutoffDayVal;
+    const golferConfirmTime = cutoffTimeVal;
     const golferOffset = calcOffset(golferConfirmDay);
 
     await supabase
