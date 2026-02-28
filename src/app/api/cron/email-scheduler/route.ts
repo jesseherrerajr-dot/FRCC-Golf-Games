@@ -21,6 +21,7 @@ import {
   fetchPartnerPreferences,
   storeGroupings,
   fetchStoredGroupings,
+  fetchApprovedGuests,
 } from "@/lib/grouping-db";
 
 /**
@@ -534,7 +535,12 @@ async function handleGolferConfirmation(
       const golfers = await fetchConfirmedGolfers(supabase, schedule.id);
       const preferences = await fetchPartnerPreferences(supabase, event.id as string);
       const groupingResult = generateGroupings(golfers, preferences, true);
-      const storeResult = await storeGroupings(supabase, schedule.id, groupingResult);
+      const approvedGuestsForGrouping = await fetchApprovedGuests(supabase, schedule.id);
+      const guestPairs = approvedGuestsForGrouping.map((g) => ({
+        guestRequestId: g.guestRequestId,
+        hostProfileId: g.hostProfileId,
+      }));
+      const storeResult = await storeGroupings(supabase, schedule.id, groupingResult, guestPairs);
 
       if (storeResult.success) {
         console.log(
