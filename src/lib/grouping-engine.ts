@@ -234,25 +234,56 @@ export function generateGroupings(
   const noPreferencePool = [...pools.noPreference];
   assignPoolToGroups(noPreferencePool, groupSlots, groupSizes, 'front', pairScores);
 
-  // Step 5: Build output
+  // Step 5: Build preliminary groups
+  const earlyIds = new Set(pools.early);
+  const lateIds = new Set(pools.late);
+
+  interface PrelimGroup {
+    members: string[];
+    harmony: number;
+    priority: 'early' | 'late' | 'none'; // tee-time tier
+  }
+
+  const prelimGroups: PrelimGroup[] = groupSlots.map((members) => {
+    const harmony = groupHarmonyScore(members, pairScores);
+    const hasEarly = members.some((id) => earlyIds.has(id));
+    const hasLate = members.some((id) => lateIds.has(id));
+    const priority = hasEarly ? 'early' : hasLate ? 'late' : 'none';
+    return { members: [...members], harmony, priority };
+  });
+
+  // Step 6: Randomize group order while respecting tee-time tiers.
+  // Early groups stay at the front, late groups stay at the back,
+  // no-preference groups shuffle freely in the middle.
+  if (shuffle) {
+    const earlyGroups = prelimGroups.filter((g) => g.priority === 'early');
+    const noneGroups = prelimGroups.filter((g) => g.priority === 'none');
+    const lateGroups = prelimGroups.filter((g) => g.priority === 'late');
+    shuffleArray(earlyGroups);
+    shuffleArray(noneGroups);
+    shuffleArray(lateGroups);
+    prelimGroups.length = 0;
+    prelimGroups.push(...earlyGroups, ...noneGroups, ...lateGroups);
+  }
+
+  // Step 7: Build final output with sequential numbering
   const groups: GroupResult[] = [];
   const assignments: GroupingAssignment[] = [];
   let totalHarmonyScore = 0;
 
-  for (let i = 0; i < groupSlots.length; i++) {
-    const members = groupSlots[i];
-    const harmony = groupHarmonyScore(members, pairScores);
-    totalHarmonyScore += harmony;
-
+  for (let i = 0; i < prelimGroups.length; i++) {
+    const pg = prelimGroups[i];
+    totalHarmonyScore += pg.harmony;
     const teeOrder = i + 1;
+
     groups.push({
       groupNumber: i + 1,
       teeOrder,
-      members: [...members],
-      harmonyScore: harmony,
+      members: pg.members,
+      harmonyScore: pg.harmony,
     });
 
-    for (const profileId of members) {
+    for (const profileId of pg.members) {
       assignments.push({
         groupNumber: i + 1,
         teeOrder,

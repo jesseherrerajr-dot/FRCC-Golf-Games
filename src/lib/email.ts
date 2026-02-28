@@ -1,6 +1,6 @@
 import { Resend } from "resend";
 import { createClient } from "@supabase/supabase-js";
-import type { StoredGrouping } from "./grouping-db";
+import type { StoredGrouping, StoredGroupMember } from "./grouping-db";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -223,7 +223,11 @@ export function generateConfirmationEmail({
 }
 
 /**
- * Generate the Friday pro shop detail email HTML
+ * Generate the Friday pro shop detail email HTML.
+ *
+ * When groupings are available, renders a single consolidated list
+ * organized by suggested groups. When no groupings, falls back to
+ * a flat alphabetical player table.
  */
 export function generateProShopEmail({
   eventName,
@@ -249,84 +253,117 @@ export function generateProShopEmail({
     { weekday: "long", month: "long", day: "numeric", year: "numeric" }
   );
 
-  const tableRows = players
-    .map(
-      (p) => `
-      <tr>
-        <td style="padding: 6px 8px; border-bottom: 1px solid #e5e7eb;">${p.first_name} ${p.last_name}${p.is_guest ? " (Guest)" : ""}</td>
-        <td style="padding: 6px 8px; border-bottom: 1px solid #e5e7eb;">${p.email}</td>
-        <td style="padding: 6px 8px; border-bottom: 1px solid #e5e7eb;">${p.phone}</td>
-        <td style="padding: 6px 8px; border-bottom: 1px solid #e5e7eb;">${p.ghin_number}</td>
-      </tr>`
-    )
-    .join("");
+  const thStyle = 'padding: 8px; text-align: left; border-bottom: 2px solid #1b2a4a; color: #1b2a4a; font-family: Georgia, "Times New Roman", serif; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px;';
+  const tdStyle = "padding: 6px 8px; border-bottom: 1px solid #e5e7eb; font-size: 13px;";
 
-  // Build suggested groupings section if available
-  let groupingsHtml = "";
+  // Grouped format: single consolidated list with group headers + preference columns
   if (groupings && groupings.length > 0) {
+    const totalPlayers = groupings.reduce((sum, g) => sum + g.members.length, 0);
+
     const groupRows = groupings
       .map((group) => {
         const memberRows = group.members
-          .map(
-            (m) => `
+          .map((m) => {
+            const guestLabel = m.isGuest && m.hostName
+              ? ` <span style="color: #6b7280; font-size: 12px;">(Guest of ${m.hostName})</span>`
+              : "";
+            // Tee time preference column
+            const teePref = !m.isGuest && m.teeTimePreference === 'early'
+              ? 'Early'
+              : !m.isGuest && m.teeTimePreference === 'late'
+                ? 'Late'
+                : '';
+            // Player preference column: checkmark if this golfer has preferred partners in the group
+            const playerPref = !m.isGuest && m.preferredPartnersInGroup.length > 0
+              ? '&#10003;'
+              : '';
+            return `
             <tr>
-              <td style="padding: 4px 8px; font-size: 13px;">${m.firstName} ${m.lastName}${m.isGuest ? " (Guest)" : ""}</td>
-              <td style="padding: 4px 8px; font-size: 13px;">${m.ghinNumber || "—"}</td>
-            </tr>`
-          )
+              <td style="${tdStyle}">${m.firstName} ${m.lastName}${guestLabel}</td>
+              <td style="${tdStyle}">${m.email || "—"}</td>
+              <td style="${tdStyle}">${m.phone || "—"}</td>
+              <td style="${tdStyle}">${m.ghinNumber || "—"}</td>
+              <td style="${tdStyle} text-align: center;">${teePref}</td>
+              <td style="${tdStyle} text-align: center;">${playerPref}</td>
+            </tr>`;
+          })
           .join("");
 
         return `
           <tr>
-            <td colspan="2" style="padding: 10px 8px 4px 8px; font-weight: 600; color: #1b2a4a; font-size: 14px; border-top: 2px solid #3d7676; background: #f0f3f7;">
-              Group ${group.groupNumber} (Tee #${group.teeOrder})
+            <td colspan="6" style="padding: 10px 8px 6px 8px; font-weight: 600; color: #1b2a4a; font-size: 14px; border-top: 2px solid #3d7676; background: #f0f3f7;">
+              Group ${group.groupNumber}
             </td>
           </tr>
           ${memberRows}`;
       })
       .join("");
 
-    groupingsHtml = `
-      <div style="margin-top: 32px;">
-        ${emailHeader("Suggested Foursomes", "Based on player preferences")}
-        <p style="color: #6b7280; font-size: 13px; margin: 0 0 12px 0;">
-          These groupings are suggestions based on playing partner and tee time preferences. Adjust as needed.
-        </p>
-        <table style="width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0;">
-          <thead>
-            <tr style="background: #f0f3f7;">
-              <th style="padding: 8px; text-align: left; border-bottom: 2px solid #1b2a4a; color: #1b2a4a; font-family: Georgia, 'Times New Roman', serif; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px;">Player</th>
-              <th style="padding: 8px; text-align: left; border-bottom: 2px solid #1b2a4a; color: #1b2a4a; font-family: Georgia, 'Times New Roman', serif; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px;">GHIN</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${groupRows}
-          </tbody>
-        </table>
-      </div>`;
+    return `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 720px; margin: 0 auto; padding: 24px;">
+      ${emailHeader(eventName, `${formattedDate} — Confirmed Golfers`)}
+
+      <p style="color: #374151; font-weight: 600; font-size: 15px; margin: 0 0 4px 0;">${totalPlayers} players — Suggested Groups</p>
+      <p style="color: #6b7280; font-size: 13px; margin: 0 0 12px 0;">
+        Groups are based on playing partner and tee time preferences. &#10003; = golfer has a preferred partner in this group. Adjust as needed.
+      </p>
+
+      <table style="width: 100%; border-collapse: collapse; font-size: 13px; margin: 16px 0;">
+        <thead>
+          <tr style="background: #f0f3f7;">
+            <th style="${thStyle}">Name</th>
+            <th style="${thStyle}">Email</th>
+            <th style="${thStyle}">Phone</th>
+            <th style="${thStyle}">GHIN</th>
+            <th style="${thStyle} text-align: center;">Tee Time</th>
+            <th style="${thStyle} text-align: center;">Player Pref</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${groupRows}
+        </tbody>
+      </table>
+    </div>
+  `;
   }
+
+  // Flat format (fallback when no groupings)
+  const tableRows = players
+    .map(
+      (p) => {
+        const guestLabel = p.is_guest && p.sponsor_name
+          ? ` <span style="color: #6b7280; font-size: 12px;">(Guest of ${p.sponsor_name})</span>`
+          : "";
+        return `
+      <tr>
+        <td style="${tdStyle}">${p.first_name} ${p.last_name}${guestLabel}</td>
+        <td style="${tdStyle}">${p.email}</td>
+        <td style="${tdStyle}">${p.phone}</td>
+        <td style="${tdStyle}">${p.ghin_number}</td>
+      </tr>`;
+      }
+    )
+    .join("");
 
   return `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 640px; margin: 0 auto; padding: 24px;">
-      ${emailHeader(eventName, `${formattedDate} — Player Details`)}
+      ${emailHeader(eventName, `${formattedDate} — Confirmed Golfers`)}
 
       <p style="color: #374151;">${players.length} confirmed players:</p>
 
       <table style="width: 100%; border-collapse: collapse; font-size: 13px; margin: 16px 0;">
         <thead>
           <tr style="background: #f0f3f7;">
-            <th style="padding: 8px; text-align: left; border-bottom: 2px solid #1b2a4a; color: #1b2a4a; font-family: Georgia, 'Times New Roman', serif; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px;">Name</th>
-            <th style="padding: 8px; text-align: left; border-bottom: 2px solid #1b2a4a; color: #1b2a4a; font-family: Georgia, 'Times New Roman', serif; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px;">Email</th>
-            <th style="padding: 8px; text-align: left; border-bottom: 2px solid #1b2a4a; color: #1b2a4a; font-family: Georgia, 'Times New Roman', serif; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px;">Phone</th>
-            <th style="padding: 8px; text-align: left; border-bottom: 2px solid #1b2a4a; color: #1b2a4a; font-family: Georgia, 'Times New Roman', serif; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px;">GHIN</th>
+            <th style="${thStyle}">Name</th>
+            <th style="${thStyle}">Email</th>
+            <th style="${thStyle}">Phone</th>
+            <th style="${thStyle}">GHIN</th>
           </tr>
         </thead>
         <tbody>
           ${tableRows}
         </tbody>
       </table>
-
-      ${groupingsHtml}
     </div>
   `;
 }
