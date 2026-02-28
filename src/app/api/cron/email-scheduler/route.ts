@@ -15,6 +15,13 @@ import {
   isWithinSendWindow,
 } from "@/lib/timezone";
 import { sendAdminAlert } from "@/lib/admin-alerts";
+import { generateGroupings } from "@/lib/grouping-engine";
+import {
+  fetchConfirmedGolfers,
+  fetchPartnerPreferences,
+  storeGroupings,
+  fetchStoredGroupings,
+} from "@/lib/grouping-db";
 
 /**
  * Dynamic Email Scheduler Cron
@@ -520,6 +527,29 @@ async function handleGolferConfirmation(
     return { message: "No confirmed golfers found", sent: 0 };
   }
 
+  // Run grouping engine if enabled for this event
+  if (event.allow_auto_grouping) {
+    try {
+      console.log(`Running grouping engine for ${event.name}...`);
+      const golfers = await fetchConfirmedGolfers(supabase, schedule.id);
+      const preferences = await fetchPartnerPreferences(supabase, event.id as string);
+      const groupingResult = generateGroupings(golfers, preferences, true);
+      const storeResult = await storeGroupings(supabase, schedule.id, groupingResult);
+
+      if (storeResult.success) {
+        console.log(
+          `Grouping engine complete: ${groupingResult.groups.length} groups, ` +
+          `harmony score ${groupingResult.totalHarmonyScore}`
+        );
+      } else {
+        console.error(`Failed to store groupings: ${storeResult.error}`);
+      }
+    } catch (err) {
+      console.error("Grouping engine error (non-fatal):", err);
+      // Grouping failure should NOT block the confirmation email
+    }
+  }
+
   // Get approved guests for this schedule
   const { data: approvedGuests } = await supabase
     .from("guest_requests")
@@ -786,10 +816,16 @@ async function handleProShopDetail(
 
   const uniqueAdminEmails = [...new Set(adminEmails)];
 
+  // Fetch stored groupings if auto-grouping is enabled
+  const groupings = event.allow_auto_grouping
+    ? await fetchStoredGroupings(supabase, schedule.id)
+    : [];
+
   const proShopHtml = generateProShopEmail({
     eventName: event.name as string,
     gameDate: gameDateString,
     players: allPlayers,
+    groupings,
   });
 
   const formattedDate = formatGameDate(gameDateString);

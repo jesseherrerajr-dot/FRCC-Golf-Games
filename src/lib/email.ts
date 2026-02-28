@@ -1,5 +1,6 @@
 import { Resend } from "resend";
 import { createClient } from "@supabase/supabase-js";
+import type { StoredGrouping } from "./grouping-db";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -228,6 +229,7 @@ export function generateProShopEmail({
   eventName,
   gameDate,
   players,
+  groupings,
 }: {
   eventName: string;
   gameDate: string;
@@ -240,6 +242,7 @@ export function generateProShopEmail({
     is_guest?: boolean;
     sponsor_name?: string;
   }[];
+  groupings?: StoredGrouping[];
 }) {
   const formattedDate = new Date(gameDate + "T12:00:00").toLocaleDateString(
     "en-US",
@@ -257,6 +260,51 @@ export function generateProShopEmail({
       </tr>`
     )
     .join("");
+
+  // Build suggested groupings section if available
+  let groupingsHtml = "";
+  if (groupings && groupings.length > 0) {
+    const groupRows = groupings
+      .map((group) => {
+        const memberRows = group.members
+          .map(
+            (m) => `
+            <tr>
+              <td style="padding: 4px 8px; font-size: 13px;">${m.firstName} ${m.lastName}${m.isGuest ? " (Guest)" : ""}</td>
+              <td style="padding: 4px 8px; font-size: 13px;">${m.ghinNumber || "—"}</td>
+            </tr>`
+          )
+          .join("");
+
+        return `
+          <tr>
+            <td colspan="2" style="padding: 10px 8px 4px 8px; font-weight: 600; color: #1b2a4a; font-size: 14px; border-top: 2px solid #3d7676; background: #f0f3f7;">
+              Group ${group.groupNumber} (Tee #${group.teeOrder})
+            </td>
+          </tr>
+          ${memberRows}`;
+      })
+      .join("");
+
+    groupingsHtml = `
+      <div style="margin-top: 32px;">
+        ${emailHeader("Suggested Foursomes", "Based on player preferences")}
+        <p style="color: #6b7280; font-size: 13px; margin: 0 0 12px 0;">
+          These groupings are suggestions based on playing partner and tee time preferences. Adjust as needed.
+        </p>
+        <table style="width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0;">
+          <thead>
+            <tr style="background: #f0f3f7;">
+              <th style="padding: 8px; text-align: left; border-bottom: 2px solid #1b2a4a; color: #1b2a4a; font-family: Georgia, 'Times New Roman', serif; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px;">Player</th>
+              <th style="padding: 8px; text-align: left; border-bottom: 2px solid #1b2a4a; color: #1b2a4a; font-family: Georgia, 'Times New Roman', serif; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px;">GHIN</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${groupRows}
+          </tbody>
+        </table>
+      </div>`;
+  }
 
   return `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 640px; margin: 0 auto; padding: 24px;">
@@ -277,6 +325,8 @@ export function generateProShopEmail({
           ${tableRows}
         </tbody>
       </table>
+
+      ${groupingsHtml}
     </div>
   `;
 }

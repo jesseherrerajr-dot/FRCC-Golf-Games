@@ -178,11 +178,15 @@ function partitionByTeeTime(golfers: GroupingGolfer[]): TeeTimePools {
  *
  * @param golfers   - Confirmed golfers with tee time preferences
  * @param preferences - All partner preferences for this event (engine filters to confirmed only)
+ * @param shuffle - If true, randomize golfers who have no preference data before grouping.
+ *                  This prevents the same no-preference players from always landing together.
+ *                  Default: false (for test determinism). Production callers should pass true.
  * @returns GroupingResult with groups, assignments, and total harmony score
  */
 export function generateGroupings(
   golfers: GroupingGolfer[],
-  preferences: PartnerPreference[]
+  preferences: PartnerPreference[],
+  shuffle: boolean = false
 ): GroupingResult {
   const n = golfers.length;
 
@@ -200,6 +204,13 @@ export function generateGroupings(
 
   // Step 3: Partition golfers by tee time preference (Level 3)
   const pools = partitionByTeeTime(golfers);
+
+  // Step 3b: Shuffle pools to randomize no-preference players
+  if (shuffle) {
+    shuffleArray(pools.early);
+    shuffleArray(pools.late);
+    shuffleArray(pools.noPreference);
+  }
 
   // Step 4: Assign golfers to group slots
   // Strategy: Fill groups front-to-back.
@@ -329,4 +340,16 @@ function findBestCandidate(
   }
 
   return bestIdx;
+}
+
+// ============================================================
+// Fisher-Yates Shuffle (in-place)
+// ============================================================
+
+/** Shuffle an array in place using Fisher-Yates algorithm */
+function shuffleArray<T>(arr: T[]): void {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
 }
