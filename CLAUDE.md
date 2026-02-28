@@ -77,9 +77,9 @@ An automated golf participation tracker for recurring games at Fairbanks Ranch C
 - `supabase/client.ts` — Supabase browser client
 - `supabase/server.ts` — Supabase server client (for Server Actions/API routes)
 - `supabase/middleware.ts` — Supabase session middleware
-- `grouping-engine.ts` — Core foursome grouping algorithm (pure function, no DB calls)
+- `grouping-engine.ts` — Core foursome grouping algorithm (pure function, no DB calls, shuffle/randomization support)
 - `grouping-engine.test.ts` — Unit tests for grouping algorithm (36 tests)
-- `grouping-db.ts` — DB queries: fetch grouping inputs, store grouping outputs
+- `grouping-db.ts` — DB queries: fetch confirmed golfers, partner preferences, approved guests; store groupings with guest placement; fetch stored groupings with tee time + partner preference annotations
 
 ### Other Key Files
 - `src/middleware.ts` — Next.js middleware (auth redirects, session refresh)
@@ -88,7 +88,7 @@ An automated golf participation tracker for recurring games at Fairbanks Ranch C
 - `src/components/collapsible-section.tsx` — Shared collapsible section component (expand/collapse with chevron, count badge, optional "View All" link)
 - `scripts/import-golfers.ts` — Batch import golfers from Excel
 - `scripts/delete-user.ts` — Delete a user script
-- `supabase/migrations/` — Database schema migrations (001–009)
+- `supabase/migrations/` — Database schema migrations (001–010)
 - `vercel.json` — Vercel config (cron schedules)
 
 ---
@@ -351,7 +351,7 @@ The first event is **"FRCC Saturday Morning Group"**. The platform is designed f
 ## Technical Architecture
 
 ### Database: Supabase (PostgreSQL)
-Key tables: profiles, events, event_admins, event_subscriptions, event_schedules, rsvps, guest_requests, playing_partner_preferences, pro_shop_contacts, email_templates, email_log, event_email_schedules, event_alert_settings.
+Key tables: profiles, events, event_admins, event_subscriptions, event_schedules, rsvps, guest_requests, playing_partner_preferences, pro_shop_contacts, email_templates, email_log, event_email_schedules, event_alert_settings, groupings.
 
 Notable columns added post-initial schema:
 - `events.slug` — URL-friendly identifier for join links (e.g., `saturday-morning`).
@@ -435,12 +435,12 @@ Notable columns added post-initial schema:
 - [ ] Add additional events (Thursday league, Friday afternoon, etc.)
 - [ ] Per-event admin scoping
 - [ ] Participation history / reporting
-- [x] Recommended Foursome Algorithm — core engine built (greedy heuristic with weighted partner preferences and tee time constraints). See `docs/GROUPING_ENGINE_SPEC.md`.
-  - [x] Grouping engine algorithm (`grouping-engine.ts`) with 36 unit tests
+- [x] Recommended Foursome Algorithm — fully implemented (greedy heuristic with weighted partner preferences, tee time constraints, shuffle randomization, guest-host pairing). See `docs/GROUPING_ENGINE_SPEC.md`.
+  - [x] Grouping engine algorithm (`grouping-engine.ts`) with 36 unit tests, shuffle support, group order randomization within tee-time tiers
   - [x] Database schema: `groupings` table, `rank` column on partner preferences, `allow_auto_grouping` feature flag
-  - [ ] DB layer (`grouping-db.ts`) — fetch inputs, store outputs
-  - [ ] Cron endpoint (`cron/grouping/route.ts`) — trigger engine at cutoff
-  - [ ] Pro shop email integration — show grouped roster when flag is enabled
+  - [x] DB layer (`grouping-db.ts`) — fetch confirmed golfers, partner preferences, approved guests; store groupings; fetch stored groupings with tee time + partner preference annotations
+  - [x] Cron integration — engine runs via existing email-scheduler cron at golfer confirmation time (no separate cron entry needed)
+  - [x] Pro shop email integration — 6-column grouped roster (Name, Email, Phone, GHIN, Tee Time, Player Pref) with guest labels and preference checkmarks when `allow_auto_grouping` is enabled; flat alphabetical fallback when disabled
   - [ ] Admin RSVP page — display suggested groupings (read-only)
 - [ ] Additional grouping methods (future):
   - Random groupings

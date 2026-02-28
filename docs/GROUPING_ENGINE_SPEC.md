@@ -1,7 +1,7 @@
 # Grouping Engine — Final Specification
 
-**Status:** Core engine implemented (algorithm + tests + migration). DB layer, cron, and email integration pending.
-**Date:** February 25, 2026
+**Status:** Fully implemented — algorithm, DB layer, cron integration, pro shop email with grouped roster + preference columns.
+**Date:** February 28, 2026 (updated)
 **Owner:** Jesse Herrera
 
 ---
@@ -29,11 +29,11 @@ Generate suggested foursome groupings for each weekly event after RSVP cutoff. G
 
 ## 3. Constraint Hierarchy
 
-### Level 1 — Guest-Host Pairing (Hard Constraint, future)
+### Level 1 — Guest-Host Pairing (Hard Constraint)
 - A guest MUST be in the same group as their sponsoring member.
 - Guest+host count as a unit when filling group slots.
 - Guests inherit the host's tee time preference. Guests have no independent preferences.
-- **Not implemented in initial build** (guest feature is disabled). Designed for in the data model.
+- **Implemented:** Guests are placed in their host's group after the engine runs. Guests appear immediately after their host in the roster, labeled "(Guest of F. Last)".
 
 ### Level 2 — Group Math (Hard Constraint)
 Divide total confirmed count (N) into groups:
@@ -142,11 +142,11 @@ Formula: `points = round(100 / rank)`
 ### Future Enhancement (deferred):
 - **Round Robin tiebreaker:** When harmony scores are equal, prioritize pairing golfers who haven't played together recently. Requires historical grouping data (which will accumulate once the `groupings` table is populated weekly). Not included in initial build.
 
-### Guest Handling (future, designed for now):
-- Before step 3, identify all guest-host pairs. Treat each pair as a single unit.
-- The unit inherits the host's tee time preference.
-- The unit occupies 2 slots (or more if host has multiple guests) within a group.
-- Partner preferences between the host and other golfers still apply; guest preferences are ignored.
+### Guest Handling (Implemented):
+- After the engine assigns members to groups, approved guests are placed into their host's group.
+- Guests appear immediately after their host in the roster.
+- Guest preferences are ignored; only the host's preferences and tee time apply.
+- The DB layer (`grouping-db.ts`) handles guest placement via `fetchApprovedGuests()` and `storeGroupings()`.
 
 ---
 
@@ -238,23 +238,22 @@ USING (profile_id = auth.uid());
 ## 6. File Plan
 
 ### New Files:
-- `supabase/migrations/010_grouping_engine.sql` — Schema changes above
-- `src/lib/grouping-engine.ts` — Core algorithm (pure function, no DB calls)
-- `src/lib/grouping-engine.test.ts` — Unit tests for the algorithm
-- `src/lib/grouping-db.ts` — DB queries: fetch inputs, store outputs
-- `src/app/api/cron/grouping/route.ts` — Cron endpoint that triggers the engine at cutoff
+- `supabase/migrations/010_grouping_engine.sql` — Schema changes (groupings table, rank column, feature flag)
+- `src/lib/grouping-engine.ts` — Core algorithm (pure function, no DB calls, shuffle support)
+- `src/lib/grouping-engine.test.ts` — Unit tests for the algorithm (36 tests)
+- `src/lib/grouping-db.ts` — DB queries: fetch confirmed golfers, partner preferences, approved guests; store groupings; fetch stored groupings with preference annotations
 
 ### Modified Files:
-- `src/lib/email-templates.ts` — Add grouped pro shop email template
-- `src/app/api/cron/confirmation/route.ts` — Use groupings (if available) for pro shop email
-- `src/types/events.ts` — Add Grouping types, update Event type with `allow_auto_grouping`
-- `src/app/admin/rsvp/[scheduleId]/page.tsx` — Display groupings (read-only) if they exist
-- `src/app/preferences/page.tsx` — Updated: ranked partner list with up/down arrow reordering, email hidden from display (searchable only), partner search filtered to active + subscribed to same event only
+- `src/lib/email.ts` — Pro shop email with grouped roster, 6-column table (Name, Email, Phone, GHIN, Tee Time, Player Pref), guest labels, preference annotations
+- `src/app/api/cron/email-scheduler/route.ts` — Runs grouping engine at golfer confirmation time (when `allow_auto_grouping` is true), fetches stored groupings for pro shop email. No separate cron entry needed.
+- `src/types/events.ts` — Grouping types, Event type with `allow_auto_grouping`
+- `src/app/preferences/page.tsx` — Ranked partner list with up/down arrow reordering, email hidden from display (searchable only), partner search filtered to active + subscribed to same event only
 
-### Not Changed (for now):
-- Golfer confirmation email (no groupings shown)
-- Standing tee time preferences table/UI (ignored, not removed)
+### Not Changed (by design):
+- Golfer confirmation email (no groupings shown — roster only)
+- Standing tee time preferences table/UI (ignored by engine, not removed)
 - Admin editing UI (groupings are view-only suggestions)
+- No separate grouping cron endpoint — engine piggybacks on the existing email scheduler cron
 
 ---
 
@@ -263,11 +262,12 @@ USING (profile_id = auth.uid());
 These items are acknowledged and designed for but NOT included in this build:
 
 1. **Round Robin tiebreaker** — Needs historical grouping data. Will be viable after engine runs for 4+ weeks.
-2. **Random / Handicap-based grouping methods** — Future algorithm modes.
+2. **Random / Handicap-based grouping methods** — Future algorithm modes. Current engine uses partner-preference-based grouping with shuffle randomization.
 3. **Admin drag-and-drop editing** — Groupings are read-only suggestions for now.
-4. **Guest integration** — Guest feature is disabled. Schema supports guests in `groupings` table. Algorithm has placeholder logic documented.
+4. ~~**Guest integration**~~ — **Done.** Guests are placed in their host's group, labeled in the pro shop email.
 5. **Standing tee time preference cleanup** — Table and UI left in place, just ignored by engine.
 6. **Golfer-facing grouping visibility** — Golfers don't see groupings in email or dashboard yet.
+7. **Admin RSVP page grouping display** — Groupings are not yet shown on the admin RSVP management page.
 
 ---
 
