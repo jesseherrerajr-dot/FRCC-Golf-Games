@@ -1,9 +1,15 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useState, useMemo } from "react";
 import { joinEvent, verifyEventJoinOtp, type JoinEventFormState } from "./actions";
 import Link from "next/link";
 import Image from "next/image";
+import {
+  useFieldValidation,
+  FieldError,
+  fieldBorderClass,
+  validators,
+} from "@/components/form-field";
 
 const initialState: JoinEventFormState = { step: "form" };
 
@@ -30,6 +36,14 @@ export default function JoinEventForm({
   const [joinState, joinAction, isJoinPending] = useActionState(joinEvent, initialState);
   const [otpState, otpAction, isOtpPending] = useActionState(verifyEventJoinOtp, initialState);
   const [phone, setPhone] = useState("");
+
+  const fieldDefs = useMemo(() => ({
+    firstName: [validators.required("First name")],
+    lastName: [validators.required("Last name")],
+    email: [validators.required("Email"), validators.email()],
+    phone: [validators.phone()],
+  }), []);
+  const { errors, touched, handleBlur, validateAll } = useFieldValidation(fieldDefs);
 
   const showOtp = joinState.step === "otp";
   const currentError = showOtp ? otpState.error : joinState.error;
@@ -73,7 +87,13 @@ export default function JoinEventForm({
         )}
 
         {!showOtp ? (
-          <form action={joinAction} className="space-y-5">
+          <form
+            action={(formData) => {
+              if (!validateAll(formData)) return;
+              joinAction(formData);
+            }}
+            className="space-y-5"
+          >
             <input type="hidden" name="eventId" value={event.id} />
 
             {/* First Name */}
@@ -87,9 +107,11 @@ export default function JoinEventForm({
                 type="text"
                 required
                 autoComplete="given-name"
-                className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-600/20"
+                onBlur={(e) => handleBlur("firstName", e.target.value)}
+                className={`mt-1 block w-full rounded-lg border bg-white px-4 py-3 text-gray-900 shadow-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 ${fieldBorderClass(errors.firstName, touched.firstName)}`}
                 placeholder="Jesse"
               />
+              <FieldError error={errors.firstName} touched={touched.firstName} />
             </div>
 
             {/* Last Name */}
@@ -103,9 +125,11 @@ export default function JoinEventForm({
                 type="text"
                 required
                 autoComplete="family-name"
-                className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-600/20"
+                onBlur={(e) => handleBlur("lastName", e.target.value)}
+                className={`mt-1 block w-full rounded-lg border bg-white px-4 py-3 text-gray-900 shadow-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 ${fieldBorderClass(errors.lastName, touched.lastName)}`}
                 placeholder="Herrera"
               />
+              <FieldError error={errors.lastName} touched={touched.lastName} />
             </div>
 
             {/* Email */}
@@ -119,9 +143,11 @@ export default function JoinEventForm({
                 type="email"
                 required
                 autoComplete="email"
-                className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-600/20"
+                onBlur={(e) => handleBlur("email", e.target.value)}
+                className={`mt-1 block w-full rounded-lg border bg-white px-4 py-3 text-gray-900 shadow-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 ${fieldBorderClass(errors.email, touched.email)}`}
                 placeholder="you@example.com"
               />
+              <FieldError error={errors.email} touched={touched.email} />
             </div>
 
             {/* Phone */}
@@ -136,10 +162,12 @@ export default function JoinEventForm({
                 autoComplete="tel"
                 value={phone}
                 onChange={(e) => setPhone(formatPhone(e.target.value))}
-                className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-600/20"
+                onBlur={(e) => handleBlur("phone", e.target.value)}
+                className={`mt-1 block w-full rounded-lg border bg-white px-4 py-3 text-gray-900 shadow-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 ${fieldBorderClass(errors.phone, touched.phone)}`}
                 placeholder="(555) 123-4567"
               />
-              <p className="mt-1 text-xs text-gray-400">US 10-digit format</p>
+              <FieldError error={errors.phone} touched={touched.phone} />
+              {!errors.phone && <p className="mt-1 text-xs text-gray-400">US 10-digit format</p>}
             </div>
 
             {/* GHIN Number */}

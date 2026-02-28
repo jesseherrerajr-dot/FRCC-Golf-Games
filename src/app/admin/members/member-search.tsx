@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 
 interface MemberSearchProps {
   currentQuery: string;
@@ -25,6 +25,7 @@ export function MemberSearch({
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
   const [searchInput, setSearchInput] = useState(currentQuery);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const updateParams = useCallback(
     (updates: Record<string, string>) => {
@@ -43,10 +44,21 @@ export function MemberSearch({
     [router, searchParams, startTransition]
   );
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    updateParams({ q: searchInput });
-  };
+  // Debounced live search — triggers 300ms after the user stops typing
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+
+    // Don't trigger on initial mount if the input matches the URL param
+    if (searchInput === currentQuery) return;
+
+    debounceRef.current = setTimeout(() => {
+      updateParams({ q: searchInput });
+    }, 300);
+
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [searchInput]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleStatusFilter = (status: string) => {
     updateParams({ status: status === "all" ? "" : status });
@@ -54,6 +66,11 @@ export function MemberSearch({
 
   const handleSortChange = (sort: string) => {
     updateParams({ sort });
+  };
+
+  const clearSearch = () => {
+    setSearchInput("");
+    updateParams({ q: "" });
   };
 
   const statusFilters = [
@@ -65,50 +82,50 @@ export function MemberSearch({
 
   return (
     <div className="mt-6 space-y-4">
-      {/* Search Bar */}
-      <form onSubmit={handleSearch} className="flex gap-2">
-        <div className="relative flex-1">
-          <input
-            type="text"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            placeholder="Search by name, email, or GHIN..."
-            className="block w-full rounded-lg border border-gray-300 px-4 py-2.5 pl-10 text-sm shadow-sm focus:border-teal-500 focus:ring-teal-500"
-          />
-          <svg
-            className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
-            fill="none"
-            viewBox="0 0 24 24"
-            strokeWidth={2}
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"
-            />
-          </svg>
-        </div>
-        <button
-          type="submit"
-          disabled={isPending}
-          className="rounded-lg bg-teal-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-teal-500 disabled:opacity-50"
+      {/* Search Bar — live filtering, no submit button */}
+      <div className="relative">
+        <input
+          type="text"
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          placeholder="Search by name, email, or GHIN..."
+          className="block w-full rounded-lg border border-gray-300 px-4 py-2.5 pl-10 pr-20 text-sm shadow-sm focus:border-teal-500 focus:ring-teal-500"
+        />
+        <svg
+          className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
+          fill="none"
+          viewBox="0 0 24 24"
+          strokeWidth={2}
+          stroke="currentColor"
         >
-          Search
-        </button>
-        {currentQuery && (
-          <button
-            type="button"
-            onClick={() => {
-              setSearchInput("");
-              updateParams({ q: "" });
-            }}
-            className="rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-600 hover:bg-gray-50"
-          >
-            Clear
-          </button>
-        )}
-      </form>
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"
+          />
+        </svg>
+        {/* Inline clear button + loading spinner */}
+        <div className="absolute right-3 top-1/2 flex -translate-y-1/2 items-center gap-2">
+          {isPending && (
+            <svg className="h-4 w-4 animate-spin text-teal-500" viewBox="0 0 24 24" fill="none">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+          )}
+          {searchInput && (
+            <button
+              type="button"
+              onClick={clearSearch}
+              className="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+              aria-label="Clear search"
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
+        </div>
+      </div>
 
       {/* Status Filter Chips + Sort */}
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -117,7 +134,7 @@ export function MemberSearch({
             <button
               key={filter.key}
               onClick={() => handleStatusFilter(filter.key)}
-              className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
+              className={`rounded-full px-3 py-2 text-sm font-medium transition ${
                 currentStatus === filter.key ||
                 (filter.key === "all" && !currentStatus)
                   ? "bg-teal-600 text-white"
@@ -133,7 +150,7 @@ export function MemberSearch({
         <select
           value={currentSort}
           onChange={(e) => handleSortChange(e.target.value)}
-          className="rounded border border-gray-300 px-2 py-1.5 text-sm text-gray-600"
+          className="rounded border border-gray-300 px-2 py-2 text-sm text-gray-600"
         >
           <option value="name">Sort by Name</option>
           <option value="email">Sort by Email</option>
@@ -141,10 +158,6 @@ export function MemberSearch({
           <option value="status">Sort by Status</option>
         </select>
       </div>
-
-      {isPending && (
-        <div className="text-xs text-gray-400">Loading...</div>
-      )}
     </div>
   );
 }

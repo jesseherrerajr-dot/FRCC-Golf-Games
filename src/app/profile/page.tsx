@@ -1,10 +1,16 @@
 "use client";
 
-import { useActionState, useState, useEffect } from "react";
+import { useActionState, useState, useEffect, useMemo } from "react";
 import { updateProfile, type ProfileFormState } from "./actions";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import Image from "next/image";
+import {
+  useFieldValidation,
+  FieldError,
+  fieldBorderClass,
+  validators,
+} from "@/components/form-field";
 
 const initialState: ProfileFormState = {};
 
@@ -39,6 +45,14 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(true);
+
+  const fieldDefs = useMemo(() => ({
+    firstName: [validators.required("First name")],
+    lastName: [validators.required("Last name")],
+    email: [validators.required("Email"), validators.email()],
+    phone: [validators.phone()],
+  }), []);
+  const { errors, touched, handleBlur, validateAll } = useFieldValidation(fieldDefs);
 
   // Load profile data on mount
   useEffect(() => {
@@ -109,7 +123,13 @@ export default function ProfilePage() {
         </div>
 
         {/* Form */}
-        <form action={formAction} className="space-y-5">
+        <form
+          action={(formData) => {
+            if (!validateAll(formData)) return;
+            formAction(formData);
+          }}
+          className="space-y-5"
+        >
           {/* Success message */}
           {state.success && (
             <div className="rounded-lg border border-teal-200 bg-teal-50 px-4 py-3 text-sm text-teal-700">
@@ -139,8 +159,10 @@ export default function ProfilePage() {
               required
               autoComplete="given-name"
               defaultValue={profile.first_name}
-              className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-600/20"
+              onBlur={(e) => handleBlur("firstName", e.target.value)}
+              className={`mt-1 block w-full rounded-lg border bg-white px-4 py-3 text-gray-900 shadow-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 ${fieldBorderClass(errors.firstName, touched.firstName)}`}
             />
+            <FieldError error={errors.firstName} touched={touched.firstName} />
           </div>
 
           {/* Last Name */}
@@ -158,8 +180,10 @@ export default function ProfilePage() {
               required
               autoComplete="family-name"
               defaultValue={profile.last_name}
-              className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-600/20"
+              onBlur={(e) => handleBlur("lastName", e.target.value)}
+              className={`mt-1 block w-full rounded-lg border bg-white px-4 py-3 text-gray-900 shadow-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 ${fieldBorderClass(errors.lastName, touched.lastName)}`}
             />
+            <FieldError error={errors.lastName} touched={touched.lastName} />
           </div>
 
           {/* Email */}
@@ -177,11 +201,15 @@ export default function ProfilePage() {
               required
               autoComplete="email"
               defaultValue={profile.email}
-              className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-600/20"
+              onBlur={(e) => handleBlur("email", e.target.value)}
+              className={`mt-1 block w-full rounded-lg border bg-white px-4 py-3 text-gray-900 shadow-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 ${fieldBorderClass(errors.email, touched.email)}`}
             />
-            <p className="mt-1 text-xs text-gray-400">
-              Changing your email will require re-verification.
-            </p>
+            <FieldError error={errors.email} touched={touched.email} />
+            {!errors.email && (
+              <p className="mt-1 text-xs text-gray-400">
+                Changing your email will require re-verification.
+              </p>
+            )}
           </div>
 
           {/* Phone */}
@@ -199,10 +227,12 @@ export default function ProfilePage() {
               autoComplete="tel"
               value={phone}
               onChange={(e) => setPhone(formatPhone(e.target.value))}
-              className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-600/20"
+              onBlur={(e) => handleBlur("phone", e.target.value)}
+              className={`mt-1 block w-full rounded-lg border bg-white px-4 py-3 text-gray-900 shadow-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 ${fieldBorderClass(errors.phone, touched.phone)}`}
               placeholder="(555) 123-4567"
             />
-            <p className="mt-1 text-xs text-gray-400">US 10-digit format</p>
+            <FieldError error={errors.phone} touched={touched.phone} />
+            {!errors.phone && <p className="mt-1 text-xs text-gray-400">US 10-digit format</p>}
           </div>
 
           {/* GHIN Number */}

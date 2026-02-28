@@ -213,8 +213,36 @@ export default async function AdminRsvpPage({
           )}
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+        {/* Capacity bar — most important at-a-glance info */}
+        <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="flex items-center justify-between text-sm">
+            <span className="font-medium text-gray-900">
+              {inCount} / {capacity} spots filled
+            </span>
+            <span
+              className={`font-semibold ${
+                spotsRemaining > 0 ? "text-teal-600" : "text-red-600"
+              }`}
+            >
+              {spotsRemaining > 0
+                ? `${spotsRemaining} open`
+                : "Full"}
+            </span>
+          </div>
+          <div className="mt-2 h-3 w-full overflow-hidden rounded-full bg-gray-200">
+            <div
+              className={`h-full rounded-full transition-all ${
+                inCount >= capacity ? "bg-red-500" : "bg-teal-500"
+              }`}
+              style={{
+                width: `${Math.min((inCount / capacity) * 100, 100)}%`,
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Stats — 3+2 grid on mobile, 5 across on desktop */}
+        <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-5 sm:gap-3">
           <div className="rounded-lg border border-teal-200 bg-navy-50 p-3 text-center">
             <p className="text-2xl font-bold text-teal-600">{inCount}</p>
             <p className="text-xs text-teal-500">Confirmed</p>
@@ -240,34 +268,6 @@ export default async function AdminRsvpPage({
           <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-center">
             <p className="text-2xl font-bold text-red-700">{outCount}</p>
             <p className="text-xs text-red-600">Out</p>
-          </div>
-        </div>
-
-        {/* Capacity bar */}
-        <div className="mt-4 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-600">
-              {inCount} / {capacity} spots filled
-            </span>
-            <span
-              className={`font-medium ${
-                spotsRemaining > 0 ? "text-teal-500" : "text-red-600"
-              }`}
-            >
-              {spotsRemaining > 0
-                ? `${spotsRemaining} spots remaining`
-                : "Full"}
-            </span>
-          </div>
-          <div className="mt-2 h-2.5 w-full overflow-hidden rounded-full bg-gray-200">
-            <div
-              className={`h-full rounded-full transition-all ${
-                inCount >= capacity ? "bg-red-500" : "bg-teal-500"
-              }`}
-              style={{
-                width: `${Math.min((inCount / capacity) * 100, 100)}%`,
-              }}
-            />
           </div>
         </div>
 

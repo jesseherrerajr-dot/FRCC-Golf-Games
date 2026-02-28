@@ -1,8 +1,14 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useMemo } from "react";
 import { addGolfer, type AddGolferFormState } from "./actions";
 import Link from "next/link";
+import {
+  useFieldValidation,
+  FieldError,
+  fieldBorderClass,
+  validators,
+} from "@/components/form-field";
 
 type Event = {
   id: string;
@@ -14,6 +20,14 @@ export function AddGolferForm({ events }: { events: Event[] }) {
     addGolfer,
     {}
   );
+
+  const fieldDefs = useMemo(() => ({
+    firstName: [validators.required("First name")],
+    lastName: [validators.required("Last name")],
+    email: [validators.required("Email"), validators.email()],
+    phone: [validators.phone()],
+  }), []);
+  const { errors, touched, handleBlur, validateAll } = useFieldValidation(fieldDefs);
 
   if (state.success) {
     return (
@@ -48,7 +62,13 @@ export function AddGolferForm({ events }: { events: Event[] }) {
   }
 
   return (
-    <form action={formAction} className="space-y-4">
+    <form
+      action={(formData) => {
+        if (!validateAll(formData)) return;
+        formAction(formData);
+      }}
+      className="space-y-4"
+    >
       {state.error && (
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {state.error}
@@ -68,8 +88,10 @@ export function AddGolferForm({ events }: { events: Event[] }) {
             name="firstName"
             type="text"
             required
-            className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-2.5 text-gray-900 shadow-sm focus:border-teal-500 focus:ring-teal-500"
+            onBlur={(e) => handleBlur("firstName", e.target.value)}
+            className={`mt-1 block w-full rounded-lg border px-4 py-2.5 text-gray-900 shadow-sm focus:outline-none focus:ring-2 ${fieldBorderClass(errors.firstName, touched.firstName)}`}
           />
+          <FieldError error={errors.firstName} touched={touched.firstName} />
         </div>
         <div>
           <label
@@ -83,8 +105,10 @@ export function AddGolferForm({ events }: { events: Event[] }) {
             name="lastName"
             type="text"
             required
-            className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-2.5 text-gray-900 shadow-sm focus:border-teal-500 focus:ring-teal-500"
+            onBlur={(e) => handleBlur("lastName", e.target.value)}
+            className={`mt-1 block w-full rounded-lg border px-4 py-2.5 text-gray-900 shadow-sm focus:outline-none focus:ring-2 ${fieldBorderClass(errors.lastName, touched.lastName)}`}
           />
+          <FieldError error={errors.lastName} touched={touched.lastName} />
         </div>
       </div>
 
@@ -100,8 +124,10 @@ export function AddGolferForm({ events }: { events: Event[] }) {
           name="email"
           type="email"
           required
-          className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-2.5 text-gray-900 shadow-sm focus:border-teal-500 focus:ring-teal-500"
+          onBlur={(e) => handleBlur("email", e.target.value)}
+          className={`mt-1 block w-full rounded-lg border px-4 py-2.5 text-gray-900 shadow-sm focus:outline-none focus:ring-2 ${fieldBorderClass(errors.email, touched.email)}`}
         />
+        <FieldError error={errors.email} touched={touched.email} />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -117,8 +143,10 @@ export function AddGolferForm({ events }: { events: Event[] }) {
             name="phone"
             type="tel"
             placeholder="(555) 555-5555"
-            className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-2.5 text-gray-900 shadow-sm focus:border-teal-500 focus:ring-teal-500"
+            onBlur={(e) => handleBlur("phone", e.target.value)}
+            className={`mt-1 block w-full rounded-lg border px-4 py-2.5 text-gray-900 shadow-sm focus:outline-none focus:ring-2 ${fieldBorderClass(errors.phone, touched.phone)}`}
           />
+          <FieldError error={errors.phone} touched={touched.phone} />
         </div>
         <div>
           <label
