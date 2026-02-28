@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { PushToggle } from "@/components/push-toggle";
 
 interface NavLinksProps {
   isAdmin: boolean;
@@ -40,6 +41,7 @@ export function NavLinks({ isAdmin }: NavLinksProps) {
           </Link>
         );
       })}
+      <PushToggle />
       <form action="/auth/signout" method="POST">
         <button
           type="submit"

@@ -15,6 +15,7 @@ import {
   isWithinSendWindow,
 } from "@/lib/timezone";
 import { sendAdminAlert } from "@/lib/admin-alerts";
+import { sendPushToUsers } from "@/lib/push";
 import { generateGroupings } from "@/lib/grouping-engine";
 import {
   fetchConfirmedGolfers,
@@ -331,6 +332,22 @@ async function handleInviteEmails(
       subject: `${event.name}: Weekly Invite`,
       recipient_count: sent,
     });
+
+    // Send push notifications (non-fatal)
+    try {
+      const profileIds = rsvps
+        .map((r: Record<string, unknown>) => (r.profile as { id?: string })?.id)
+        .filter((id): id is string => !!id);
+      const formattedDate = formatGameDate(gameDateString);
+      await sendPushToUsers(supabase, profileIds, {
+        title: event.name as string,
+        body: `New game ${formattedDate}. Tap to RSVP now.`,
+        url: `${siteUrl}/dashboard`,
+        tag: `invite-${schedule.id}`,
+      });
+    } catch (pushErr) {
+      console.error("Push notification error (invite, non-fatal):", pushErr);
+    }
   }
 
   return {
@@ -474,6 +491,22 @@ async function handleReminderEmails(
       subject: `${event.name}: Reminder ${priorityOrder}`,
       recipient_count: sent,
     });
+
+    // Send push notifications to non-responders (non-fatal)
+    try {
+      const profileIds = (pendingRsvps || [])
+        .map((r: Record<string, unknown>) => (r.profile as { id?: string })?.id)
+        .filter((id): id is string => !!id);
+      const formattedDate = formatGameDate(gameDateString);
+      await sendPushToUsers(supabase, profileIds, {
+        title: event.name as string,
+        body: `You haven't responded for ${formattedDate}. Tap to RSVP.`,
+        url: `${siteUrl}/dashboard`,
+        tag: `reminder-${schedule.id}`,
+      });
+    } catch (pushErr) {
+      console.error("Push notification error (reminder, non-fatal):", pushErr);
+    }
   }
 
   return {
@@ -674,6 +707,21 @@ async function handleGolferConfirmation(
         subject: `${event.name}: Confirmation`,
         recipient_count: golferEmails.length,
       });
+
+      // Send push notifications to confirmed golfers (non-fatal)
+      try {
+        const profileIds = confirmedRsvps
+          .map((r: Record<string, unknown>) => (r.profile as { id?: string })?.id)
+          .filter((id): id is string => !!id);
+        await sendPushToUsers(supabase, profileIds, {
+          title: event.name as string,
+          body: `You're confirmed for ${formattedDate}! ${allPlayers.length} golfers playing.`,
+          url: `${siteUrl}/dashboard`,
+          tag: `confirmation-${schedule.id}`,
+        });
+      } catch (pushErr) {
+        console.error("Push notification error (confirmation, non-fatal):", pushErr);
+      }
     }
 
     console.log(
