@@ -1,6 +1,7 @@
 import { requireAdmin, hasEventAccess } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import { generateSchedulesForEvent } from "@/lib/schedule-gen";
 import { getTodayPacific } from "@/lib/timezone";
 import type { Event } from "@/types/events";
@@ -80,16 +81,16 @@ export default async function ScheduleManagementPage({
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <Link
-              href={`/admin/events/${eventId}/settings`}
-              className="text-sm text-teal-600 hover:text-teal-500"
-            >
-              ← Event Settings
-            </Link>
-            <h1 className="mt-1 text-2xl font-bold text-navy-900">
+            <Breadcrumbs
+              items={[
+                { label: "Admin", href: "/admin" },
+                { label: event.name, href: `/admin/events/${eventId}/settings` },
+                { label: "Schedule" },
+              ]}
+            />
+            <h1 className="text-2xl font-bold text-navy-900">
               Schedule Management
             </h1>
-            <p className="text-sm text-gray-500">{event.name}</p>
           </div>
           <Link
             href="/admin"

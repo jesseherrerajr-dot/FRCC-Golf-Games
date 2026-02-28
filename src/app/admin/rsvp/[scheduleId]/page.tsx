@@ -2,6 +2,7 @@ import { requireAdmin } from "@/lib/auth";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import Header from "@/components/header";
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import { CollapsibleSection } from "@/components/collapsible-section";
 import {
   StatusDropdown,
@@ -189,13 +190,13 @@ export default async function AdminRsvpPage({
       <div className="mx-auto max-w-4xl">
         {/* Header */}
         <div className="mb-6">
-          <Link
-            href="/admin"
-            className="text-sm text-teal-600 hover:text-teal-500"
-          >
-            &larr; Back to Admin Dashboard
-          </Link>
-          <h1 className="mt-2 text-2xl font-bold text-navy-900">
+          <Breadcrumbs
+            items={[
+              { label: "Admin", href: "/admin" },
+              { label: "RSVP Management" },
+            ]}
+          />
+          <h1 className="text-2xl font-bold text-navy-900">
             RSVP Management
           </h1>
           <p className="mt-1 text-lg text-gray-600">

@@ -1,6 +1,7 @@
 import { requireAdmin, hasEventAccess } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import { EmailComposerForm } from "./email-composer-form";
 
 export default async function EmailComposerPage({
@@ -38,19 +39,17 @@ export default async function EmailComposerPage({
   return (
     <main className="min-h-screen px-4 py-8">
       <div className="mx-auto max-w-2xl">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-navy-900">
-              Send Email
-            </h1>
-            <p className="text-sm text-gray-500">{event.name}</p>
-          </div>
-          <Link
-            href={`/admin/events/${eventId}/settings`}
-            className="text-sm text-teal-600 hover:text-teal-500"
-          >
-            ← Event Settings
-          </Link>
+        <div>
+          <Breadcrumbs
+            items={[
+              { label: "Admin", href: "/admin" },
+              { label: event.name, href: `/admin/events/${eventId}/settings` },
+              { label: "Send Email" },
+            ]}
+          />
+          <h1 className="text-2xl font-bold text-navy-900">
+            Send Email
+          </h1>
         </div>
 
         <div className="mt-6">

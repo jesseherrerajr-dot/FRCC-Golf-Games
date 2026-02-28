@@ -1,6 +1,7 @@
 import { requireAdmin, hasEventAccess } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import {
   BasicSettingsForm,
   JoinLinkSection,
@@ -71,16 +72,15 @@ export default async function EventSettingsPage({
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <Link
-              href="/admin"
-              className="text-sm text-teal-600 hover:text-teal-500"
-            >
-              ← Back to Dashboard
-            </Link>
-            <h1 className="mt-1 text-2xl font-bold text-navy-900">
+            <Breadcrumbs
+              items={[
+                { label: "Admin", href: "/admin" },
+                { label: event.name },
+              ]}
+            />
+            <h1 className="text-2xl font-bold text-navy-900">
               Event Settings
             </h1>
-            <p className="text-sm text-gray-500">{event.name}</p>
           </div>
           <div className="flex gap-2">
             <Link

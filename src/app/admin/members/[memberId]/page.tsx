@@ -4,6 +4,7 @@ import { formatPhoneDisplay } from "@/lib/format";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import Header from "@/components/header";
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import { SubscribeButton, AdminUnsubscribeButton } from "./subscription-toggles";
 import {
   ApproveButton,
@@ -58,13 +59,13 @@ export default async function MemberDetailPage({
       <Header />
       <main className="min-h-screen px-4 py-8">
         <div className="mx-auto max-w-2xl">
-          {/* Back link */}
-          <Link
-            href="/admin/members"
-            className="text-sm text-teal-700 hover:text-teal-600"
-          >
-            ← Back to Members
-          </Link>
+          <Breadcrumbs
+            items={[
+              { label: "Admin", href: "/admin" },
+              { label: "Members", href: "/admin/members" },
+              { label: `${member.first_name} ${member.last_name}` },
+            ]}
+          />
 
           {/* Member Info */}
           <div className="mt-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">

@@ -1,6 +1,6 @@
 import { requireAdmin } from "@/lib/auth";
-import Link from "next/link";
 import Header from "@/components/header";
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import { AddGolferForm } from "./add-golfer-form";
 
 export default async function AddGolferPage() {
@@ -18,14 +18,15 @@ export default async function AddGolferPage() {
       <Header />
       <main className="min-h-screen px-4 py-8">
         <div className="mx-auto max-w-lg">
-          <Link
-            href="/admin/members"
-            className="text-sm text-teal-700 hover:text-teal-600"
-          >
-            ← Back to Members
-          </Link>
+          <Breadcrumbs
+            items={[
+              { label: "Admin", href: "/admin" },
+              { label: "Members", href: "/admin/members" },
+              { label: "Add Golfer" },
+            ]}
+          />
 
-          <div className="mt-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+          <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
             <h1 className="font-serif text-xl font-bold uppercase tracking-wide text-navy-900">
               Add New Golfer
             </h1>

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
+import { NavLinks } from "./nav-links";
 
 export default async function Header() {
   const supabase = await createClient();
@@ -48,34 +49,7 @@ export default async function Header() {
 
         {user && (
           <nav className="flex items-center gap-1 text-sm font-medium sm:gap-4">
-            <Link
-              href="/dashboard"
-              className="rounded-md px-3 py-2.5 text-navy-700 transition-colors hover:bg-navy-50 hover:text-navy-900"
-            >
-              Dashboard
-            </Link>
-            <Link
-              href="/profile"
-              className="rounded-md px-3 py-2.5 text-navy-700 transition-colors hover:bg-navy-50 hover:text-navy-900"
-            >
-              Profile
-            </Link>
-            {isAdmin && (
-              <Link
-                href="/admin"
-                className="rounded-md px-3 py-2.5 text-navy-700 transition-colors hover:bg-navy-50 hover:text-navy-900"
-              >
-                Admin
-              </Link>
-            )}
-            <form action="/auth/signout" method="POST">
-              <button
-                type="submit"
-                className="rounded-md px-3 py-2.5 text-navy-400 transition-colors hover:bg-navy-50 hover:text-navy-700"
-              >
-                Sign Out
-              </button>
-            </form>
+            <NavLinks isAdmin={!!isAdmin} />
           </nav>
         )}
       </div>
