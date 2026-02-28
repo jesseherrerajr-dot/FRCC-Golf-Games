@@ -1,6 +1,8 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
+import { useToast } from "@/components/toast";
+import { ConfirmModal } from "@/components/confirm-modal";
 import {
   adminUpdateRsvpStatus,
   adminPromoteFromWaitlist,
@@ -26,6 +28,7 @@ export function StatusDropdown({
   currentStatus: RsvpStatus;
 }) {
   const [isPending, startTransition] = useTransition();
+  const { showToast } = useToast();
 
   function handleChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const newStatus = e.target.value as RsvpStatus;
@@ -34,7 +37,9 @@ export function StatusDropdown({
     startTransition(async () => {
       const result = await adminUpdateRsvpStatus(rsvpId, newStatus, scheduleId);
       if (result.error) {
-        alert(result.error);
+        showToast(result.error, "error");
+      } else {
+        showToast("Status updated");
       }
     });
   }
@@ -44,7 +49,7 @@ export function StatusDropdown({
       value={currentStatus}
       onChange={handleChange}
       disabled={isPending}
-      className="rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs font-medium text-gray-700 shadow-sm focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:opacity-50"
+      className="rounded-md border border-gray-300 bg-white px-2 py-2 text-xs font-medium text-gray-700 shadow-sm focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:opacity-50"
     >
       {statusOptions.map((opt) => (
         <option key={opt.value} value={opt.value}>
@@ -65,26 +70,38 @@ export function PromoteButton({
   golferName: string;
 }) {
   const [isPending, startTransition] = useTransition();
-
-  function handleClick() {
-    if (!confirm(`Move ${golferName} from waitlist to confirmed?`)) return;
-
-    startTransition(async () => {
-      const result = await adminPromoteFromWaitlist(rsvpId, scheduleId);
-      if (result.error) {
-        alert(result.error);
-      }
-    });
-  }
+  const [showConfirm, setShowConfirm] = useState(false);
+  const { showToast } = useToast();
 
   return (
-    <button
-      onClick={handleClick}
-      disabled={isPending}
-      className="rounded-md bg-teal-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-teal-500 disabled:opacity-50"
-    >
-      {isPending ? "..." : "Move to In"}
-    </button>
+    <>
+      <button
+        onClick={() => setShowConfirm(true)}
+        disabled={isPending}
+        className="rounded-md bg-teal-600 px-3 py-2 text-xs font-medium text-white hover:bg-teal-500 disabled:opacity-50"
+      >
+        {isPending ? "Moving…" : "Move to In"}
+      </button>
+      <ConfirmModal
+        open={showConfirm}
+        title="Promote from Waitlist"
+        message={`Move ${golferName} from the waitlist to confirmed? They will count toward the week's capacity.`}
+        confirmLabel="Confirm"
+        loading={isPending}
+        onCancel={() => setShowConfirm(false)}
+        onConfirm={() => {
+          setShowConfirm(false);
+          startTransition(async () => {
+            const result = await adminPromoteFromWaitlist(rsvpId, scheduleId);
+            if (result.error) {
+              showToast(result.error, "error");
+            } else {
+              showToast(`${golferName} moved to confirmed`);
+            }
+          });
+        }}
+      />
+    </>
   );
 }
 
@@ -104,25 +121,51 @@ export function QuickActionButton({
   className: string;
 }) {
   const [isPending, startTransition] = useTransition();
+  const [showConfirm, setShowConfirm] = useState(false);
+  const { showToast } = useToast();
 
   function handleClick() {
-    if (confirmMessage && !confirm(confirmMessage)) return;
+    if (confirmMessage) {
+      setShowConfirm(true);
+    } else {
+      doAction();
+    }
+  }
 
+  function doAction() {
     startTransition(async () => {
       const result = await adminUpdateRsvpStatus(rsvpId, action, scheduleId);
       if (result.error) {
-        alert(result.error);
+        showToast(result.error, "error");
+      } else {
+        showToast("Status updated");
       }
     });
   }
 
   return (
-    <button
-      onClick={handleClick}
-      disabled={isPending}
-      className={`rounded-md px-3 py-1.5 text-xs font-medium disabled:opacity-50 ${className}`}
-    >
-      {isPending ? "..." : label}
-    </button>
+    <>
+      <button
+        onClick={handleClick}
+        disabled={isPending}
+        className={`rounded-md px-3 py-2 text-xs font-medium disabled:opacity-50 ${className}`}
+      >
+        {isPending ? "Updating…" : label}
+      </button>
+      {confirmMessage && (
+        <ConfirmModal
+          open={showConfirm}
+          title="Confirm Action"
+          message={confirmMessage}
+          confirmLabel={label}
+          loading={isPending}
+          onCancel={() => setShowConfirm(false)}
+          onConfirm={() => {
+            setShowConfirm(false);
+            doAction();
+          }}
+        />
+      )}
+    </>
   );
 }

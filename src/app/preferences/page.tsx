@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useToast } from "@/components/toast";
+import { ConfirmModal } from "@/components/confirm-modal";
 import {
   getEvents,
   getActiveMembers,
@@ -44,8 +46,9 @@ export default function PreferencesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [reordering, setReordering] = useState<string | null>(null); // track which row is being moved
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [reordering, setReordering] = useState<string | null>(null);
+  const [removeTarget, setRemoveTarget] = useState<{ id: string; name: string } | null>(null);
+  const { showToast } = useToast();
 
   // Load events on mount
   useEffect(() => {
@@ -91,26 +94,24 @@ export default function PreferencesPage() {
     if (!selectedEvent) return;
     const result = await addPlayingPartner(selectedEvent, partnerId);
     if (result.error) {
-      setMessage({ type: "error", text: result.error });
+      showToast(result.error, "error");
     } else {
-      setMessage({ type: "success", text: "Playing partner added successfully" });
+      showToast("Playing partner added");
       setSearchQuery("");
       setShowDropdown(false);
       loadEventPreferences();
     }
-    setTimeout(() => setMessage(null), 3000);
   }
 
   async function handleRemovePartner(preferenceId: string) {
     if (!selectedEvent) return;
     const result = await removePlayingPartner(preferenceId, selectedEvent);
     if (result.error) {
-      setMessage({ type: "error", text: result.error });
+      showToast(result.error, "error");
     } else {
-      setMessage({ type: "success", text: "Playing partner removed successfully" });
+      showToast("Playing partner removed");
       loadEventPreferences();
     }
-    setTimeout(() => setMessage(null), 3000);
   }
 
   async function handleMovePartner(preferenceId: string, direction: "up" | "down") {
@@ -124,8 +125,7 @@ export default function PreferencesPage() {
     setReordering(preferenceId);
     const result = await updatePartnerRank(preferenceId, selectedEvent, newRank);
     if (result.error) {
-      setMessage({ type: "error", text: result.error });
-      setTimeout(() => setMessage(null), 3000);
+      showToast(result.error, "error");
     } else {
       await loadEventPreferences();
     }
@@ -135,7 +135,10 @@ export default function PreferencesPage() {
   if (loading) {
     return (
       <main className="flex min-h-screen items-center justify-center">
-        <p className="text-gray-500">Loading...</p>
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-200 border-t-teal-600" />
+          <p className="text-sm text-gray-500">Loading preferences…</p>
+        </div>
       </main>
     );
   }
@@ -171,22 +174,10 @@ export default function PreferencesPage() {
               Playing Partner Preferences
             </h1>
           <p className="mt-1 text-sm text-gray-500">
-            Manage your preferred playing partners for each event.
+            Rank your preferred playing partners for each event. Higher-ranked
+            partners have more weight in suggested groupings.
           </p>
         </div>
-
-        {/* Message */}
-        {message && (
-          <div
-            className={`mb-6 rounded-lg border px-4 py-3 text-sm ${
-              message.type === "success"
-                ? "border-teal-200 bg-navy-50 text-teal-600"
-                : "border-red-200 bg-red-50 text-red-700"
-            }`}
-          >
-            {message.text}
-          </div>
-        )}
 
         {/* Event Selector */}
         {events.length > 1 && (
@@ -273,30 +264,34 @@ export default function PreferencesPage() {
 
           {/* Current Partners List */}
           {partners.length === 0 ? (
-            <p className="text-sm text-gray-500">
-              No playing partners selected. Add up to 10 preferred partners to help
-              with groupings.
-            </p>
+            <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
+              <p className="text-sm text-gray-600">
+                No playing partners selected yet.
+              </p>
+              <p className="mt-1 text-xs text-gray-400">
+                Add up to 10 preferred partners to help with groupings.
+              </p>
+            </div>
           ) : (
             <div className="space-y-2">
               {partners.map((partner, index) => (
                 <div
                   key={partner.id}
-                  className={`flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 ${
+                  className={`flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 sm:px-4 sm:py-3 ${
                     reordering === partner.id ? "opacity-50" : ""
                   }`}
                 >
-                  <div className="flex items-center gap-3">
-                    {/* Up/Down arrows */}
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    {/* Up/Down arrows — larger touch targets */}
                     <div className="flex flex-col gap-0.5">
                       <button
                         type="button"
                         onClick={() => handleMovePartner(partner.id, "up")}
                         disabled={index === 0 || reordering !== null}
-                        className={`rounded px-1.5 py-0.5 text-xs leading-none ${
+                        className={`flex h-8 w-8 items-center justify-center rounded-md text-sm leading-none transition-colors ${
                           index === 0 || reordering !== null
                             ? "text-gray-300 cursor-not-allowed"
-                            : "text-gray-500 hover:bg-gray-200 hover:text-gray-700"
+                            : "text-gray-500 hover:bg-gray-200 hover:text-gray-700 active:bg-gray-300"
                         }`}
                         aria-label="Move up"
                       >
@@ -306,10 +301,10 @@ export default function PreferencesPage() {
                         type="button"
                         onClick={() => handleMovePartner(partner.id, "down")}
                         disabled={index === partners.length - 1 || reordering !== null}
-                        className={`rounded px-1.5 py-0.5 text-xs leading-none ${
+                        className={`flex h-8 w-8 items-center justify-center rounded-md text-sm leading-none transition-colors ${
                           index === partners.length - 1 || reordering !== null
                             ? "text-gray-300 cursor-not-allowed"
-                            : "text-gray-500 hover:bg-gray-200 hover:text-gray-700"
+                            : "text-gray-500 hover:bg-gray-200 hover:text-gray-700 active:bg-gray-300"
                         }`}
                         aria-label="Move down"
                       >
@@ -317,15 +312,21 @@ export default function PreferencesPage() {
                       </button>
                     </div>
                     <div className="text-sm font-medium text-gray-900">
-                      {index + 1}. {partner.profiles.first_name}{" "}
+                      <span className="text-gray-400 mr-1">{index + 1}.</span>
+                      {partner.profiles.first_name}{" "}
                       {partner.profiles.last_name}
                     </div>
                   </div>
                   <button
                     type="button"
-                    onClick={() => handleRemovePartner(partner.id)}
+                    onClick={() =>
+                      setRemoveTarget({
+                        id: partner.id,
+                        name: `${partner.profiles.first_name} ${partner.profiles.last_name}`,
+                      })
+                    }
                     disabled={reordering !== null}
-                    className="text-sm text-red-600 hover:text-red-700 disabled:opacity-50"
+                    className="rounded-md px-3 py-2 text-sm text-red-600 transition-colors hover:bg-red-50 hover:text-red-700 disabled:opacity-50"
                   >
                     Remove
                   </button>
@@ -341,6 +342,22 @@ export default function PreferencesPage() {
         </div>
         )}
         </div>
+
+      {/* Remove confirmation modal */}
+      <ConfirmModal
+        open={removeTarget !== null}
+        title="Remove Partner"
+        message={`Remove ${removeTarget?.name || ""} from your preferred playing partners?`}
+        confirmLabel="Remove"
+        variant="danger"
+        onCancel={() => setRemoveTarget(null)}
+        onConfirm={() => {
+          if (removeTarget) {
+            handleRemovePartner(removeTarget.id);
+            setRemoveTarget(null);
+          }
+        }}
+      />
       </main>
   );
 }

@@ -128,75 +128,117 @@ export default async function DashboardPage() {
             )}
           </div>
 
-          {/* Upcoming Games & RSVPs */}
-          {upcoming.length > 0 && (
-            <div className="mt-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-              <h3 className="font-serif text-lg font-semibold uppercase tracking-wide text-navy-900">
-                Upcoming Games
-              </h3>
-              <div className="mt-3 space-y-3">
-                {upcoming.map((rsvp: Record<string, unknown>) => {
-                  const schedule = rsvp.schedule as {
-                    game_date: string;
-                    capacity: number | null;
-                    event: { id: string; name: string; default_capacity: number } | null;
-                  };
-                  const event = schedule?.event;
-                  const status = rsvp.status as RsvpStatus;
-                  const token = rsvp.token as string;
+          {/* Next Game — highlighted hero card */}
+          {upcoming.length > 0 && (() => {
+            const nextRsvp = upcoming[0] as Record<string, unknown>;
+            const nextSchedule = nextRsvp.schedule as {
+              game_date: string;
+              capacity: number | null;
+              event: { id: string; name: string; default_capacity: number } | null;
+            };
+            const nextEvent = nextSchedule?.event;
+            const nextStatus = nextRsvp.status as RsvpStatus;
+            const nextToken = nextRsvp.token as string;
+            const rest = upcoming.slice(1);
 
-                  return (
-                    <Link
-                      key={rsvp.id as string}
-                      href={`/rsvp/${token}`}
-                      className="flex items-center justify-between rounded-lg border border-gray-100 bg-gray-50 p-4 transition-colors hover:bg-gray-100"
-                    >
-                      <div>
-                        <p className="font-semibold text-gray-900">
-                          {event?.name || "Game"}
-                        </p>
-                        <p className="text-sm text-gray-500">
-                          {formatGameDate(schedule.game_date)}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={`inline-block rounded-full border px-3 py-1 text-xs font-semibold ${statusStyles[status]}`}
-                        >
-                          {statusLabels[status]}
-                        </span>
-                        <svg
-                          className="h-4 w-4 text-gray-400"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          strokeWidth={2}
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M8.25 4.5l7.5 7.5-7.5 7.5"
-                          />
-                        </svg>
-                      </div>
-                    </Link>
-                  );
-                })}
-              </div>
-              <p className="mt-3 text-xs text-gray-400">
-                Tap any game to view details or change your response.
-              </p>
-            </div>
-          )}
+            return (
+              <>
+                <Link
+                  href={`/rsvp/${nextToken}`}
+                  className="mt-4 block rounded-lg border-2 border-teal-200 bg-white p-6 shadow-sm transition-colors hover:bg-teal-50/30"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-medium uppercase tracking-wide text-teal-700">
+                        Next Game
+                      </p>
+                      <p className="mt-1 font-serif text-lg font-semibold text-navy-900">
+                        {nextEvent?.name || "Game"}
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        {formatGameDate(nextSchedule.game_date)}
+                      </p>
+                    </div>
+                    <div className="flex flex-col items-end gap-2">
+                      <span
+                        className={`inline-block rounded-full border px-3 py-1.5 text-xs font-semibold ${statusStyles[nextStatus]}`}
+                      >
+                        {statusLabels[nextStatus]}
+                      </span>
+                      <span className="text-xs text-teal-600">Tap to respond &rarr;</span>
+                    </div>
+                  </div>
+                </Link>
+
+                {/* Additional upcoming games */}
+                {rest.length > 0 && (
+                  <div className="mt-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+                    <h3 className="font-serif text-lg font-semibold uppercase tracking-wide text-navy-900">
+                      More Upcoming
+                    </h3>
+                    <div className="mt-3 space-y-3">
+                      {rest.map((rsvp: Record<string, unknown>) => {
+                        const schedule = rsvp.schedule as {
+                          game_date: string;
+                          capacity: number | null;
+                          event: { id: string; name: string; default_capacity: number } | null;
+                        };
+                        const event = schedule?.event;
+                        const status = rsvp.status as RsvpStatus;
+                        const token = rsvp.token as string;
+
+                        return (
+                          <Link
+                            key={rsvp.id as string}
+                            href={`/rsvp/${token}`}
+                            className="flex items-center justify-between rounded-lg border border-gray-100 bg-gray-50 p-4 transition-colors hover:bg-gray-100"
+                          >
+                            <div>
+                              <p className="font-semibold text-gray-900">
+                                {event?.name || "Game"}
+                              </p>
+                              <p className="text-sm text-gray-500">
+                                {formatGameDate(schedule.game_date)}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={`inline-block rounded-full border px-3 py-1 text-xs font-semibold ${statusStyles[status]}`}
+                              >
+                                {statusLabels[status]}
+                              </span>
+                              <svg
+                                className="h-4 w-4 text-gray-400"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                strokeWidth={2}
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M8.25 4.5l7.5 7.5-7.5 7.5"
+                                />
+                              </svg>
+                            </div>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </>
+            );
+          })()}
 
           {upcoming.length === 0 && profile?.status === "active" && (
-            <div className="mt-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-              <h3 className="font-serif text-lg font-semibold uppercase tracking-wide text-navy-900">
-                Upcoming Games
-              </h3>
+            <div className="mt-4 rounded-lg border border-dashed border-gray-300 bg-white p-8 text-center shadow-sm">
+              <p className="font-serif text-lg font-semibold text-navy-900">
+                No Upcoming Games
+              </p>
               <p className="mt-2 text-sm text-gray-500">
-                No upcoming games right now. You&apos;ll see your RSVPs here once
-                the next invite goes out.
+                You&apos;ll see your next game here once the weekly invite goes out.
+                Check back soon!
               </p>
             </div>
           )}

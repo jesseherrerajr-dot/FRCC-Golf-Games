@@ -32,7 +32,7 @@ export function CollapsibleSection({
     <section className="mt-8">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex w-full items-center justify-between rounded-lg px-1 py-1 text-left transition-colors hover:bg-gray-50"
+        className="flex w-full items-center justify-between rounded-lg px-2 py-2.5 text-left transition-colors hover:bg-gray-50"
       >
         <div className="flex items-center gap-2">
           <h2 className={`text-lg font-semibold ${headerColor}`}>
