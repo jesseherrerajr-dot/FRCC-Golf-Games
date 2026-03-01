@@ -140,6 +140,7 @@ export default async function HelpPage() {
                 </p>
               </FAQ>
 
+              {/* Guest FAQ hidden until guest feature is enabled
               <FAQ question="How do I bring a guest?">
                 <p>
                   After you RSVP &quot;I&apos;m In,&quot; you&apos;ll see a{" "}
@@ -149,6 +150,7 @@ export default async function HelpPage() {
                   that members haven&apos;t claimed.
                 </p>
               </FAQ>
+              */}
 
               <FAQ question="What are playing partner preferences?">
                 <p>
@@ -158,6 +160,18 @@ export default async function HelpPage() {
                   foursomes. Higher-ranked partners are weighted more heavily. These are
                   suggestions — they don&apos;t guarantee you&apos;ll be paired
                   together.
+                </p>
+              </FAQ>
+
+              <FAQ question="Can other golfers or admins see my playing partner preferences?">
+                <p>
+                  No — your preferences are completely private. Only you can see your
+                  ranked list. Other golfers and admins cannot view who you&apos;ve
+                  selected or how you&apos;ve ranked them. The system uses preferences
+                  behind the scenes when building suggested foursomes, but the
+                  preferences themselves are never shared. You can update your
+                  preferences at any time from the{" "}
+                  <strong>Playing Partner Preferences</strong> page.
                 </p>
               </FAQ>
 

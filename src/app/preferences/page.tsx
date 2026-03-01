@@ -175,7 +175,8 @@ export default function PreferencesPage() {
             </h1>
           <p className="mt-1 text-sm text-gray-500">
             Rank your preferred playing partners for each event. Higher-ranked
-            partners have more weight in suggested groupings.
+            partners have more weight in suggested groupings. Your preferences
+            are private — only you can see them. You can update them at any time.
           </p>
         </div>
 
@@ -338,8 +339,10 @@ export default function PreferencesPage() {
           )}
 
           <p className="mt-4 text-xs text-gray-400">
-            These preferences are suggestions and help admins with groupings. They
-            do not guarantee you&apos;ll be paired with these players.
+            Your preferences are private — only you can see them, and you can
+            change them at any time. The system uses them behind the scenes when
+            building suggested foursomes, but they don&apos;t guarantee
+            you&apos;ll be paired with these players.
           </p>
         </div>
         )}
