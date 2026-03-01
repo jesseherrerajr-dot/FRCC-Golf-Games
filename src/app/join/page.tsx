@@ -186,6 +186,11 @@ export default function JoinPage() {
             >
               {isJoinPending ? "Sending Code..." : "Join & Verify Email"}
             </button>
+
+            <p className="text-center text-xs text-gray-400">
+              After signing up, an admin will review and approve your registration.
+              You&apos;ll receive an email when approved.
+            </p>
           </form>
         ) : (
           /* Step 2: OTP code input */
@@ -240,11 +245,16 @@ export default function JoinPage() {
           </div>
         )}
 
-        {/* Footer link */}
+        {/* Footer links */}
         <p className="mt-6 text-center text-sm text-gray-500">
           Already a member?{" "}
           <Link href="/login" className="font-medium text-teal-700 hover:text-teal-600">
             Sign in
+          </Link>
+        </p>
+        <p className="mt-2 text-center text-sm">
+          <Link href="/help" className="text-gray-400 hover:text-gray-600">
+            Need help?
           </Link>
         </p>
       </div>

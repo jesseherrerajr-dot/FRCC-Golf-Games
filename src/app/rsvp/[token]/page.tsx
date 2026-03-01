@@ -5,6 +5,7 @@ import { GuestRequestForm, GuestRequestStatus } from "./guest-request-form";
 import { getGuestRequests } from "./guest-actions";
 import { TeeTimePreference } from "./tee-time-preference";
 import { CollapsibleSection } from "./collapsible-section";
+import { HelpText } from "@/components/help-text";
 
 function createAdminClient() {
   return createClient(
@@ -218,6 +219,11 @@ export default async function RsvpPage({
                 ? "✓ Not Sure Yet"
                 : "Not Sure Yet (please ask me again later)"}
             </a>
+            <div className="mt-1">
+              <HelpText>
+                &quot;Not Sure&quot; means you&apos;ll get a reminder Thursday. You can change anytime before the Friday cutoff.
+              </HelpText>
+            </div>
           </div>
         )}
 
@@ -303,12 +309,19 @@ export default async function RsvpPage({
         )}
 
         {/* Footer */}
-        <div className="mt-8 text-center">
+        <div className="mt-8 flex items-center justify-center gap-4 text-sm">
           <Link
             href="/dashboard"
-            className="text-sm text-teal-700 hover:text-teal-600"
+            className="text-teal-700 hover:text-teal-600"
           >
             Go to Dashboard
+          </Link>
+          <span className="text-gray-300">|</span>
+          <Link
+            href="/help"
+            className="text-gray-400 hover:text-gray-600"
+          >
+            Need help?
           </Link>
         </div>
       </div>

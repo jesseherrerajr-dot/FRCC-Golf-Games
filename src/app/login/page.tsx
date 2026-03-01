@@ -131,11 +131,16 @@ export default function LoginPage() {
           </div>
         )}
 
-        {/* Footer link */}
+        {/* Footer links */}
         <p className="mt-6 text-center text-sm text-gray-500">
           Not a member yet?{" "}
           <Link href="/join" className="font-medium text-teal-700 hover:text-teal-600">
             Join the Group
+          </Link>
+        </p>
+        <p className="mt-2 text-center text-sm">
+          <Link href="/help" className="text-gray-400 hover:text-gray-600">
+            Need help?
           </Link>
         </p>
       </div>

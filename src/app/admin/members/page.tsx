@@ -85,7 +85,7 @@ export default async function MemberDirectory({
                 Member Directory
               </h1>
             <p className="text-sm text-gray-500">
-              {totalCount} total members
+              {totalCount} total members &mdash; approve pending registrations or use &quot;+ Add Golfer&quot; to add directly
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -122,7 +122,7 @@ export default async function MemberDirectory({
           {members.length === 0 ? (
             <p className="mt-4 text-sm text-gray-500">
               {searchQuery
-                ? `No members found matching "${searchQuery}".`
+                ? `No members match "${searchQuery}". Try a different name or email, or use "+ Add Golfer" to add someone new.`
                 : "No members in this category."}
             </p>
           ) : (

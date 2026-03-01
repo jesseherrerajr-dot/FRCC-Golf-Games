@@ -101,8 +101,9 @@ export default async function ScheduleManagementPage({
         </div>
 
         <p className="mt-4 text-sm text-gray-600">
-          Manage the next 8 weeks. Toggle games on/off, adjust capacity, and add
-          notes that appear in emails.
+          Manage the next 8 weeks. Toggle any week to &quot;No Game&quot; before the Monday
+          invite — golfers will get a cancellation notice instead. You can also adjust
+          capacity per week and add notes that appear in emails.
         </p>
 
         {/* Schedule Grid */}

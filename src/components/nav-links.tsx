@@ -15,6 +15,7 @@ export function NavLinks({ isAdmin }: NavLinksProps) {
     { href: "/dashboard", label: "Dashboard" },
     { href: "/profile", label: "Profile" },
     ...(isAdmin ? [{ href: "/admin", label: "Admin" }] : []),
+    { href: "/help", label: "Help" },
   ];
 
   return (
@@ -25,7 +26,8 @@ export function NavLinks({ isAdmin }: NavLinksProps) {
           link.href === "/admin"
             ? pathname.startsWith("/admin")
             : pathname === link.href ||
-              (link.href === "/dashboard" && pathname === "/preferences");
+              (link.href === "/dashboard" && pathname === "/preferences") ||
+              (link.href === "/help" && pathname === "/help");
 
         return (
           <Link

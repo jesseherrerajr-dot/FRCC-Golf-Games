@@ -266,10 +266,12 @@ export default function PreferencesPage() {
           {partners.length === 0 ? (
             <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
               <p className="text-sm text-gray-600">
-                No playing partners selected yet.
+                No partners added yet.
               </p>
               <p className="mt-1 text-xs text-gray-400">
-                Add up to 10 preferred partners to help with groupings.
+                Search for golfers above to add up to 10 preferred playing
+                partners. The grouping engine uses these rankings when building
+                foursomes.
               </p>
             </div>
           ) : (

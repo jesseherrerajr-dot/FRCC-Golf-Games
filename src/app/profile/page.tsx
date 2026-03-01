@@ -118,7 +118,8 @@ export default function ProfilePage() {
               Profile Settings
             </h1>
           <p className="mt-1 text-sm text-gray-500">
-            Update your personal information.
+            Update your personal information. This is shared with the pro shop
+            for game setup, so keep it current.
           </p>
         </div>
 

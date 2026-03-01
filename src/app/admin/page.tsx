@@ -3,6 +3,7 @@ import Link from "next/link";
 import { formatPhoneDisplay } from "@/lib/format";
 import Header from "@/components/header";
 import { CollapsibleSection } from "@/components/collapsible-section";
+import { WelcomeBanner } from "@/components/welcome-banner";
 import {
   ApproveButton,
   DenyButton,
@@ -131,6 +132,20 @@ export default async function AdminDashboard() {
               My Dashboard
             </Link>
           </div>
+        </div>
+
+        {/* First-time admin welcome banner */}
+        <div className="mt-6">
+          <WelcomeBanner
+            storageKey="frcc_admin_welcome_dismissed"
+            title="Welcome, Admin!"
+            items={[
+              "<strong>Member Directory</strong> — approve registrations, add golfers, manage subscriptions",
+              "<strong>Schedule</strong> — toggle games on/off for the rolling 8-week calendar",
+              "<strong>RSVP Management</strong> — after Friday cutoff, override RSVPs, approve guests, manage the waitlist",
+              "<strong>Event Settings</strong> — configure email times, capacity, feature flags, pro shop contacts",
+            ]}
+          />
         </div>
 
         {/* Action Items */}

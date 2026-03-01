@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { formatPhoneDisplay } from "@/lib/format";
 import Header from "@/components/header";
+import { HelpText } from "@/components/help-text";
+import { WelcomeBanner } from "@/components/welcome-banner";
 import { UnsubscribeButton } from "./subscription-actions";
 
 type RsvpStatus = "in" | "out" | "not_sure" | "no_response" | "waitlisted";
@@ -128,6 +130,21 @@ export default async function DashboardPage() {
             )}
           </div>
 
+          {/* First-time welcome banner */}
+          {profile?.status === "active" && (
+            <div className="mt-4">
+              <WelcomeBanner
+                storageKey="frcc_welcome_dismissed"
+                title="Welcome to FRCC Golf Games!"
+                items={[
+                  "You'll get a <strong>weekly invite email</strong> on Monday with a one-tap link to RSVP",
+                  "Respond <strong>In</strong>, <strong>Out</strong>, or <strong>Not Sure</strong> — you can change anytime before the Friday cutoff",
+                  "Visit <strong>Profile</strong> to update your info and <strong>Preferences</strong> to set playing partners",
+                ]}
+              />
+            </div>
+          )}
+
           {/* Next Game — highlighted hero card */}
           {upcoming.length > 0 && (() => {
             const nextRsvp = upcoming[0] as Record<string, unknown>;
@@ -237,8 +254,8 @@ export default async function DashboardPage() {
                 No Upcoming Games
               </p>
               <p className="mt-2 text-sm text-gray-500">
-                You&apos;ll see your next game here once the weekly invite goes out.
-                Check back soon!
+                No upcoming games scheduled yet. When an admin opens the next game,
+                you&apos;ll get an invite email with a one-tap link to RSVP.
               </p>
             </div>
           )}
@@ -249,6 +266,9 @@ export default async function DashboardPage() {
               <h3 className="font-serif text-lg font-semibold uppercase tracking-wide text-navy-900">
                 My Events
               </h3>
+              <div className="mt-1 mb-2">
+                <HelpText>These are the games you receive weekly invites for. Unsubscribe anytime.</HelpText>
+              </div>
               {subscriptions && subscriptions.length > 0 ? (
                 <div className="mt-3 space-y-3">
                   {subscriptions.map((sub) => {
@@ -287,8 +307,9 @@ export default async function DashboardPage() {
                 </div>
               ) : (
                 <p className="mt-2 text-sm text-gray-500">
-                  You&apos;re not subscribed to any events yet. Contact an admin or
-                  use an event join link to get started.
+                  You&apos;re not subscribed to any events yet. Ask your group
+                  organizer for a join link, or check if you have a pending
+                  registration being reviewed.
                 </p>
               )}
             </div>

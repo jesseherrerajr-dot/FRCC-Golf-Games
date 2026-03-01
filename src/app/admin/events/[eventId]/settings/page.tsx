@@ -108,7 +108,8 @@ export default async function EventSettingsPage({
             Join Link
           </h2>
           <p className="mt-1 text-sm text-gray-500">
-            Shareable link for new golfers to request to join this event.
+            Share this link with new golfers. They&apos;ll fill out a short
+            registration form and you&apos;ll approve them in the Member Directory.
           </p>
           <div className="mt-3 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
             <JoinLinkSection slug={event.slug} />
@@ -121,7 +122,7 @@ export default async function EventSettingsPage({
             Email Schedule
           </h2>
           <p className="mt-1 text-sm text-gray-500">
-            Configure when automated emails are sent each week.
+            Configure when automated emails are sent each week. All times are Pacific Time.
           </p>
           <div className="mt-3 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
             <EmailScheduleForm event={event} />
@@ -193,8 +194,8 @@ export default async function EventSettingsPage({
               </span>
             </h2>
             <p className="mt-1 text-sm text-gray-500">
-              Enable or disable optional features. These should remain off until
-              fully built and tested.
+              Toggle features on or off for this event. Changes take effect
+              immediately for golfers on their RSVP page.
             </p>
             <div className="mt-3 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
               <FeatureFlagsForm event={event} />
