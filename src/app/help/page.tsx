@@ -92,31 +92,33 @@ export default async function HelpPage() {
             <div className="space-y-2">
               <FAQ question="How do I RSVP for a game?">
                 <p>
-                  Every Monday you&apos;ll receive an invite email with a one-tap link.
+                  Before each game, you&apos;ll receive an invite email with a one-tap link.
                   Tap <strong>I&apos;m In</strong>, <strong>I&apos;m Out</strong>, or{" "}
                   <strong>Not Sure Yet</strong> — no login required. You can also RSVP
                   from your Dashboard after signing in.
                 </p>
               </FAQ>
 
-              <FAQ question="When do invites go out and what's the weekly schedule?">
+              <FAQ question="When do invites go out and what's the schedule?">
                 <p>
-                  The typical weekly cycle is: <strong>Monday</strong> — invite emails
-                  go out. <strong>Thursday</strong> — reminders sent to anyone who
-                  hasn&apos;t responded or said &quot;Not Sure.&quot;{" "}
-                  <strong>Friday morning</strong> — RSVP deadline (cutoff). After
-                  cutoff, only admins can change responses.{" "}
-                  <strong>Friday afternoon</strong> — confirmation emails sent to all
-                  confirmed players and the pro shop. Exact times may vary by event.
+                  Each event follows its own email cycle configured by the admin:{" "}
+                  <strong>Invite</strong> — sent to all subscribed golfers.{" "}
+                  <strong>Reminder</strong> — sent to anyone who hasn&apos;t responded
+                  or said &quot;Not Sure.&quot;{" "}
+                  <strong>Cutoff</strong> — RSVP deadline. After cutoff, only admins
+                  can change responses.{" "}
+                  <strong>Confirmation</strong> — sent to all confirmed players and
+                  the pro shop. Check your invite email for the specific cutoff time
+                  for your event.
                 </p>
               </FAQ>
 
               <FAQ question='What does "Not Sure Yet" do?'>
                 <p>
                   Choosing &quot;Not Sure Yet&quot; means you&apos;ll receive a reminder
-                  email on Thursday so you can make a final decision. If you don&apos;t
-                  respond by the Friday cutoff, you&apos;ll be counted as &quot;No
-                  Response&quot; and won&apos;t be included in the confirmed list.
+                  email before the deadline so you can make a final decision. If you
+                  don&apos;t respond by the RSVP cutoff, you&apos;ll be counted as
+                  &quot;No Response&quot; and won&apos;t be included in the confirmed list.
                 </p>
               </FAQ>
 
@@ -132,7 +134,7 @@ export default async function HelpPage() {
 
               <FAQ question="Can I change my RSVP after responding?">
                 <p>
-                  Yes — you can change your response anytime before the Friday cutoff
+                  Yes — you can change your response anytime before the RSVP cutoff
                   using the link in your confirmation email or from your Dashboard.
                   After cutoff, only an admin can update your status.
                 </p>
@@ -143,7 +145,7 @@ export default async function HelpPage() {
                   After you RSVP &quot;I&apos;m In,&quot; you&apos;ll see a{" "}
                   <strong>Request Guest</strong> section on the RSVP page. Enter your
                   guest&apos;s name, email, and GHIN number. An admin will review and
-                  approve guest requests after the Friday cutoff. Guests only fill spots
+                  approve guest requests after the RSVP cutoff. Guests only fill spots
                   that members haven&apos;t claimed.
                 </p>
               </FAQ>
@@ -212,17 +214,17 @@ export default async function HelpPage() {
                 For Admins
               </h2>
               <div className="space-y-2">
-                <FAQ question="How does the weekly email cycle work?">
+                <FAQ question="How does the email cycle work?">
                   <p>
-                    Each event has four automated emails per week:{" "}
-                    <strong>Invite</strong> (Monday) — sent to all subscribed
-                    golfers. <strong>Reminder</strong> (Thursday) — sent only to
-                    &quot;Not Sure&quot; and &quot;No Response&quot; golfers.{" "}
-                    <strong>Golfer Confirmation</strong> (Friday PM) — sent to all
-                    confirmed players with the player list.{" "}
-                    <strong>Pro Shop Confirmation</strong> (Friday PM) — sent to pro
-                    shop contacts with full player details (names, phones, GHIN). You
-                    can customize the send times for each email in{" "}
+                    Each event has four automated emails per cycle:{" "}
+                    <strong>Invite</strong> — sent to all subscribed golfers.{" "}
+                    <strong>Reminder</strong> — sent only to &quot;Not Sure&quot; and
+                    &quot;No Response&quot; golfers.{" "}
+                    <strong>Golfer Confirmation</strong> — sent to all confirmed
+                    players with the player list.{" "}
+                    <strong>Pro Shop Confirmation</strong> — sent to pro shop contacts
+                    with full player details (names, phones, GHIN). You can customize
+                    the send day and time for each email in{" "}
                     <strong>Event Settings → Email Schedule</strong>.
                   </p>
                 </FAQ>
@@ -241,7 +243,7 @@ export default async function HelpPage() {
 
                 <FAQ question="How do I manage RSVPs after the cutoff?">
                   <p>
-                    After the Friday cutoff, go to the RSVP management page for that
+                    After the RSVP cutoff, go to the RSVP management page for that
                     week (tap any upcoming game on the Admin Dashboard). You&apos;ll
                     see a status dropdown next to each golfer — you can change anyone&apos;s
                     status (In, Out, Waitlisted, etc.) and promote golfers from the
@@ -253,7 +255,7 @@ export default async function HelpPage() {
                   <p>
                     Go to <strong>Event Settings → Schedule</strong> to see the
                     rolling 8-week calendar. Toggle any week to <strong>No Game</strong>.
-                    If you toggle before the Monday invite time, golfers will receive a
+                    If you toggle before the invite is sent, golfers will receive a
                     cancellation notice instead of an invite email. The notice tells them
                     the date of the next scheduled game.
                   </p>
@@ -272,7 +274,7 @@ export default async function HelpPage() {
                   <p>
                     Guest requests appear on the RSVP management page for the relevant
                     week, under <strong>Pending Guest Requests</strong>. After the
-                    Friday cutoff, review each request and tap{" "}
+                    RSVP cutoff, review each request and tap{" "}
                     <strong>Approve</strong> or <strong>Deny</strong>. Approved guests
                     are included in the confirmation emails. Guests only fill spots that
                     members haven&apos;t claimed.

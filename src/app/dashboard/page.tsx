@@ -118,13 +118,13 @@ export default async function DashboardPage() {
             {profile?.status === "pending_approval" && (
               <div className="mt-3 rounded-lg border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-800">
                 Your registration is pending admin approval. You&apos;ll receive
-                weekly invites once an administrator confirms your membership.
+                invite emails once an administrator confirms your membership.
               </div>
             )}
 
             {profile?.status === "active" && (
               <div className="mt-3 rounded-lg border border-teal-200 bg-teal-50 px-4 py-3 text-sm text-teal-800">
-                Your account is active. You&apos;ll receive weekly invites for
+                Your account is active. You&apos;ll receive invite emails for
                 your subscribed events.
               </div>
             )}
@@ -144,8 +144,8 @@ export default async function DashboardPage() {
                 storageKey="frcc_welcome_dismissed"
                 title="Welcome to FRCC Golf Games!"
                 items={[
-                  "You'll get a <strong>weekly invite email</strong> on Monday with a one-tap link to RSVP",
-                  "Respond <strong>In</strong>, <strong>Out</strong>, or <strong>Not Sure</strong> — you can change anytime before the Friday cutoff",
+                  "You'll get an <strong>invite email</strong> before each game with a one-tap link to RSVP",
+                  "Respond <strong>In</strong>, <strong>Out</strong>, or <strong>Not Sure</strong> — you can change anytime before the RSVP cutoff",
                   "Visit <strong>Profile</strong> to update your info and <strong>Preferences</strong> to set playing partners",
                 ]}
               />

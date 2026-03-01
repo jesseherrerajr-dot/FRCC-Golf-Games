@@ -221,7 +221,7 @@ export default async function RsvpPage({
             </a>
             <div className="mt-1">
               <HelpText>
-                &quot;Not Sure&quot; means you&apos;ll get a reminder Thursday. You can change anytime before the Friday cutoff.
+                &quot;Not Sure&quot; means you&apos;ll get a reminder before the deadline. You can change your response anytime before the RSVP cutoff.
               </HelpText>
             </div>
           </div>
