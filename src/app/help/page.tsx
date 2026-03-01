@@ -218,6 +218,25 @@ export default async function HelpPage() {
                   golfers — only to admins and the pro shop in the confirmation email.
                 </p>
               </FAQ>
+
+              <FAQ question="How do I add FRCC Golf Games to my home screen?">
+                <p>
+                  You can install FRCC Golf Games as an app on your phone for
+                  quick, one-tap access — no app store needed. On{" "}
+                  <strong>iPhone</strong>, open the site in Safari, tap the Share
+                  button, and select &quot;Add to Home Screen.&quot; On{" "}
+                  <strong>Android</strong>, open the site in Chrome, tap the
+                  three-dot menu, and select &quot;Add to Home screen&quot; or
+                  &quot;Install app.&quot; For detailed steps, visit the{" "}
+                  <a
+                    href="/install"
+                    className="text-teal-700 underline hover:text-teal-600"
+                  >
+                    install guide
+                  </a>
+                  .
+                </p>
+              </FAQ>
             </div>
           </section>
 

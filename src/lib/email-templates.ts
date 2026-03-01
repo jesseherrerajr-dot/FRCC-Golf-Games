@@ -114,6 +114,10 @@ export function generateInviteEmail(params: InviteEmailParams): string {
   </div>
 
   <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+    <p style="font-size: 12px; color: #6b7280; text-align: center; margin: 0 0 12px 0;">
+      📱 <strong>Tip:</strong> Add FRCC Golf Games to your home screen for quick access.
+      <a href="${siteUrl}/install" style="color: #0d9488; text-decoration: underline;">Learn how →</a>
+    </p>
     <p style="font-size: 12px; color: #9ca3af; text-align: center; margin: 0;">
       FRCC Golf Games<br>
       Fairbanks Ranch Country Club
