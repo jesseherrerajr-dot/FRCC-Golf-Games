@@ -5,6 +5,7 @@ import { formatPhoneDisplay } from "@/lib/format";
 import Header from "@/components/header";
 import { HelpText } from "@/components/help-text";
 import { WelcomeBanner } from "@/components/welcome-banner";
+import { OnboardingChecklist } from "@/components/onboarding-checklist";
 import { UnsubscribeButton } from "./subscription-actions";
 
 type RsvpStatus = "in" | "out" | "not_sure" | "no_response" | "waitlisted";
@@ -84,6 +85,12 @@ export default async function DashboardPage() {
     .eq("profile_id", user.id)
     .order("created_at", { ascending: true });
 
+  // Check if user has any playing partner preferences (for onboarding checklist)
+  const { count: partnerPrefCount } = await supabase
+    .from("playing_partner_preferences")
+    .select("id", { count: "exact", head: true })
+    .eq("profile_id", user.id);
+
   // Filter to upcoming games only and sort by date
   const upcoming = (upcomingRsvps || [])
     .filter((rsvp: Record<string, unknown>) => {
@@ -141,6 +148,17 @@ export default async function DashboardPage() {
                   "Respond <strong>In</strong>, <strong>Out</strong>, or <strong>Not Sure</strong> — you can change anytime before the Friday cutoff",
                   "Visit <strong>Profile</strong> to update your info and <strong>Preferences</strong> to set playing partners",
                 ]}
+              />
+            </div>
+          )}
+
+          {/* Onboarding checklist */}
+          {profile?.status === "active" && (
+            <div className="mt-4">
+              <OnboardingChecklist
+                phone={profile.phone}
+                ghin={profile.ghin_number}
+                hasPartnerPrefs={(partnerPrefCount || 0) > 0}
               />
             </div>
           )}
