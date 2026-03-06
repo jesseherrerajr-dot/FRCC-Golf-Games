@@ -11,6 +11,7 @@ import {
 } from "./rsvp-controls";
 import { GuestApprovalButton, GuestDenialButton } from "./guest-controls";
 import { formatPhoneDisplay } from "@/lib/format";
+import { isPastCutoffPacific } from "@/lib/timezone";
 
 type RsvpStatus = "in" | "out" | "not_sure" | "no_response" | "waitlisted";
 
@@ -171,18 +172,14 @@ export default async function AdminRsvpPage({
   const outCount = grouped.out.length;
   const spotsRemaining = Math.max(0, capacity - inCount);
 
-  // Check cutoff status
+  // Check cutoff status (using Pacific Time — Vercel runs in UTC)
   let isPastCutoff = false;
   if (event) {
-    const gameDate = new Date(schedule.game_date);
-    const cutoffDate = new Date(gameDate);
-    const dayDiff = event.cutoff_day - gameDate.getDay();
-    cutoffDate.setDate(
-      gameDate.getDate() + (dayDiff <= 0 ? dayDiff : dayDiff - 7)
+    isPastCutoff = isPastCutoffPacific(
+      schedule.game_date,
+      event.cutoff_day,
+      event.cutoff_time || "10:00"
     );
-    const [hours, minutes] = (event.cutoff_time || "10:00").split(":");
-    cutoffDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-    isPastCutoff = new Date() > cutoffDate;
   }
 
   return (

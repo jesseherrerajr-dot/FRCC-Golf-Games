@@ -163,6 +163,77 @@ export function isWithinSendWindow(
 }
 
 /**
+ * Check if the current time (in Pacific) is past the RSVP cutoff for a game.
+ *
+ * @param gameDateString - YYYY-MM-DD of the game
+ * @param cutoffDay - Day of week for cutoff (0=Sun, 6=Sat)
+ * @param cutoffTime - HH:MM in Pacific Time (e.g., "08:45")
+ * @returns true if the current Pacific Time is past the cutoff
+ */
+export function isPastCutoffPacific(
+  gameDateString: string,
+  cutoffDay: number,
+  cutoffTime: string
+): boolean {
+  const now = getNowPacific();
+
+  // Calculate the cutoff date (same week as game, on cutoff_day)
+  const [year, month, day] = gameDateString.split("-").map(Number);
+  const gameDate = new Date(year, month - 1, day);
+  const gameDayOfWeek = gameDate.getDay();
+
+  const dayDiff = cutoffDay - gameDayOfWeek;
+  const cutoffDate = new Date(gameDate);
+  cutoffDate.setDate(
+    gameDate.getDate() + (dayDiff <= 0 ? dayDiff : dayDiff - 7)
+  );
+
+  const cutoffDateString = `${cutoffDate.getFullYear()}-${String(cutoffDate.getMonth() + 1).padStart(2, "0")}-${String(cutoffDate.getDate()).padStart(2, "0")}`;
+  const [cutoffHour, cutoffMinute] = cutoffTime.split(":").map(Number);
+
+  // Compare dates first
+  if (now.dateString < cutoffDateString) return false;
+  if (now.dateString > cutoffDateString) return true;
+
+  // Same day — compare times
+  const nowMinutes = now.hour * 60 + now.minute;
+  const cutoffMinutes = cutoffHour * 60 + cutoffMinute;
+  return nowMinutes > cutoffMinutes;
+}
+
+/**
+ * Get the cutoff date and time as a formatted string for display.
+ *
+ * @param gameDateString - YYYY-MM-DD of the game
+ * @param cutoffDay - Day of week for cutoff (0=Sun, 6=Sat)
+ * @param cutoffTime - HH:MM in Pacific Time (e.g., "08:45")
+ * @returns Formatted string like "Friday at 8:45 AM"
+ */
+export function formatCutoffDisplay(
+  gameDateString: string,
+  cutoffDay: number,
+  cutoffTime: string
+): string {
+  const [year, month, day] = gameDateString.split("-").map(Number);
+  const gameDate = new Date(year, month - 1, day);
+  const gameDayOfWeek = gameDate.getDay();
+
+  const dayDiff = cutoffDay - gameDayOfWeek;
+  const cutoffDate = new Date(gameDate);
+  cutoffDate.setDate(
+    gameDate.getDate() + (dayDiff <= 0 ? dayDiff : dayDiff - 7)
+  );
+
+  const dayName = cutoffDate.toLocaleDateString("en-US", { weekday: "long" });
+  const [h, m] = cutoffTime.split(":").map(Number);
+  const ampm = h >= 12 ? "PM" : "AM";
+  const displayHour = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  const displayMinute = m > 0 ? `:${String(m).padStart(2, "0")}` : "";
+
+  return `${dayName} at ${displayHour}${displayMinute} ${ampm}`;
+}
+
+/**
  * Calculate a send date by applying a day offset to a game date string.
  * Pure date arithmetic — no timezone concerns since we're working with
  * YYYY-MM-DD strings.

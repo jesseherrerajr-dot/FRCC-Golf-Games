@@ -6,6 +6,7 @@ import { getGuestRequests } from "./guest-actions";
 import { TeeTimePreference } from "./tee-time-preference";
 import { CollapsibleSection } from "./collapsible-section";
 import { HelpText } from "@/components/help-text";
+import { isPastCutoffPacific, formatCutoffDisplay } from "@/lib/timezone";
 
 function createAdminClient() {
   return createClient(
@@ -79,19 +80,20 @@ export default async function RsvpPage({
   const currentStatus = rsvp.status as RsvpStatus;
   const capacity = schedule?.capacity || event?.default_capacity || 16;
 
-  // Check cutoff
+  // Check cutoff (using Pacific Time — Vercel runs in UTC)
   let isPastCutoff = locked === "true";
   if (!isPastCutoff && event && schedule) {
-    const gameDate = new Date(schedule.game_date);
-    const cutoffDate = new Date(gameDate);
-    const dayDiff = event.cutoff_day - gameDate.getDay();
-    cutoffDate.setDate(
-      gameDate.getDate() + (dayDiff <= 0 ? dayDiff : dayDiff - 7)
+    isPastCutoff = isPastCutoffPacific(
+      schedule.game_date,
+      event.cutoff_day,
+      event.cutoff_time || "10:00"
     );
-    const [hours, minutes] = (event.cutoff_time || "10:00").split(":");
-    cutoffDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-    isPastCutoff = new Date() > cutoffDate;
   }
+
+  // Format cutoff for display in the deadline message
+  const cutoffDisplay = event && schedule
+    ? formatCutoffDisplay(schedule.game_date, event.cutoff_day, event.cutoff_time || "10:00")
+    : null;
 
   const isCancelled = cancelled === "true" || schedule?.status === "cancelled";
 
@@ -164,8 +166,8 @@ export default async function RsvpPage({
         {/* Locked */}
         {isPastCutoff && !isCancelled && (
           <div className="mt-4 rounded-lg border border-yellow-200 bg-yellow-50 px-4 py-3 text-center text-sm text-yellow-800">
-            The RSVP deadline has passed. Contact a event admin to change your
-            status.
+            The RSVP deadline has passed, please contact an event administrator
+            directly to change your RSVP response.
           </div>
         )}
 

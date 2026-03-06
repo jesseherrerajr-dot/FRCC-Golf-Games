@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { sendAdminAlert } from "@/lib/admin-alerts";
+import { isPastCutoffPacific } from "@/lib/timezone";
 
 // Use the service role or direct connection for token-based RSVP
 // Since RSVP tokens don't require auth, we use the anon key with
@@ -53,22 +54,17 @@ export async function GET(request: Request) {
     );
   }
 
-  // Check if past cutoff
+  // Check if past cutoff (using Pacific Time — Vercel runs in UTC)
   const schedule = rsvp.schedule;
   const event = schedule?.event;
   if (event && schedule) {
-    const gameDate = new Date(schedule.game_date);
-    const cutoffDate = new Date(gameDate);
-    // Calculate cutoff: game_date's week, on cutoff_day at cutoff_time
-    const dayDiff = event.cutoff_day - gameDate.getDay();
-    cutoffDate.setDate(
-      gameDate.getDate() + (dayDiff <= 0 ? dayDiff : dayDiff - 7)
+    const pastCutoff = isPastCutoffPacific(
+      schedule.game_date,
+      event.cutoff_day,
+      event.cutoff_time || "10:00"
     );
-    const [hours, minutes] = (event.cutoff_time || "10:00").split(":");
-    cutoffDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
 
-    const now = new Date();
-    if (now > cutoffDate) {
+    if (pastCutoff) {
       // Past cutoff — redirect to the RSVP page showing locked status
       return NextResponse.redirect(
         new URL(`/rsvp/${token}?locked=true`, request.url)
