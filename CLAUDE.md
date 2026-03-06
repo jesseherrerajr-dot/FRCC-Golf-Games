@@ -52,23 +52,23 @@ An automated golf participation tracker for recurring games at Fairbanks Ranch C
 - `rsvp/[scheduleId]/guest-actions.ts` — Guest approval server actions
 - `events/new/` — Create new event page
 - `events/[eventId]/settings/` — Event settings (name, capacity, admins, pro shop contacts, feature flags)
-- `events/[eventId]/schedule/` — 8-week rolling schedule (Game On/No Game toggle, capacity override)
+- `events/[eventId]/schedule/` — 4-week rolling schedule (Game On/No Game toggle, capacity override)
 - `events/[eventId]/email/compose/` — Custom email composer with templates
 
 ### API Routes (src/app/api/)
 - `rsvp/route.ts` — RSVP submission endpoint (tokenized, no login required)
 - `rsvp/tee-time/route.ts` — Tee time preference submission
 - `cron/email-scheduler/route.ts` — Master cron endpoint (checks all events for due emails)
-- `cron/invite/route.ts` — Monday invite email sender
-- `cron/reminder/route.ts` — Thursday reminder email sender
-- `cron/confirmation/route.ts` — Friday confirmation email sender (golfer + pro shop)
+- `cron/invite/route.ts` — Invite email sender (legacy, now handled by email-scheduler)
+- `cron/reminder/route.ts` — Reminder email sender (legacy, now handled by email-scheduler)
+- `cron/confirmation/route.ts` — Confirmation email sender (legacy, now handled by email-scheduler)
 - `cron/grouping/route.ts` — Grouping engine cron endpoint (runs at cutoff time, generates suggested foursomes)
 
 ### Shared Libraries (src/lib/)
 - `auth.ts` — Auth helpers (get current user, check admin role)
 - `email.ts` — Resend email sending wrapper
 - `email-templates.ts` — HTML email templates (invite, reminder, confirmation, pro shop, notifications)
-- `admin-alerts.ts` — Admin notification email logic
+- `admin-alerts.ts` — Admin notification email logic (new_registration, capacity_reached, spot_opened with golfer name, low_response)
 - `subscriptions.ts` — Subscribe/unsubscribe helpers
 - `schedule.ts` — Schedule lookup helpers (get current week, next game date)
 - `schedule-gen.ts` — Auto-generate weekly schedule rows for an event
@@ -123,7 +123,7 @@ There are three ways to add golfers to the system:
 1. Admin shares the event-specific join link (e.g., `frccgolfgames.com/join/saturday-morning`). The link is available on each event's settings page with a copy button.
 2. Golfer visits the link and fills in: first name, last name, email (required), phone and GHIN (optional).
 3. System sends a verification code to the golfer's email.
-4. Golfer enters the code → email is confirmed → account status becomes "Pending Approval."
+4. Golfer enters the code → email is confirmed → account status becomes "Pending Approval." An admin alert email is sent immediately to event admins (via both OTP code and magic link verification paths).
 5. Admin sees the pending registration in the Member Directory and approves or denies.
 6. Once approved, status becomes "Active" and the golfer is subscribed to that specific event only.
 
@@ -177,38 +177,44 @@ The first event is **"FRCC Saturday Morning Group"**. The platform is designed f
 - Feature flags (guest requests, tee time preferences, playing partner preferences)
 
 ### Schedule Management
-- Admin dashboard has a rolling 8-week schedule view.
+- Admin dashboard has a rolling 4-week schedule view (schedules are still generated 8 weeks ahead as a buffer).
 - Each week defaults to "Game On."
-- Admins can toggle any week to "No Game" (e.g., club tournament).
-- If toggled off before Monday invite time, system sends a notification instead: "No game scheduled for Saturday [Month] [Date]. Next scheduled game: Saturday [Month] [Date]."
+- Admins can toggle any week to "No Game" (e.g., club tournament). A confirmation modal requires the admin to confirm the cancellation and optionally provide a reason.
+- When a game is cancelled, the system immediately sends a cancellation email to all active golfers subscribed to the event. The email includes the cancelled date, the admin-provided reason (if any), and the next scheduled game date.
+- If toggled off before the invite email is sent, the cron skips that week's invite.
 
 ---
 
 ## Weekly RSVP Flow
 
-### Monday — Invite (10:00 AM PT)
+All email types, days, and times below are **configurable per event** via the `email_schedules` table. Each event defines its own invite day/time, reminder day/time, cutoff day/time, and confirmation day/time using `send_day_offset` (relative to game day) and `send_time`. The sequence below describes the logical flow — not fixed days of the week.
+
+> **Example (FRCC Saturday Morning Group's current config):** Invite on Monday, reminder on Thursday, cutoff Friday 10 AM, confirmations Friday 1 PM. Other events may use entirely different schedules.
+
+### Step 1 — Invite Email
 - Automated email sent to all active, subscribed members.
 - Each golfer gets a unique tokenized link (no login required for RSVP).
-- Three one-tap response options: **"I'm In"** | **"I'm Out"** | **"Not Sure Yet (ask me again Thursday)"**
+- Three one-tap response options: **"I'm In"** | **"I'm Out"** | **"Not Sure Yet (remind me later)"**
 - Confirmation shown immediately after responding, with a "Change My Response" link.
 - Tokens are unique per golfer per week — cannot be guessed.
 
-### Monday–Thursday — Open RSVP Period
+### Step 2 — Open RSVP Period (between invite and cutoff)
 - Golfers can change their response at any time via the link in their confirmation email or by logging in.
 - Capacity is first-come-first-served. Once the weekly cap is reached, subsequent "I'm In" responses go to the waitlist (ranked by response time).
 - Members who are "In" can request to bring guests (provide guest name, email, GHIN). Guest requests go to a pending state.
 
-### Thursday — Reminder (10:00 AM PT)
+### Step 3 — Reminder Email(s)
 - Automated reminder sent ONLY to golfers who haven't responded OR who responded "Not Sure Yet."
 - Golfers who already responded "In" or "Out" do NOT receive the reminder.
+- Events support 0–3 reminder emails, each independently configurable.
 
-### Friday — Cutoff (10:00 AM PT)
+### Step 4 — RSVP Cutoff
 - Self-service RSVP locks. Golfers can no longer change their response.
 - After cutoff, only event admins and super admins can modify RSVP status.
 - Admins review the waitlist and guest requests. Admins manually select who to pull from the waitlist (not auto-promoted — admin discretion for factors beyond arrival order).
 - Guest requests are approved or denied by admins. Guests only fill spots that members haven't claimed.
 
-### Friday — Confirmation Emails (1:00 PM PT, automated)
+### Step 5 — Confirmation Emails
 **Email 1 — Golfer Confirmation:**
 - TO: All confirmed golfers and approved guests for that week
 - CC: Super admin, event admins, pro shop contacts
@@ -242,7 +248,7 @@ The first event is **"FRCC Saturday Morning Group"**. The platform is designed f
 - Only members can request guests. Guests only fill spots when member capacity isn't full.
 - To request a guest, the member provides: guest name, guest email, guest GHIN number.
 - Guest request goes to pending/waitlisted state.
-- After Friday 10:00 AM cutoff, admins review and approve/deny guest requests.
+- After the RSVP cutoff, admins review and approve/deny guest requests.
 - Once approved, an automated confirmation email is sent showing the member name and guest name.
 - Guests are registered in the system (name, email, phone, GHIN on file) but are NEVER on distribution lists and never receive automated weekly invites.
 
@@ -298,7 +304,7 @@ The first event is **"FRCC Saturday Morning Group"**. The platform is designed f
 - Action items also sent via email to admins.
 
 ### Schedule View
-- Rolling 8-week calendar.
+- Rolling 4-week calendar.
 - Toggle Game On / No Game per week.
 - Override capacity per week.
 
@@ -311,7 +317,7 @@ The first event is **"FRCC Saturday Morning Group"**. The platform is designed f
 ### Custom Emails
 - Compose and send targeted emails to specific RSVP categories (all "In," all "Not Sure" + no response, everyone, etc.).
 - Pre-built templates for common scenarios (can be added over time):
-  - **Game Cancelled**: "[Event] for [Date] has been cancelled due to [reason]. Next game: [Date]."
+  - **Game Cancelled**: "[Event] for [Date] has been cancelled due to [reason]. Next game: [Date]." (Note: This template is also sent automatically when an admin toggles a game to "No Game" on the schedule page. The admin is prompted for an optional reason via confirmation modal.)
   - **Extra Spots Available**: "We still have [X] spots open for [Date]! Update your RSVP."
   - **Weather Advisory**: "Weather update for [Date]: [details]. Game is still on."
   - **Course Update**: "Update for [Date]: [details]."
@@ -325,7 +331,7 @@ The first event is **"FRCC Saturday Morning Group"**. The platform is designed f
 - Reply-To: Primary event admin's email address.
 - All automated emails CC super admin and relevant event admins.
 - Free tier: 100 emails/day. Current list is well under 100.
-- Future consideration: If distribution grows beyond 100, batch invites by golfer priority (top 100 on Monday, remainder on Tuesday). Not needed now.
+- Future consideration: If distribution grows beyond 100, batch invites by golfer priority (top 100 on invite day, remainder on the following day). Not needed now.
 - Future consideration: SMS/text notifications via a paid service. Not enabled now.
 
 ---
@@ -364,7 +370,7 @@ Notable columns added post-initial schema:
 - Session management via Supabase SSR middleware.
 
 ### Email: Resend
-- Automated scheduled emails (Monday invite, Thursday reminder, Friday confirmation).
+- Automated scheduled emails (invite, reminder, golfer confirmation, pro shop detail) — timing is configurable per event.
 - Custom admin-triggered emails.
 - Default sending domain for now; custom domain possible later.
 
@@ -383,6 +389,38 @@ Notable columns added post-initial schema:
 
 ---
 
+## Infrastructure Constraints (READ BEFORE MAKING CHANGES)
+
+This project runs entirely on free-tier services. The following constraints are **hard limits** that have caused failed deployments and rolled-back changes in the past. Any proposed changes to cron jobs, email sending, or hosting infrastructure **must** be validated against these limits first.
+
+### Vercel Hobby Plan
+- **Cron frequency: once per day only.** Vercel Hobby does not support hourly, sub-hourly, or any frequency more granular than daily. Attempting to deploy a `vercel.json` with a non-daily cron schedule (e.g., `*/15 * * * *` or `0 * * * *`) will cause a silent deployment failure — the deploy won't appear in the Vercel dashboard and GitHub receives no useful error message.
+- **Max cron entries: 6.** The current `vercel.json` uses all 6 slots. Adding a 7th cron entry requires upgrading to Vercel Pro or removing an existing entry. Do NOT add new cron entries without removing one first.
+- **Current cron architecture:** All 6 cron entries hit the same `/api/cron/email-scheduler` endpoint at different UTC hours (16:00, 17:00, 18:00, 19:00, 20:00, 01:00). The scheduler checks a time window and fires any emails that are due. This staggered single-endpoint design is the workaround for the daily-only frequency limit.
+- **Function duration: max 60 seconds.** All email batches and processing must complete within this window. Long-running operations need to be broken up or optimized to fit.
+- **No overages.** When you hit a Hobby limit, it's a hard wall — there is no pay-as-you-go overflow. The only path past a limit is upgrading to Pro.
+
+### Resend Free Tier
+- **100 emails/day.** This is sufficient for a single event with <100 members (one invite cycle + one reminder cycle fits within 100). Adding a second event or growing the member list significantly will approach or exceed this limit.
+- **3,000 emails/month.** At current usage (~1 event, ~30 members, 4 email types/week), this is well within budget. But each new event multiplies the weekly email volume.
+- **1 sending domain.** Currently using Resend's default domain. Custom domain support exists but only 1 domain is available on the free tier.
+- **Upgrade path:** Resend Pro ($20/month) removes the daily limit, increases to 50,000/month, and allows 10 domains.
+
+### Supabase Free Tier
+- **500 MB database storage.** Current usage is well within limits.
+- **50,000 monthly active users.** Not a concern for this use case.
+- **1 GB file storage.** Not currently using Supabase Storage.
+- **Shared compute (2 connections pooled).** Can cause slow queries under load but adequate for current traffic.
+
+### What This Means in Practice
+- **Do NOT** add new cron entries to `vercel.json` without removing an existing one.
+- **Do NOT** attempt sub-daily cron schedules — they will silently fail on Hobby.
+- **Do NOT** propose architectural changes that require more than 6 time-triggered jobs per day.
+- **DO** keep the single-endpoint cron pattern (`email-scheduler` checks all events and all email types on each invocation).
+- **DO** monitor email volume when adding new events — the 100/day Resend limit is the first constraint that will be hit as the platform grows.
+
+---
+
 ## Build Phases
 ### Phase 1 — Foundation (Complete)
 - [x] Project scaffold (Next.js, Tailwind, Supabase, Resend)
@@ -396,9 +434,9 @@ Notable columns added post-initial schema:
 
 ### Phase 2 — Weekly RSVP Cycle (Complete)
 - [x] RSVP page with tokenized links
-- [x] Monday automated invite email
-- [x] Thursday automated reminder email
-- [x] Friday automated confirmation emails (golfer + pro shop)
+- [x] Automated invite email (configurable day/time per event)
+- [x] Automated reminder email (configurable day/time per event)
+- [x] Automated confirmation emails — golfer + pro shop (configurable day/time per event)
 - [x] RSVP visibility (evite-style "In" list)
 - [x] Capacity and waitlist management
 - [x] Admin RSVP override (post-cutoff)
@@ -411,8 +449,9 @@ Notable columns added post-initial schema:
 - [ ] Golf Genius CSV export
 
 ### Phase 4 — Admin Tools & Communication (MVP for Beta Launch)
-- [x] Schedule management (8-week rolling view)
+- [x] Schedule management (4-week rolling view; 8 weeks generated as buffer)
 - [x] Custom email composer with templates
+- [x] Automatic game cancellation emails (triggered on "No Game" toggle, with confirmation modal and optional reason)
 - [ ] Action items / task summary
 - [x] Member directory with search/filter
 - [x] Member detail page with subscription management
@@ -420,7 +459,7 @@ Notable columns added post-initial schema:
 - [x] Event-specific join links (/join/[slug]) with admin copy button
 - [x] Golfer dashboard "My Events" with self-service unsubscribe
 - [x] Configurable email schedule (6 time slots synced with Vercel crons)
-- [x] Admin notification emails
+- [x] Admin notification emails (new_registration from all auth paths, capacity_reached, spot_opened with golfer name, low_response)
 - [ ] UI/UX improvements and branding
   - Align visual design with Fairbanks Ranch website (colors, fonts, imagery)
   - Add Fairbanks Ranch logo

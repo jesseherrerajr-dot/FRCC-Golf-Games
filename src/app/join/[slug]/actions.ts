@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { sendAdminAlert } from "@/lib/admin-alerts";
 import { redirect } from "next/navigation";
 
 export type JoinEventFormState = {
@@ -122,6 +123,62 @@ export async function verifyEventJoinOtp(
       step: "otp",
       email,
     };
+  }
+
+  // Send admin alert for new registration pending approval
+  try {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (user) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("id, first_name, last_name, email, status, registration_event_id")
+        .eq("id", user.id)
+        .single();
+
+      if (profile?.status === "pending_approval") {
+        // If registered for a specific event, notify that event's admins
+        if (profile.registration_event_id) {
+          const { data: event } = await supabase
+            .from("events")
+            .select("id, name")
+            .eq("id", profile.registration_event_id)
+            .single();
+
+          if (event) {
+            sendAdminAlert("new_registration", {
+              eventId: event.id,
+              eventName: event.name,
+              golferName: `${profile.first_name} ${profile.last_name}`,
+              golferEmail: profile.email,
+            }).catch((err) =>
+              console.error("New registration alert error:", err)
+            );
+          }
+        } else {
+          // Generic registration — notify all active events
+          const { data: events } = await supabase
+            .from("events")
+            .select("id, name")
+            .eq("is_active", true);
+
+          for (const event of events || []) {
+            sendAdminAlert("new_registration", {
+              eventId: event.id,
+              eventName: event.name,
+              golferName: `${profile.first_name} ${profile.last_name}`,
+              golferEmail: profile.email,
+            }).catch((err) =>
+              console.error("New registration alert error:", err)
+            );
+          }
+        }
+      }
+    }
+  } catch (alertErr) {
+    // Don't block the redirect for alert failures
+    console.error("Alert check error:", alertErr);
   }
 
   redirect("/dashboard");

@@ -192,6 +192,15 @@ export default async function HelpPage() {
                 </p>
               </FAQ>
 
+              <FAQ question="What happens if a game is cancelled?">
+                <p>
+                  If an admin cancels an upcoming game, you&apos;ll receive an email
+                  right away letting you know. The email will include the specific date
+                  that was cancelled, a reason (if the admin provided one), and the date
+                  of the next scheduled game. No action is needed on your part.
+                </p>
+              </FAQ>
+
               <FAQ question="I didn't get my invite or login email — what should I do?">
                 <p>
                   Check your spam/junk folder first. If you&apos;re on a mobile device,
@@ -287,10 +296,12 @@ export default async function HelpPage() {
                 <FAQ question='How do I cancel a game or mark "No Game"?'>
                   <p>
                     Go to <strong>Event Settings → Schedule</strong> to see the
-                    rolling 8-week calendar. Toggle any week to <strong>No Game</strong>.
-                    If you toggle before the invite is sent, golfers will receive a
-                    cancellation notice instead of an invite email. The notice tells them
-                    the date of the next scheduled game.
+                    rolling 4-week calendar. Tap <strong>Cancel</strong> next to any
+                    week. You&apos;ll be asked to confirm and can optionally provide a
+                    reason (e.g., &quot;Club tournament this week&quot;). Once confirmed,
+                    a cancellation email is automatically sent to all active subscribers
+                    with the cancelled date, your reason (if provided), and the next
+                    scheduled game date.
                   </p>
                 </FAQ>
 

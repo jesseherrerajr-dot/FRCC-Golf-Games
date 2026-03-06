@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition, useState } from "react";
+import { useTransition, useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { toggleGameStatus, updateWeekSettings } from "./actions";
 
@@ -39,6 +39,11 @@ export function ScheduleRow({
   );
   const [notes, setNotes] = useState(schedule.admin_notes || "");
 
+  // Cancellation confirmation modal state
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
+  const reasonInputRef = useRef<HTMLTextAreaElement>(null);
+
   const isCancelled = schedule.status === "cancelled";
 
   const formattedDate = new Date(
@@ -49,15 +54,49 @@ export function ScheduleRow({
     day: "numeric",
   });
 
+  const formattedDateLong = new Date(
+    schedule.game_date + "T12:00:00"
+  ).toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+
   const fillPct = Math.min(
     (schedule.inCount / schedule.effectiveCapacity) * 100,
     100
   );
 
-  const handleToggleStatus = () => {
-    const newStatus = isCancelled ? "scheduled" : "cancelled";
+  // Focus the reason textarea when the modal opens
+  useEffect(() => {
+    if (showCancelConfirm && reasonInputRef.current) {
+      reasonInputRef.current.focus();
+    }
+  }, [showCancelConfirm]);
+
+  const handleCancelClick = () => {
+    if (isCancelled) {
+      // Restoring — no confirmation needed
+      startTransition(async () => {
+        await toggleGameStatus(schedule.id, eventId, "scheduled");
+      });
+    } else {
+      // Cancelling — show confirmation modal
+      setCancelReason("");
+      setShowCancelConfirm(true);
+    }
+  };
+
+  const handleConfirmCancel = () => {
+    setShowCancelConfirm(false);
     startTransition(async () => {
-      await toggleGameStatus(schedule.id, eventId, newStatus);
+      await toggleGameStatus(
+        schedule.id,
+        eventId,
+        "cancelled",
+        cancelReason.trim() || undefined
+      );
     });
   };
 
@@ -115,7 +154,7 @@ export function ScheduleRow({
           </Link>
 
           <button
-            onClick={handleToggleStatus}
+            onClick={handleCancelClick}
             disabled={isPending}
             className={`rounded px-2 py-1 text-xs font-medium disabled:opacity-50 ${
               isCancelled
@@ -218,6 +257,67 @@ export function ScheduleRow({
           >
             {isPending ? "Saving..." : "Save Changes"}
           </button>
+        </div>
+      )}
+
+      {/* Cancellation Confirmation Modal */}
+      {showCancelConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+            <div className="mb-4 flex items-start gap-3">
+              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-red-100">
+                <svg className="h-5 w-5 text-red-600" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Cancel this game?
+                </h3>
+                <p className="mt-1 text-sm text-gray-600">
+                  Are you sure you want to cancel the game on{" "}
+                  <span className="font-semibold">{formattedDateLong}</span>?
+                </p>
+                <p className="mt-1 text-xs text-gray-500">
+                  All active subscribers will receive a cancellation email.
+                </p>
+              </div>
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700">
+                Reason for cancellation{" "}
+                <span className="font-normal text-gray-400">(optional)</span>
+              </label>
+              <textarea
+                ref={reasonInputRef}
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                rows={2}
+                placeholder='e.g., "Course closed for maintenance" or "Club tournament this week"'
+                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                This message will be included in the email sent to all golfers.
+              </p>
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowCancelConfirm(false)}
+                className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Go Back
+              </button>
+              <button
+                onClick={handleConfirmCancel}
+                disabled={isPending}
+                className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-500 disabled:opacity-50"
+              >
+                {isPending ? "Cancelling..." : "Yes, Cancel Game"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

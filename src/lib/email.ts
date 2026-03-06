@@ -520,6 +520,68 @@ export async function sendAdminSummaryEmail({
 }
 
 /**
+ * Generate a game cancellation email for all subscribed golfers.
+ * Sent automatically when an admin toggles a game to "No Game."
+ */
+export function generateGameCancelledEmail({
+  golferName,
+  eventName,
+  gameDate,
+  nextGameDate,
+  reason,
+  siteUrl,
+}: {
+  golferName: string;
+  eventName: string;
+  gameDate: string;
+  nextGameDate?: string | null;
+  reason?: string;
+  siteUrl: string;
+}) {
+  const formattedDate = new Date(gameDate + "T12:00:00").toLocaleDateString(
+    "en-US",
+    { weekday: "long", month: "long", day: "numeric" }
+  );
+
+  const reasonHtml = reason
+    ? `<div style="background: #f9fafb; border-left: 4px solid #9ca3af; padding: 12px 16px; margin: 16px 0; border-radius: 4px;">
+        <p style="margin: 0; font-size: 14px; color: #374151;"><strong>Reason:</strong> ${reason}</p>
+      </div>`
+    : "";
+
+  const nextDateHtml = nextGameDate
+    ? `<p style="color: #374151;">The next scheduled game is <strong>${new Date(
+        nextGameDate + "T12:00:00"
+      ).toLocaleDateString("en-US", {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+      })}</strong>.</p>`
+    : "";
+
+  return `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+      ${emailHeader(eventName, formattedDate)}
+
+      <div style="background: #fef2f2; border-left: 4px solid #ef4444; padding: 16px; margin: 0 0 20px 0; border-radius: 4px;">
+        <p style="margin: 0; font-weight: 600; color: #991b1b;">Game Cancelled</p>
+      </div>
+
+      <p style="color: #374151;">Hi ${golferName},</p>
+      <p style="color: #374151;">The game scheduled for <strong>${formattedDate}</strong> has been cancelled. No action is needed on your part.</p>
+
+      ${reasonHtml}
+
+      ${nextDateHtml}
+
+      <p style="color: #374151;">We apologize for the inconvenience.</p>
+
+      <p style="color: #9ca3af; font-size: 12px; margin-top: 24px;"><a href="${siteUrl}/dashboard" style="color: #3d7676;">Go to Dashboard</a></p>
+    </div>
+  `;
+}
+
+/**
  * Format cutoff day/time for display in emails.
  * Falls back to "Friday at 10:00 AM PT" if not provided.
  */

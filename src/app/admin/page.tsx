@@ -62,7 +62,7 @@ export default async function AdminDashboard() {
     .select("*, events(name, default_capacity)")
     .gte("game_date", today)
     .order("game_date", { ascending: true })
-    .limit(8);
+    .limit(4);
 
   // Get RSVP counts for each upcoming game
   const upcomingWithCounts = await Promise.all(
@@ -141,7 +141,7 @@ export default async function AdminDashboard() {
             title="Welcome, Admin!"
             items={[
               "<strong>Member Directory</strong> — approve registrations, add golfers, manage subscriptions",
-              "<strong>Schedule</strong> — toggle games on/off for the rolling 8-week calendar",
+              "<strong>Schedule</strong> — toggle games on/off for the rolling 4-week calendar",
               "<strong>RSVP Management</strong> — after the RSVP cutoff, override RSVPs, approve guests, manage the waitlist",
               "<strong>Event Settings</strong> — configure email times, capacity, feature flags, pro shop contacts",
             ]}

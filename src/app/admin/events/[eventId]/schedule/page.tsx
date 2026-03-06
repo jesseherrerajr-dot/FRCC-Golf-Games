@@ -38,7 +38,7 @@ export default async function ScheduleManagementPage({
     console.error("Failed to auto-generate schedules:", e);
   }
 
-  // Fetch schedules for next 8 weeks
+  // Fetch schedules for next 4 weeks
   const today = getTodayPacific();
   const { data: schedules } = await supabase
     .from("event_schedules")
@@ -46,7 +46,7 @@ export default async function ScheduleManagementPage({
     .eq("event_id", eventId)
     .gte("game_date", today)
     .order("game_date", { ascending: true })
-    .limit(8);
+    .limit(4);
 
   // Get RSVP counts for each schedule
   const schedulesWithCounts = await Promise.all(
@@ -101,7 +101,7 @@ export default async function ScheduleManagementPage({
         </div>
 
         <p className="mt-4 text-sm text-gray-600">
-          Manage the next 8 weeks. Toggle any week to &quot;No Game&quot; before the invite
+          Manage the next 4 weeks. Toggle any week to &quot;No Game&quot; before the invite
           is sent — golfers will get a cancellation notice instead. You can also adjust
           capacity per week and add notes that appear in emails.
         </p>

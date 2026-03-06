@@ -161,14 +161,14 @@ function generateAlertEmail(
 
     case "spot_opened":
       return {
-        subject: `[${context.eventName}] Spot Opened for ${formatDate(context.gameDate)}`,
+        subject: `[${context.eventName}] ${context.golferName || "A player"} dropped out for ${formatDate(context.gameDate)}`,
         html: `
           <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
             <div style="background: #f0fdf4; border-left: 4px solid #10b981; padding: 16px; margin-bottom: 20px;">
               <h2 style="color: #065f46; margin: 0 0 8px 0; font-size: 18px;">Spot Opened Up</h2>
               <p style="margin: 0; color: #374151;">${context.eventName} — ${formatDate(context.gameDate)}</p>
             </div>
-            <p style="color: #374151;">A player has changed from "In" to "Out." Current count: <strong>${context.currentCount}/${context.capacity}</strong>.</p>
+            <p style="color: #374151;"><strong>${context.golferName || "A player"}</strong> has changed from "In" to "Out." Current count: <strong>${context.currentCount}/${context.capacity}</strong>.</p>
             <p style="color: #374151; font-size: 14px;">Check the waitlist in the admin dashboard to see if anyone should be moved up.</p>
           </div>
         `,

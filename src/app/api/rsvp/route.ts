@@ -184,12 +184,24 @@ export async function GET(request: Request) {
       .eq("schedule_id", rsvp.schedule_id)
       .eq("status", "in");
 
+    // Fetch golfer name so admin alert can say who dropped out
+    const { data: golferProfile } = await supabase
+      .from("profiles")
+      .select("first_name, last_name")
+      .eq("id", rsvp.profile_id)
+      .single();
+
+    const golferName = golferProfile
+      ? `${golferProfile.first_name} ${golferProfile.last_name}`
+      : "A player";
+
     sendAdminAlert("spot_opened", {
       eventId: event.id,
       eventName: event.name,
       gameDate: schedule.game_date,
       currentCount: remainingIn || 0,
       capacity,
+      golferName,
     }).catch((err) => console.error("Alert error:", err));
   }
 
