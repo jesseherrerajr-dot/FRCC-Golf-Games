@@ -487,8 +487,8 @@ async function handleReminderEmails(
     await supabase.from("email_log").insert({
       event_id: event.id,
       schedule_id: schedule.id,
-      email_type: `reminder_${priorityOrder}`,
-      subject: `${event.name}: Reminder ${priorityOrder}`,
+      email_type: "reminder",
+      subject: `${event.name}: Reminder`,
       recipient_count: sent,
     });
 

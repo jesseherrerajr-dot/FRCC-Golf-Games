@@ -230,8 +230,8 @@ export async function sendReminderNow(scheduleId: string) {
     await supabase.from("email_log").insert({
       event_id: event.id,
       schedule_id: schedule.id,
-      email_type: "reminder_manual",
-      subject: `${event.name}: Reminder (manual)`,
+      email_type: "reminder",
+      subject: `${event.name}: Reminder`,
       recipient_count: sent,
     });
 
