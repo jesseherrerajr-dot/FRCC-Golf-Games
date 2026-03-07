@@ -3,6 +3,7 @@
 import { requireAdmin, hasEventAccess } from "@/lib/auth";
 import { sendEmail, rateLimitDelay } from "@/lib/email";
 import { revalidatePath } from "next/cache";
+import { getSiteUrl } from "@/lib/format";
 import { formatGameDate } from "@/lib/format";
 
 export type EmailTarget =
@@ -44,7 +45,7 @@ export async function sendTargetedEmail(
     return { error: "Subject and body are required" };
   }
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+  const siteUrl = getSiteUrl();
 
   // Get the event for reply-to setup
   const { data: event } = await supabase

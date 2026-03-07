@@ -10,27 +10,10 @@ import {
   QuickActionButton,
 } from "./rsvp-controls";
 import { GuestApprovalButton, GuestDenialButton } from "./guest-controls";
-import { formatPhoneDisplay, formatGameDate, formatDateTime } from "@/lib/format";
+import { formatPhoneDisplay, formatGameDate, formatDateTime, formatInitialLastName } from "@/lib/format";
 import { isPastCutoffPacific } from "@/lib/timezone";
 import { EmailStatusPanel } from "./email-controls";
-
-type RsvpStatus = "in" | "out" | "not_sure" | "no_response" | "waitlisted";
-
-const statusLabels: Record<RsvpStatus, string> = {
-  in: "In",
-  out: "Out",
-  not_sure: "Not Sure",
-  no_response: "No Response",
-  waitlisted: "Waitlisted",
-};
-
-const statusBadgeColors: Record<RsvpStatus, string> = {
-  in: "bg-teal-100 text-navy-900",
-  out: "bg-red-100 text-red-800",
-  not_sure: "bg-yellow-100 text-yellow-800",
-  no_response: "bg-gray-100 text-gray-600",
-  waitlisted: "bg-orange-100 text-orange-800",
-};
+import { RSVP_ADMIN_LABELS as statusLabels, RSVP_ADMIN_COLORS as statusBadgeColors, type RsvpStatus } from "@/lib/rsvp-status";
 
 export default async function AdminRsvpPage({
   params,
@@ -130,7 +113,7 @@ export default async function AdminRsvpPage({
     }
     const partner = pref.preferred_partner as { first_name: string; last_name: string };
     preferencesByProfile[pref.profile_id].partners.push(
-      `${partner.first_name[0]}. ${partner.last_name}`
+      formatInitialLastName(partner.first_name, partner.last_name)
     );
   }
 

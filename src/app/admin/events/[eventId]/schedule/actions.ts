@@ -3,6 +3,7 @@
 import { requireAdmin, hasEventAccess } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { generateSchedulesForEvent } from "@/lib/schedule-gen";
+import { getSiteUrl } from "@/lib/format";
 import { sendEmail, rateLimitDelay, generateGameCancelledEmail } from "@/lib/email";
 import { formatGameDateMonthDay } from "@/lib/format";
 import type { Event } from "@/types/events";
@@ -91,7 +92,7 @@ async function sendCancellationEmails(
   gameDate: string,
   cancelReason?: string
 ) {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+  const siteUrl = getSiteUrl();
 
   // Get event details
   const { data: event } = await supabase

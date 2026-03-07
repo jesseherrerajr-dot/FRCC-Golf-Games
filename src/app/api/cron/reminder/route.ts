@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/schedule";
 import { sendEmail, generateReminderEmail, sendAdminSummaryEmail, rateLimitDelay } from "@/lib/email";
 import { getTodayPacific, getDateOffsetPacific } from "@/lib/timezone";
-import { formatGameDateMonthDay } from "@/lib/format";
+import { formatGameDateMonthDay, getSiteUrl } from "@/lib/format";
 
 /**
  * Thursday Reminder Cron
@@ -11,7 +11,7 @@ import { formatGameDateMonthDay } from "@/lib/format";
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const isTest = searchParams.get("test") === "true";
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+  const siteUrl = getSiteUrl();
 
   const cronSecret = process.env.CRON_SECRET;
   if (cronSecret) {

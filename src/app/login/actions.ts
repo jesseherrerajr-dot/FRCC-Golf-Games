@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { getSiteUrl } from "@/lib/format";
 
 export type LoginFormState = {
   error?: string;
@@ -31,7 +32,7 @@ export async function login(
     email: email.trim().toLowerCase(),
     options: {
       shouldCreateUser: false,
-      emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/auth/callback`,
+      emailRedirectTo: `${getSiteUrl()}/auth/callback`,
     },
   });
 

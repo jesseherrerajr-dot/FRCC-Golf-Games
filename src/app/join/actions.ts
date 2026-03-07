@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { sendAdminAlert } from "@/lib/admin-alerts";
 import { redirect } from "next/navigation";
+import { getSiteUrl } from "@/lib/format";
 
 export type JoinFormState = {
   error?: string;
@@ -61,7 +62,7 @@ export async function joinGroup(
         ghin_number: ghin?.trim() || null,
         role: "golfer",
       },
-      emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/auth/callback`,
+      emailRedirectTo: `${getSiteUrl()}/auth/callback`,
     },
   });
 

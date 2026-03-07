@@ -17,6 +17,34 @@
 const PACIFIC_TZ = "America/Los_Angeles";
 
 // ─────────────────────────────────────────────────────────
+// Name formatting
+// ─────────────────────────────────────────────────────────
+
+/**
+ * Format a name as "J. Herrera" (first initial + last name).
+ * Used for golfer-facing displays (RSVP lists, confirmation emails).
+ */
+export function formatInitialLastName(firstName: string, lastName: string): string {
+  return `${firstName.charAt(0)}. ${lastName}`;
+}
+
+/**
+ * Format a full name as "Jesse Herrera".
+ * Used for admin displays, pro shop emails, and internal references.
+ */
+export function formatFullName(firstName: string, lastName: string): string {
+  return `${firstName} ${lastName}`;
+}
+
+/**
+ * Format a sponsor name as "Jesse H." (first name + last initial).
+ * Used in guest labels like "(Guest of Jesse H.)"
+ */
+export function formatSponsorName(firstName: string, lastName: string): string {
+  return `${firstName} ${lastName.charAt(0)}.`;
+}
+
+// ─────────────────────────────────────────────────────────
 // Phone formatting
 // ─────────────────────────────────────────────────────────
 
@@ -168,4 +196,16 @@ export function formatDateTimeFull(dateStr: string | null): string {
     hour12: true,
     timeZoneName: "short",
   });
+}
+
+// ─────────────────────────────────────────────────────────
+// Site URL
+// ─────────────────────────────────────────────────────────
+
+/**
+ * Get the site URL from environment, with consistent fallback.
+ * Use this instead of inline `process.env.NEXT_PUBLIC_SITE_URL || "..."`.
+ */
+export function getSiteUrl(): string {
+  return process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 }

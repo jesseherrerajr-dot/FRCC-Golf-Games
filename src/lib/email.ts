@@ -1,19 +1,13 @@
 import { Resend } from "resend";
-import { createClient } from "@supabase/supabase-js";
 import type { StoredGrouping, StoredGroupMember } from "./grouping-db";
-import { formatPhoneDisplay } from "./format";
+import { formatPhoneDisplay, formatInitialLastName, formatFullName, formatSponsorName, formatGameDate, getSiteUrl } from "./format";
+import { formatCutoffDayTime } from "./timezone";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 const FROM_EMAIL = process.env.FROM_EMAIL || "happy@frccgolfgames.com";
 
-function createEmailAdminClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { auth: { persistSession: false } }
-  );
-}
+import { createAdminClient as createEmailAdminClient } from "./supabase/server";
 
 /**
  * Delay helper to stay under Resend's 2 req/s rate limit.
@@ -84,10 +78,7 @@ export function generateInviteEmail({
   cutoffDay?: number;
   cutoffTime?: string;
 }) {
-  const formattedDate = new Date(gameDate + "T12:00:00").toLocaleDateString(
-    "en-US",
-    { weekday: "long", month: "long", day: "numeric" }
-  );
+  const formattedDate = formatGameDate(gameDate);
   const rsvpBase = `${siteUrl}/api/rsvp?token=${rsvpToken}`;
 
   const adminNoteHtml = adminNote
@@ -111,7 +102,7 @@ export function generateInviteEmail({
         <a href="${rsvpBase}&action=not_sure" style="display: block; background: white; color: #a16207; text-align: center; padding: 14px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px; border: 2px solid #fcd34d;">Not Sure Yet (ask me again later)</a>
       </div>
 
-      <p style="color: #9ca3af; font-size: 12px;">Deadline: ${formatCutoffDisplay(cutoffDay, cutoffTime)}. After that, contact an event admin to change your RSVP.</p>
+      <p style="color: #9ca3af; font-size: 12px;">Deadline: ${formatCutoffDayTime(cutoffDay, cutoffTime)}. After that, contact an event admin to change your RSVP.</p>
       <p style="color: #9ca3af; font-size: 12px;"><a href="${siteUrl}/dashboard" style="color: #3d7676;">Go to Dashboard</a></p>
     </div>
   `;
@@ -141,10 +132,7 @@ export function generateReminderEmail({
   cutoffDay?: number;
   cutoffTime?: string;
 }) {
-  const formattedDate = new Date(gameDate + "T12:00:00").toLocaleDateString(
-    "en-US",
-    { weekday: "long", month: "long", day: "numeric" }
-  );
+  const formattedDate = formatGameDate(gameDate);
   const rsvpBase = `${siteUrl}/api/rsvp?token=${rsvpToken}`;
 
   return `
@@ -157,7 +145,7 @@ export function generateReminderEmail({
           ? `There are still <strong>${spotsRemaining} spots</strong> available.`
           : "The game is currently full, but you can join the waitlist."
       }</p>
-      <p style="color: #374151;">The RSVP deadline is <strong>${formatCutoffDisplay(cutoffDay, cutoffTime)}</strong>.</p>
+      <p style="color: #374151;">The RSVP deadline is <strong>${formatCutoffDayTime(cutoffDay, cutoffTime)}</strong>.</p>
 
       ${adminNote ? `<div style="background: #f0f3f7; border-left: 4px solid #3d7676; padding: 12px 16px; margin: 16px 0; border-radius: 4px;">
         <p style="margin: 0; font-size: 14px; color: #1b2a4a;"><strong>Note from admin:</strong> ${adminNote}</p>
@@ -189,14 +177,11 @@ export function generateConfirmationEmail({
   adminNote?: string | null;
   siteUrl?: string;
 }) {
-  const formattedDate = new Date(gameDate + "T12:00:00").toLocaleDateString(
-    "en-US",
-    { weekday: "long", month: "long", day: "numeric", year: "numeric" }
-  );
+  const formattedDate = formatGameDate(gameDate);
 
   const playerListHtml = confirmedPlayers
     .map((p) => {
-      const name = `${p.first_name.charAt(0)}. ${p.last_name}`;
+      const name = formatInitialLastName(p.first_name, p.last_name);
       const guestTag = p.is_guest ? ` <span style="color: #9ca3af;">(Guest of ${p.sponsor_name})</span>` : "";
       return `<li style="padding: 4px 0; color: #374151;">${name}${guestTag}</li>`;
     })
@@ -249,10 +234,7 @@ export function generateProShopEmail({
   }[];
   groupings?: StoredGrouping[];
 }) {
-  const formattedDate = new Date(gameDate + "T12:00:00").toLocaleDateString(
-    "en-US",
-    { weekday: "long", month: "long", day: "numeric", year: "numeric" }
-  );
+  const formattedDate = formatGameDate(gameDate);
 
   const thStyle = 'padding: 8px; text-align: left; border-bottom: 2px solid #1b2a4a; color: #1b2a4a; font-family: Georgia, "Times New Roman", serif; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px;';
   const tdStyle = "padding: 6px 8px; border-bottom: 1px solid #e5e7eb; font-size: 13px;";
@@ -390,10 +372,7 @@ export function generateAdminSummaryEmail({
   additionalInfo?: string;
   siteUrl: string;
 }) {
-  const formattedDate = new Date(gameDate + "T12:00:00").toLocaleDateString(
-    "en-US",
-    { weekday: "long", month: "long", day: "numeric" }
-  );
+  const formattedDate = formatGameDate(gameDate);
 
   const typeLabels: Record<string, { title: string; color: string; borderColor: string }> = {
     invite: { title: "Weekly Invite Sent", color: "#065f46", borderColor: "#3d7676" },
@@ -461,7 +440,7 @@ export async function sendAdminSummaryEmail({
   totalSent: number;
   additionalInfo?: string;
 }) {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+  const siteUrl = getSiteUrl();
   const supabase = createEmailAdminClient();
 
   // Get admin emails
@@ -539,10 +518,7 @@ export function generateGameCancelledEmail({
   reason?: string;
   siteUrl: string;
 }) {
-  const formattedDate = new Date(gameDate + "T12:00:00").toLocaleDateString(
-    "en-US",
-    { weekday: "long", month: "long", day: "numeric" }
-  );
+  const formattedDate = formatGameDate(gameDate);
 
   const reasonHtml = reason
     ? `<div style="background: #f9fafb; border-left: 4px solid #9ca3af; padding: 12px 16px; margin: 16px 0; border-radius: 4px;">
@@ -582,17 +558,4 @@ export function generateGameCancelledEmail({
   `;
 }
 
-/**
- * Format cutoff day/time for display in emails.
- * Falls back to "Friday at 10:00 AM PT" if not provided.
- */
-function formatCutoffDisplay(cutoffDay?: number, cutoffTime?: string): string {
-  const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-  const dayName = cutoffDay !== undefined ? dayNames[cutoffDay] : "Friday";
-  const time = cutoffTime || "10:00";
-  const [h, m] = time.split(":").map(Number);
-  const period = h >= 12 ? "PM" : "AM";
-  const displayHour = h === 0 ? 12 : h > 12 ? h - 12 : h;
-  const displayMinute = m === 0 ? "" : `:${String(m).padStart(2, "0")}`;
-  return `${dayName} at ${displayHour}${displayMinute} ${period} PT`;
-}
+// formatCutoffDisplay — imported from @/lib/timezone (centralized)

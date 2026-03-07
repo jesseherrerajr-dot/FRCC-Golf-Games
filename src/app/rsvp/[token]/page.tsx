@@ -1,4 +1,3 @@
-import { createClient } from "@supabase/supabase-js";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { GuestRequestForm, GuestRequestStatus } from "./guest-request-form";
@@ -7,33 +6,9 @@ import { TeeTimePreference } from "./tee-time-preference";
 import { CollapsibleSection } from "./collapsible-section";
 import { HelpText } from "@/components/help-text";
 import { isPastCutoffPacific, formatCutoffDisplay } from "@/lib/timezone";
-import { formatGameDate } from "@/lib/format";
-
-function createAdminClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { auth: { persistSession: false } }
-  );
-}
-
-type RsvpStatus = "in" | "out" | "not_sure" | "no_response" | "waitlisted";
-
-const statusLabels: Record<RsvpStatus, string> = {
-  in: "I'm In",
-  out: "I'm Out",
-  not_sure: "Not Sure Yet",
-  no_response: "No Response",
-  waitlisted: "Waitlisted",
-};
-
-const statusColors: Record<RsvpStatus, string> = {
-  in: "bg-teal-100 text-teal-800 border-teal-200",
-  out: "bg-red-100 text-red-800 border-red-200",
-  not_sure: "bg-yellow-100 text-yellow-800 border-yellow-200",
-  no_response: "bg-gray-100 text-gray-600 border-gray-200",
-  waitlisted: "bg-orange-100 text-orange-800 border-orange-200",
-};
+import { formatGameDate, formatInitialLastName } from "@/lib/format";
+import { createAdminClient } from "@/lib/supabase/server";
+import { RSVP_GOLFER_LABELS as statusLabels, RSVP_GOLFER_COLORS as statusColors, type RsvpStatus } from "@/lib/rsvp-status";
 
 
 export default async function RsvpPage({
@@ -250,7 +225,7 @@ export default async function RsvpPage({
               <ul className="mt-2 space-y-1">
                 {inList.map((golfer, i) => (
                   <li key={i} className="text-sm text-gray-600">
-                    {golfer.first_name.charAt(0)}. {golfer.last_name}
+                    {formatInitialLastName(golfer.first_name, golfer.last_name)}
                   </li>
                 ))}
               </ul>

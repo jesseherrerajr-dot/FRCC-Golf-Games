@@ -7,7 +7,7 @@ import {
   sendAdminSummaryEmail,
 } from "@/lib/email";
 import { getTodayPacific, getDateOffsetPacific } from "@/lib/timezone";
-import { formatGameDateMonthDay } from "@/lib/format";
+import { formatGameDateMonthDay, formatSponsorName } from "@/lib/format";
 
 /**
  * Friday Confirmation Cron
@@ -96,7 +96,7 @@ export async function GET(request: Request) {
         phone: (g.guest_phone as string) || "",
         ghin_number: g.guest_ghin_number as string,
         is_guest: true,
-        sponsor_name: sponsor ? `${sponsor.first_name} ${sponsor.last_name.charAt(0)}.` : "Member",
+        sponsor_name: sponsor ? formatSponsorName(sponsor.first_name, sponsor.last_name) : "Member",
       };
     });
 

@@ -1,17 +1,8 @@
-import { createClient } from "@supabase/supabase-js";
 import { getUpcomingGameDatePacific } from "@/lib/timezone";
+import { createAdminClient } from "@/lib/supabase/server";
 
-/**
- * Create a Supabase admin client (bypasses RLS).
- * Used by cron jobs and server-side automation.
- */
-export function createAdminClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { auth: { persistSession: false } }
-  );
-}
+// Re-export createAdminClient so existing imports from "@/lib/schedule" continue to work
+export { createAdminClient };
 
 /**
  * Get the upcoming game date for an event.

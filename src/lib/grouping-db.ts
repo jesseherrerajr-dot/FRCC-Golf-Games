@@ -12,6 +12,7 @@ import type {
   GroupingResult,
   TeeTimePreference,
 } from "../types/events";
+import { formatInitialLastName } from "./format";
 
 // ============================================================
 // Fetch Inputs
@@ -344,7 +345,7 @@ export async function fetchStoredGroupings(
     if (row.profile) {
       profileNameMap.set(
         row.profile.id,
-        `${row.profile.first_name.charAt(0)}. ${row.profile.last_name}`
+        formatInitialLastName(row.profile.first_name, row.profile.last_name)
       );
     }
   }

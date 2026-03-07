@@ -24,7 +24,7 @@ import {
   fetchStoredGroupings,
   fetchApprovedGuests,
 } from "@/lib/grouping-db";
-import { formatGameDate } from "@/lib/format";
+import { formatGameDate, formatSponsorName, getSiteUrl } from "@/lib/format";
 
 /**
  * Dynamic Email Scheduler Cron
@@ -76,7 +76,7 @@ export async function GET(request: Request) {
 
   try {
     const supabase = createAdminClient();
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+    const siteUrl = getSiteUrl();
 
     // Get all active events
     const { data: events, error: eventsError } = await supabase
@@ -623,7 +623,7 @@ async function handleGolferConfirmation(
         email: g.guest_email as string,
         is_guest: true,
         sponsor_name: sponsor
-          ? `${sponsor.first_name} ${sponsor.last_name.charAt(0)}.`
+          ? formatSponsorName(sponsor.first_name, sponsor.last_name)
           : "Member",
       };
     }
@@ -820,7 +820,7 @@ async function handleProShopDetail(
         ghin_number: (g.guest_ghin_number as string) || "",
         is_guest: true,
         sponsor_name: sponsor
-          ? `${sponsor.first_name} ${sponsor.last_name.charAt(0)}.`
+          ? formatSponsorName(sponsor.first_name, sponsor.last_name)
           : "Member",
       };
     }

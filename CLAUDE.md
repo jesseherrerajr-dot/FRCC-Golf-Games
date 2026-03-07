@@ -468,6 +468,44 @@ The `email_log.email_type` column has a CHECK constraint allowing only: `'invite
 
 ---
 
+## Centralized Utilities (READ BEFORE ADDING CODE)
+
+This project enforces centralized utility functions for common patterns. **Do NOT define local formatting functions, status constants, or client creation helpers in page files.** Import from the shared libraries below.
+
+### Name Formatting (`src/lib/format.ts`)
+
+- `formatInitialLastName(firstName, lastName)` — "J. Herrera" (golfer-facing displays, RSVP lists, confirmation emails)
+- `formatFullName(firstName, lastName)` — "Jesse Herrera" (admin displays, pro shop emails)
+- `formatSponsorName(firstName, lastName)` — "Jesse H." (guest labels like "Guest of Jesse H.")
+
+**NEVER** use inline patterns like `` `${firstName[0]}. ${lastName}` `` or `` `${firstName} ${lastName.charAt(0)}.` ``. Import the appropriate function from `@/lib/format`.
+
+### RSVP Status Constants (`src/lib/rsvp-status.ts`)
+
+- `RsvpStatus` — type: `"in" | "out" | "not_sure" | "no_response" | "waitlisted"`
+- `RSVP_GOLFER_LABELS` — golfer-facing labels ("I'm In", "I'm Out", "Not Sure Yet", etc.)
+- `RSVP_ADMIN_LABELS` — admin-facing labels ("In", "Out", "Not Sure", etc.)
+- `RSVP_GOLFER_COLORS` — golfer badge CSS classes (with border)
+- `RSVP_ADMIN_COLORS` — admin badge CSS classes
+- `RSVP_ADMIN_OPTIONS` — dropdown options for admin RSVP override
+
+**NEVER** define local `statusLabels`, `statusColors`, or `type RsvpStatus` in page files. Import from `@/lib/rsvp-status`.
+
+### Supabase Admin Client (`src/lib/supabase/server.ts`)
+
+- `createAdminClient()` — Supabase client that bypasses RLS (uses service role key). For cron jobs, API routes, and server-side operations without a user session.
+- `createClient()` — Session-based Supabase client (uses cookies). For authenticated pages and server actions.
+
+**NEVER** define local `createAdminClient()` functions. Import from `@/lib/supabase/server`. The re-export from `@/lib/schedule` also works for existing imports.
+
+### Site URL (`src/lib/format.ts`)
+
+- `getSiteUrl()` — returns `process.env.NEXT_PUBLIC_SITE_URL` with consistent fallback.
+
+**NEVER** use inline `process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"`. Import `getSiteUrl()` from `@/lib/format`.
+
+---
+
 ## Build Phases
 ### Phase 1 — Foundation (Complete)
 - [x] Project scaffold (Next.js, Tailwind, Supabase, Resend)

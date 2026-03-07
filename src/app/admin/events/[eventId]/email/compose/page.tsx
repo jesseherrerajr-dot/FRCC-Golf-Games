@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { EmailComposerForm } from "./email-composer-form";
+import { getTodayPacific } from "@/lib/timezone";
 
 export default async function EmailComposerPage({
   params,
@@ -26,7 +27,7 @@ export default async function EmailComposerPage({
   if (!event) redirect("/admin");
 
   // Get upcoming schedules (next 8 weeks)
-  const today = new Date().toISOString().split("T")[0];
+  const today = getTodayPacific();
   const { data: schedules } = await supabase
     .from("event_schedules")
     .select("id, game_date, status")

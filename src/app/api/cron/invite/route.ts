@@ -6,7 +6,7 @@ import {
   ensureRsvps,
 } from "@/lib/schedule";
 import { sendEmail, generateInviteEmail, sendAdminSummaryEmail, rateLimitDelay } from "@/lib/email";
-import { formatGameDateMonthDay } from "@/lib/format";
+import { formatGameDateMonthDay, getSiteUrl } from "@/lib/format";
 
 /**
  * Monday Invite Cron
@@ -19,7 +19,7 @@ import { formatGameDateMonthDay } from "@/lib/format";
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const isTest = searchParams.get("test") === "true";
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+  const siteUrl = getSiteUrl();
 
   // Verify cron secret if set (for production security)
   const cronSecret = process.env.CRON_SECRET;

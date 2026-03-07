@@ -1,6 +1,7 @@
 import { requireAdmin } from "@/lib/auth";
 import Link from "next/link";
 import { formatPhoneDisplay } from "@/lib/format";
+import { getTodayPacific } from "@/lib/timezone";
 import Header from "@/components/header";
 import { CollapsibleSection } from "@/components/collapsible-section";
 import { WelcomeBanner } from "@/components/welcome-banner";
@@ -46,7 +47,7 @@ export default async function AdminDashboard() {
     .order("last_name", { ascending: true });
 
   // Fetch pending guest requests
-  const today = new Date().toISOString().split("T")[0];
+  const today = getTodayPacific();
   const { data: pendingGuestRequests } = await supabase
     .from("guest_requests")
     .select(

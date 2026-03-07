@@ -3,7 +3,7 @@
  * Generates HTML emails with merge fields for each email type
  */
 
-import { formatPhoneDisplay } from "./format";
+import { formatPhoneDisplay, formatInitialLastName, formatFullName, formatGameDate } from "./format";
 
 export interface InviteEmailParams {
   golferName: string;
@@ -214,7 +214,7 @@ export function generateGolferConfirmationEmail(
   let playerListHtml = '<ul style="list-style: none; padding: 0; margin: 20px 0;">';
 
   confirmedPlayers.forEach((player) => {
-    const initials = `${player.first_name[0]}. ${player.last_name}`;
+    const initials = formatInitialLastName(player.first_name, player.last_name);
     playerListHtml += `
       <li style="padding: 8px; border-bottom: 1px solid #e5e7eb; font-size: 15px;">
         ⛳ ${initials}
@@ -314,7 +314,7 @@ export function generateProShopDetailEmail(
     const bgColor = index % 2 === 0 ? "#ffffff" : "#f9fafb";
     playerTableHtml += `
       <tr style="background: ${bgColor}; border-bottom: 1px solid #e5e7eb;">
-        <td style="padding: 10px; font-size: 14px;">${player.first_name} ${player.last_name}</td>
+        <td style="padding: 10px; font-size: 14px;">${formatFullName(player.first_name, player.last_name)}</td>
         <td style="padding: 10px; font-size: 14px;">${formatPhoneDisplay(player.phone)}</td>
         <td style="padding: 10px; font-size: 14px;">${player.ghin_number || "—"}</td>
       </tr>
@@ -413,11 +413,4 @@ function getDayName(dayNumber: number): string {
   return days[dayNumber] || "Friday";
 }
 
-function formatGameDate(dateString: string): string {
-  const date = new Date(dateString + "T12:00:00");
-  return date.toLocaleDateString("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-  });
-}
+// formatGameDate — imported from @/lib/format (centralized)

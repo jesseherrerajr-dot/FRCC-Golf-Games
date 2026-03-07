@@ -7,16 +7,7 @@ import {
   adminUpdateRsvpStatus,
   adminPromoteFromWaitlist,
 } from "./actions";
-
-type RsvpStatus = "in" | "out" | "not_sure" | "no_response" | "waitlisted";
-
-const statusOptions: { value: RsvpStatus; label: string }[] = [
-  { value: "in", label: "In" },
-  { value: "out", label: "Out" },
-  { value: "not_sure", label: "Not Sure" },
-  { value: "no_response", label: "No Response" },
-  { value: "waitlisted", label: "Waitlisted" },
-];
+import { RSVP_ADMIN_OPTIONS as statusOptions, type RsvpStatus } from "@/lib/rsvp-status";
 
 export function StatusDropdown({
   rsvpId,

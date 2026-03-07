@@ -7,24 +7,8 @@ import { HelpText } from "@/components/help-text";
 import { WelcomeBanner } from "@/components/welcome-banner";
 import { OnboardingChecklist } from "@/components/onboarding-checklist";
 import { UnsubscribeButton } from "./subscription-actions";
-
-type RsvpStatus = "in" | "out" | "not_sure" | "no_response" | "waitlisted";
-
-const statusLabels: Record<RsvpStatus, string> = {
-  in: "I'm In",
-  out: "I'm Out",
-  not_sure: "Not Sure Yet",
-  no_response: "No Response",
-  waitlisted: "Waitlisted",
-};
-
-const statusStyles: Record<RsvpStatus, string> = {
-  in: "bg-teal-100 text-teal-800 border-teal-200",
-  out: "bg-red-100 text-red-800 border-red-200",
-  not_sure: "bg-yellow-100 text-yellow-800 border-yellow-200",
-  no_response: "bg-gray-100 text-gray-600 border-gray-200",
-  waitlisted: "bg-orange-100 text-orange-800 border-orange-200",
-};
+import { getTodayPacific } from "@/lib/timezone";
+import { RSVP_GOLFER_LABELS as statusLabels, RSVP_GOLFER_COLORS as statusStyles, type RsvpStatus } from "@/lib/rsvp-status";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -63,7 +47,7 @@ export default async function DashboardPage() {
   });
 
   // Fetch upcoming RSVPs for this user (games today or in the future)
-  const today = new Date().toISOString().split("T")[0];
+  const today = getTodayPacific();
   const { data: upcomingRsvps } = await supabase
     .from("rsvps")
     .select(

@@ -234,6 +234,25 @@ export function formatCutoffDisplay(
 }
 
 /**
+ * Format a cutoff day number + time string for display in emails.
+ * Simpler version that doesn't need the game date.
+ * Example: formatCutoffDayTime(5, "10:00") → "Friday at 10 AM PT"
+ *
+ * @param cutoffDay - Day of week (0=Sun, 6=Sat). Defaults to Friday.
+ * @param cutoffTime - HH:MM in Pacific Time. Defaults to "10:00".
+ */
+export function formatCutoffDayTime(cutoffDay?: number, cutoffTime?: string): string {
+  const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const dayName = cutoffDay !== undefined ? dayNames[cutoffDay] : "Friday";
+  const time = cutoffTime || "10:00";
+  const [h, m] = time.split(":").map(Number);
+  const ampm = h >= 12 ? "PM" : "AM";
+  const displayHour = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  const displayMinute = m > 0 ? `:${String(m).padStart(2, "0")}` : "";
+  return `${dayName} at ${displayHour}${displayMinute} ${ampm} PT`;
+}
+
+/**
  * Calculate a send date by applying a day offset to a game date string.
  * Pure date arithmetic — no timezone concerns since we're working with
  * YYYY-MM-DD strings.

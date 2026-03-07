@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { sendAdminAlert } from "@/lib/admin-alerts";
 import { redirect } from "next/navigation";
+import { getSiteUrl } from "@/lib/format";
 
 export type JoinEventFormState = {
   error?: string;
@@ -69,7 +70,7 @@ export async function joinEvent(
         role: "golfer",
         registration_event_id: eventId,
       },
-      emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/auth/callback`,
+      emailRedirectTo: `${getSiteUrl()}/auth/callback`,
     },
   });
 

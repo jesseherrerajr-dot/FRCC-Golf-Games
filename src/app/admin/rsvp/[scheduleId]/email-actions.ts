@@ -20,6 +20,7 @@ import {
   fetchApprovedGuests,
 } from "@/lib/grouping-db";
 import { ensureRsvps } from "@/lib/schedule";
+import { formatGameDateMonthDay, formatSponsorName, getSiteUrl } from "@/lib/format";
 
 /**
  * Verify the current user is a super admin or event admin.
@@ -55,22 +56,13 @@ async function requireAdminAccess() {
   return { supabase, adminId: user.id };
 }
 
-function formatGameDate(dateString: string): string {
-  const [year, month, day] = dateString.split("-").map(Number);
-  const date = new Date(year, month - 1, day);
-  return date.toLocaleDateString("en-US", {
-    month: "long",
-    day: "numeric",
-  });
-}
-
 /**
  * Manually send invite emails for a schedule.
  */
 export async function sendInviteNow(scheduleId: string) {
   try {
     const { supabase } = await requireAdminAccess();
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://frccgolfgames.com";
+    const siteUrl = getSiteUrl();
 
     // Get schedule with event info
     const { data: schedule, error: schedError } = await supabase
@@ -120,7 +112,7 @@ export async function sendInviteNow(scheduleId: string) {
 
       await sendEmail({
         to: profile.email,
-        subject: `${event.name}: ${formatGameDate(schedule.game_date)} — Are You In?`,
+        subject: `${event.name}: ${formatGameDateMonthDay(schedule.game_date)} — Are You In?`,
         html,
       });
       await rateLimitDelay();
@@ -154,7 +146,7 @@ export async function sendInviteNow(scheduleId: string) {
 export async function sendReminderNow(scheduleId: string) {
   try {
     const { supabase } = await requireAdminAccess();
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://frccgolfgames.com";
+    const siteUrl = getSiteUrl();
 
     const { data: schedule, error: schedError } = await supabase
       .from("event_schedules")
@@ -214,7 +206,7 @@ export async function sendReminderNow(scheduleId: string) {
 
       await sendEmail({
         to: profile.email,
-        subject: `${event.name}: ${formatGameDate(schedule.game_date)} — Last Chance to RSVP`,
+        subject: `${event.name}: ${formatGameDateMonthDay(schedule.game_date)} — Last Chance to RSVP`,
         html,
       });
       await rateLimitDelay();
@@ -248,7 +240,7 @@ export async function sendReminderNow(scheduleId: string) {
 export async function sendGolferConfirmationNow(scheduleId: string) {
   try {
     const { supabase } = await requireAdminAccess();
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://frccgolfgames.com";
+    const siteUrl = getSiteUrl();
 
     const { data: schedule, error: schedError } = await supabase
       .from("event_schedules")
@@ -319,7 +311,7 @@ export async function sendGolferConfirmationNow(scheduleId: string) {
         last_name: g.guest_last_name as string,
         email: g.guest_email as string,
         is_guest: true,
-        sponsor_name: sponsor ? `${sponsor.first_name} ${sponsor.last_name.charAt(0)}.` : "Member",
+        sponsor_name: sponsor ? formatSponsorName(sponsor.first_name, sponsor.last_name) : "Member",
       };
     });
 
@@ -366,7 +358,7 @@ export async function sendGolferConfirmationNow(scheduleId: string) {
       siteUrl,
     });
 
-    const formattedDate = formatGameDate(schedule.game_date);
+    const formattedDate = formatGameDateMonthDay(schedule.game_date);
 
     await sendEmail({
       to: golferEmails,
@@ -467,7 +459,7 @@ export async function sendProShopDetailNow(scheduleId: string) {
         phone: (g.guest_phone as string) || "",
         ghin_number: (g.guest_ghin_number as string) || "",
         is_guest: true,
-        sponsor_name: sponsor ? `${sponsor.first_name} ${sponsor.last_name.charAt(0)}.` : "Member",
+        sponsor_name: sponsor ? formatSponsorName(sponsor.first_name, sponsor.last_name) : "Member",
       };
     });
 
@@ -522,7 +514,7 @@ export async function sendProShopDetailNow(scheduleId: string) {
       groupings,
     });
 
-    const formattedDate = formatGameDate(schedule.game_date);
+    const formattedDate = formatGameDateMonthDay(schedule.game_date);
 
     await sendEmail({
       to: proShopEmails,
