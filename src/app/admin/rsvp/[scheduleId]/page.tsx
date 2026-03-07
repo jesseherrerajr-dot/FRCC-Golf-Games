@@ -271,18 +271,30 @@ export default async function AdminRsvpPage({
         </div>
 
         {/* Email Status & Send Controls */}
-        <EmailStatusPanel
-          scheduleId={scheduleId}
-          status={{
-            inviteSent: schedule.invite_sent,
-            reminderSent: schedule.reminder_sent,
-            golferConfirmationSent: schedule.golfer_confirmation_sent,
-            proShopSent: schedule.pro_shop_sent,
+        <CollapsibleSection
+          title="Email Controls"
+          defaultOpen={false}
+          headerColor="text-gray-700"
+          badge={{
+            label: `${[schedule.invite_sent, schedule.reminder_sent, schedule.golfer_confirmation_sent, schedule.pro_shop_sent].filter(Boolean).length}/4 sent`,
+            className: [schedule.invite_sent, schedule.reminder_sent, schedule.golfer_confirmation_sent, schedule.pro_shop_sent].every(Boolean)
+              ? "bg-teal-100 text-teal-700"
+              : "bg-gray-100 text-gray-600",
           }}
-          confirmedCount={inCount}
-          pendingCount={notSureCount + noResponseCount}
-          totalSubscribers={allRsvps.length}
-        />
+        >
+          <EmailStatusPanel
+            scheduleId={scheduleId}
+            status={{
+              inviteSent: schedule.invite_sent,
+              reminderSent: schedule.reminder_sent,
+              golferConfirmationSent: schedule.golfer_confirmation_sent,
+              proShopSent: schedule.pro_shop_sent,
+            }}
+            confirmedCount={inCount}
+            pendingCount={notSureCount + noResponseCount}
+            totalSubscribers={allRsvps.length}
+          />
+        </CollapsibleSection>
 
         {/* Confirmed Players — always expanded */}
         <CollapsibleSection

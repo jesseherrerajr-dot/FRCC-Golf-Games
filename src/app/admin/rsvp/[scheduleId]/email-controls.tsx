@@ -52,11 +52,8 @@ export function EmailStatusPanel(props: EmailControlsProps) {
   ];
 
   return (
-    <div className="mt-4 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-      <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-500">
-        Email Status
-      </h3>
-      <div className="space-y-2">
+    <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+      <div className="divide-y divide-gray-200">
         {emails.map(({ type, sent }) => (
           <EmailRow
             key={type}
@@ -121,7 +118,7 @@ function EmailRow({
 
   return (
     <>
-      <div className="flex items-center justify-between rounded-md px-3 py-2 hover:bg-gray-50">
+      <div className="flex items-center justify-between px-4 py-3">
         <div className="flex items-center gap-2">
           {sent ? (
             <span className="flex h-5 w-5 items-center justify-center rounded-full bg-teal-100 text-teal-600">
