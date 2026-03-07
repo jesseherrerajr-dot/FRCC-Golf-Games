@@ -88,6 +88,26 @@ export default async function AdminRsvpPage({
 
   const allRsvps = rsvps || [];
 
+  // Fetch email log timestamps for this schedule (most recent per type)
+  const { data: emailLogs } = await supabase
+    .from("email_log")
+    .select("email_type, sent_at")
+    .eq("schedule_id", scheduleId)
+    .in("email_type", ["invite", "reminder_1", "reminder_2", "reminder_3", "reminder_manual", "confirmation_golfer", "confirmation_proshop"])
+    .order("sent_at", { ascending: false });
+
+  const emailSentTimes: Record<string, string> = {};
+  for (const log of emailLogs || []) {
+    const key = log.email_type.startsWith("reminder") ? "reminder" :
+      log.email_type === "confirmation_golfer" ? "golfer_confirmation" :
+      log.email_type === "confirmation_proshop" ? "pro_shop" :
+      log.email_type;
+    // Keep the most recent (first in desc order)
+    if (!emailSentTimes[key]) {
+      emailSentTimes[key] = log.sent_at;
+    }
+  }
+
   // Fetch guest requests for this schedule
   const { data: guestRequests } = await supabase
     .from("guest_requests")
@@ -290,6 +310,7 @@ export default async function AdminRsvpPage({
               golferConfirmationSent: schedule.golfer_confirmation_sent,
               proShopSent: schedule.pro_shop_sent,
             }}
+            sentTimes={emailSentTimes}
             confirmedCount={inCount}
             pendingCount={notSureCount + noResponseCount}
             totalSubscribers={allRsvps.length}

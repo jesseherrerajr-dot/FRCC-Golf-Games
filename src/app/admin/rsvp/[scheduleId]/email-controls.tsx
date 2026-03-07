@@ -20,6 +20,7 @@ type EmailStatus = {
 type EmailControlsProps = {
   scheduleId: string;
   status: EmailStatus;
+  sentTimes?: Record<string, string>;
   confirmedCount: number;
   pendingCount: number;
   totalSubscribers: number;
@@ -41,8 +42,15 @@ const emailDescriptions: Record<EmailType, (props: EmailControlsProps) => string
   pro_shop: (p) => `Send pro shop detail email with player info and GHIN numbers?`,
 };
 
+const sentTimeKeys: Record<EmailType, string> = {
+  invite: "invite",
+  reminder: "reminder",
+  golfer_confirmation: "golfer_confirmation",
+  pro_shop: "pro_shop",
+};
+
 export function EmailStatusPanel(props: EmailControlsProps) {
-  const { scheduleId, status, confirmedCount, pendingCount, totalSubscribers } = props;
+  const { scheduleId, status, sentTimes } = props;
 
   const emails: { type: EmailType; sent: boolean }[] = [
     { type: "invite", sent: status.inviteSent },
@@ -59,6 +67,7 @@ export function EmailStatusPanel(props: EmailControlsProps) {
             key={type}
             type={type}
             sent={sent}
+            sentAt={sentTimes?.[sentTimeKeys[type]]}
             scheduleId={scheduleId}
             controlsProps={props}
           />
@@ -68,14 +77,27 @@ export function EmailStatusPanel(props: EmailControlsProps) {
   );
 }
 
+function formatSentAt(sentAt: string): string {
+  return new Date(sentAt).toLocaleString("en-US", {
+    timeZone: "America/Los_Angeles",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
+
 function EmailRow({
   type,
   sent,
+  sentAt,
   scheduleId,
   controlsProps,
 }: {
   type: EmailType;
   sent: boolean;
+  sentAt?: string;
   scheduleId: string;
   controlsProps: EmailControlsProps;
 }) {
@@ -133,12 +155,16 @@ function EmailRow({
               </svg>
             </span>
           )}
-          <span className={`text-sm font-medium ${sent ? "text-gray-700" : "text-gray-900"}`}>
-            {label}
-          </span>
-          {sent && (
-            <span className="text-xs text-teal-600">Sent</span>
-          )}
+          <div className="flex flex-col">
+            <span className={`text-sm font-medium ${sent ? "text-gray-700" : "text-gray-900"}`}>
+              {label}
+            </span>
+            {sent && (
+              <span className="text-xs text-teal-600">
+                {sentAt ? `Sent ${formatSentAt(sentAt)}` : "Sent"}
+              </span>
+            )}
+          </div>
         </div>
 
         <button
