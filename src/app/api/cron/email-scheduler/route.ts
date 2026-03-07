@@ -890,7 +890,7 @@ async function handleProShopDetail(
         to: proShopEmails,
         cc: uniqueAdminEmails,
         replyTo: primaryAdminEmail,
-        subject: `${event.name}: ${formattedDate}: Player Details & GHIN`,
+        subject: `${event.name}: ${formattedDate}: Player Details & Suggested Groups`,
         html: proShopHtml,
       });
 

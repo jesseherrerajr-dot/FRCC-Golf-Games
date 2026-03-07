@@ -3,6 +3,8 @@
  * Generates HTML emails with merge fields for each email type
  */
 
+import { formatPhoneDisplay } from "./format";
+
 export interface InviteEmailParams {
   golferName: string;
   eventName: string;
@@ -313,7 +315,7 @@ export function generateProShopDetailEmail(
     playerTableHtml += `
       <tr style="background: ${bgColor}; border-bottom: 1px solid #e5e7eb;">
         <td style="padding: 10px; font-size: 14px;">${player.first_name} ${player.last_name}</td>
-        <td style="padding: 10px; font-size: 14px;">${player.phone || "—"}</td>
+        <td style="padding: 10px; font-size: 14px;">${formatPhoneDisplay(player.phone)}</td>
         <td style="padding: 10px; font-size: 14px;">${player.ghin_number || "—"}</td>
       </tr>
     `;
@@ -331,7 +333,7 @@ export function generateProShopDetailEmail(
       playerTableHtml += `
         <tr style="background: ${bgColor}; border-bottom: 1px solid #fde68a;">
           <td style="padding: 10px; font-size: 14px;">${guest.guest_name} <span style="font-size: 12px; color: #6b7280;">(guest of ${guest.requested_by})</span></td>
-          <td style="padding: 10px; font-size: 14px;">${guest.guest_phone || "—"}</td>
+          <td style="padding: 10px; font-size: 14px;">${formatPhoneDisplay(guest.guest_phone)}</td>
           <td style="padding: 10px; font-size: 14px;">${guest.guest_ghin_number || "—"}</td>
         </tr>
       `;

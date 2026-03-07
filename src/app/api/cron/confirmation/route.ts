@@ -183,7 +183,7 @@ export async function GET(request: Request) {
           to: proShopEmails,
           cc: uniqueAdminEmails,
           replyTo: primaryAdminEmail,
-          subject: `${event.name}: ${formattedDate}: Player Details & GHIN`,
+          subject: `${event.name}: ${formattedDate}: Player Details & Suggested Groups`,
           html: proShopHtml,
         });
       }

@@ -1,6 +1,7 @@
 import { Resend } from "resend";
 import { createClient } from "@supabase/supabase-js";
 import type { StoredGrouping, StoredGroupMember } from "./grouping-db";
+import { formatPhoneDisplay } from "./format";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -281,7 +282,7 @@ export function generateProShopEmail({
             <tr>
               <td style="${tdStyle}">${m.firstName} ${m.lastName}${guestLabel}</td>
               <td style="${tdStyle}">${m.email || "—"}</td>
-              <td style="${tdStyle}">${m.phone || "—"}</td>
+              <td style="${tdStyle}">${formatPhoneDisplay(m.phone)}</td>
               <td style="${tdStyle}">${m.ghinNumber || "—"}</td>
               <td style="${tdStyle} text-align: center;">${teePref}</td>
               <td style="${tdStyle} text-align: center;">${playerPref}</td>
@@ -338,7 +339,7 @@ export function generateProShopEmail({
       <tr>
         <td style="${tdStyle}">${p.first_name} ${p.last_name}${guestLabel}</td>
         <td style="${tdStyle}">${p.email}</td>
-        <td style="${tdStyle}">${p.phone}</td>
+        <td style="${tdStyle}">${formatPhoneDisplay(p.phone)}</td>
         <td style="${tdStyle}">${p.ghin_number}</td>
       </tr>`;
       }
