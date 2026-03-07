@@ -12,6 +12,7 @@ import {
 import { GuestApprovalButton, GuestDenialButton } from "./guest-controls";
 import { formatPhoneDisplay } from "@/lib/format";
 import { isPastCutoffPacific } from "@/lib/timezone";
+import { EmailStatusPanel } from "./email-controls";
 
 type RsvpStatus = "in" | "out" | "not_sure" | "no_response" | "waitlisted";
 
@@ -268,6 +269,20 @@ export default async function AdminRsvpPage({
             <p className="text-xs text-red-600">Out</p>
           </div>
         </div>
+
+        {/* Email Status & Send Controls */}
+        <EmailStatusPanel
+          scheduleId={scheduleId}
+          status={{
+            inviteSent: schedule.invite_sent,
+            reminderSent: schedule.reminder_sent,
+            golferConfirmationSent: schedule.golfer_confirmation_sent,
+            proShopSent: schedule.pro_shop_sent,
+          }}
+          confirmedCount={inCount}
+          pendingCount={notSureCount + noResponseCount}
+          totalSubscribers={allRsvps.length}
+        />
 
         {/* Confirmed Players — always expanded */}
         <CollapsibleSection
