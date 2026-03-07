@@ -17,10 +17,15 @@ type EmailStatus = {
   proShopSent: boolean;
 };
 
+type EmailLogEntry = {
+  sentAt: string;
+  recipientCount: number;
+};
+
 type EmailControlsProps = {
   scheduleId: string;
   status: EmailStatus;
-  sentTimes?: Record<string, string>;
+  emailLog?: Record<string, EmailLogEntry>;
   confirmedCount: number;
   pendingCount: number;
   totalSubscribers: number;
@@ -35,14 +40,21 @@ const emailLabels: Record<EmailType, string> = {
   pro_shop: "Pro Shop Detail",
 };
 
+const emailRecipientLabels: Record<EmailType, string> = {
+  invite: "all subscribers",
+  reminder: "Not Sure + No Response",
+  golfer_confirmation: "confirmed players",
+  pro_shop: "pro shop contacts",
+};
+
 const emailDescriptions: Record<EmailType, (props: EmailControlsProps) => string> = {
   invite: (p) => `Send invite emails to all ${p.totalSubscribers} subscribers?`,
   reminder: (p) => `Send reminder to ${p.pendingCount} golfer(s) who haven't responded?`,
   golfer_confirmation: (p) => `Send confirmation email to ${p.confirmedCount} confirmed golfer(s)?`,
-  pro_shop: (p) => `Send pro shop detail email with player info and GHIN numbers?`,
+  pro_shop: (p) => `Send pro shop detail email with player info and suggested groups?`,
 };
 
-const sentTimeKeys: Record<EmailType, string> = {
+const emailLogKeys: Record<EmailType, string> = {
   invite: "invite",
   reminder: "reminder",
   golfer_confirmation: "golfer_confirmation",
@@ -50,7 +62,7 @@ const sentTimeKeys: Record<EmailType, string> = {
 };
 
 export function EmailStatusPanel(props: EmailControlsProps) {
-  const { scheduleId, status, sentTimes } = props;
+  const { scheduleId, status, emailLog } = props;
 
   const emails: { type: EmailType; sent: boolean }[] = [
     { type: "invite", sent: status.inviteSent },
@@ -67,7 +79,7 @@ export function EmailStatusPanel(props: EmailControlsProps) {
             key={type}
             type={type}
             sent={sent}
-            sentAt={sentTimes?.[sentTimeKeys[type]]}
+            logEntry={emailLog?.[emailLogKeys[type]]}
             scheduleId={scheduleId}
             controlsProps={props}
           />
@@ -91,13 +103,13 @@ function formatSentAt(sentAt: string): string {
 function EmailRow({
   type,
   sent,
-  sentAt,
+  logEntry,
   scheduleId,
   controlsProps,
 }: {
   type: EmailType;
   sent: boolean;
-  sentAt?: string;
+  logEntry?: EmailLogEntry;
   scheduleId: string;
   controlsProps: EmailControlsProps;
 }) {
@@ -138,18 +150,30 @@ function EmailRow({
     });
   };
 
+  // Build the sent detail line: "Sent Mar 6, 9:29 AM · 14 recipients · confirmed players"
+  const sentDetails: string[] = [];
+  if (sent) {
+    if (logEntry?.sentAt) {
+      sentDetails.push(formatSentAt(logEntry.sentAt));
+    }
+    if (logEntry?.recipientCount) {
+      sentDetails.push(`${logEntry.recipientCount} recipient${logEntry.recipientCount !== 1 ? "s" : ""}`);
+    }
+    sentDetails.push(emailRecipientLabels[type]);
+  }
+
   return (
     <>
       <div className="flex items-center justify-between px-4 py-3">
         <div className="flex items-center gap-2">
           {sent ? (
-            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-teal-100 text-teal-600">
+            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-teal-100 text-teal-600">
               <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
               </svg>
             </span>
           ) : (
-            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-gray-100 text-gray-400">
+            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-400">
               <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6l4 2" />
               </svg>
@@ -159,9 +183,15 @@ function EmailRow({
             <span className={`text-sm font-medium ${sent ? "text-gray-700" : "text-gray-900"}`}>
               {label}
             </span>
-            {sent && (
+            {sent ? (
               <span className="text-xs text-teal-600">
-                {sentAt ? `Sent ${formatSentAt(sentAt)}` : "Sent"}
+                {sentDetails.length > 0
+                  ? `Sent ${sentDetails.join(" · ")}`
+                  : "Sent"}
+              </span>
+            ) : (
+              <span className="text-xs text-gray-400">
+                {emailRecipientLabels[type]}
               </span>
             )}
           </div>
@@ -170,7 +200,7 @@ function EmailRow({
         <button
           onClick={() => setShowConfirm(true)}
           disabled={isPending}
-          className={`rounded-md px-3 py-1.5 text-xs font-semibold disabled:opacity-50 ${
+          className={`shrink-0 rounded-md px-3 py-1.5 text-xs font-semibold disabled:opacity-50 ${
             isResend
               ? "border border-gray-300 text-gray-600 hover:bg-gray-100"
               : "bg-navy-900 text-white hover:bg-navy-800"
