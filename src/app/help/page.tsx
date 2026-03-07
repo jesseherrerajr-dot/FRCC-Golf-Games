@@ -265,9 +265,13 @@ export default async function HelpPage() {
                     <strong>Golfer Confirmation</strong> — sent to all confirmed
                     players with the player list.{" "}
                     <strong>Pro Shop Confirmation</strong> — sent to pro shop contacts
-                    with full player details (names, phones, GHIN). You can customize
-                    the send day and time for each email in{" "}
-                    <strong>Event Settings → Email Schedule</strong>.
+                    with full player details (names, phones, GHIN) and suggested
+                    foursome groupings. You can customize the send day and time for
+                    each email in <strong>Event Settings → Email Schedule</strong>.
+                    If a cron job is delayed or you need to trigger an email
+                    manually, use the <strong>Email Controls</strong> section on the
+                    RSVP management page — it has Send Now buttons for each email
+                    type.
                   </p>
                 </FAQ>
 
@@ -289,7 +293,10 @@ export default async function HelpPage() {
                     week (tap any upcoming game on the Admin Dashboard). You&apos;ll
                     see a status dropdown next to each golfer — you can change anyone&apos;s
                     status (In, Out, Waitlisted, etc.) and promote golfers from the
-                    waitlist using the <strong>Promote</strong> button.
+                    waitlist using the <strong>Promote</strong> button. You can also
+                    expand the <strong>Email Controls</strong> section to manually
+                    send or resend any of the four weekly emails (invite, reminder,
+                    golfer confirmation, pro shop detail).
                   </p>
                 </FAQ>
 
