@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/schedule";
 import { sendEmail } from "@/lib/email";
+import { formatGameDate } from "@/lib/format";
 
 type AlertType =
   | "new_registration"
@@ -146,12 +147,12 @@ function generateAlertEmail(
 
     case "capacity_reached":
       return {
-        subject: `[${context.eventName}] Capacity Reached for ${formatDate(context.gameDate)}`,
+        subject: `[${context.eventName}] Capacity Reached for ${context.gameDate ? formatGameDate(context.gameDate) : "upcoming game"}`,
         html: `
           <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
             <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 16px; margin-bottom: 20px;">
               <h2 style="color: #92400e; margin: 0 0 8px 0; font-size: 18px;">Capacity Reached</h2>
-              <p style="margin: 0; color: #374151;">${context.eventName} — ${formatDate(context.gameDate)}</p>
+              <p style="margin: 0; color: #374151;">${context.eventName} — ${context.gameDate ? formatGameDate(context.gameDate) : "upcoming game"}</p>
             </div>
             <p style="color: #374151;">The game is now full with <strong>${context.currentCount}/${context.capacity}</strong> confirmed players.</p>
             <p style="color: #374151; font-size: 14px;">Any additional RSVPs will be added to the waitlist.</p>
@@ -161,12 +162,12 @@ function generateAlertEmail(
 
     case "spot_opened":
       return {
-        subject: `[${context.eventName}] ${context.golferName || "A player"} dropped out for ${formatDate(context.gameDate)}`,
+        subject: `[${context.eventName}] ${context.golferName || "A player"} dropped out for ${context.gameDate ? formatGameDate(context.gameDate) : "upcoming game"}`,
         html: `
           <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
             <div style="background: #f0fdf4; border-left: 4px solid #10b981; padding: 16px; margin-bottom: 20px;">
               <h2 style="color: #065f46; margin: 0 0 8px 0; font-size: 18px;">Spot Opened Up</h2>
-              <p style="margin: 0; color: #374151;">${context.eventName} — ${formatDate(context.gameDate)}</p>
+              <p style="margin: 0; color: #374151;">${context.eventName} — ${context.gameDate ? formatGameDate(context.gameDate) : "upcoming game"}</p>
             </div>
             <p style="color: #374151;"><strong>${context.golferName || "A player"}</strong> has changed from "In" to "Out." Current count: <strong>${context.currentCount}/${context.capacity}</strong>.</p>
             <p style="color: #374151; font-size: 14px;">Check the waitlist in the admin dashboard to see if anyone should be moved up.</p>
@@ -176,12 +177,12 @@ function generateAlertEmail(
 
     case "low_response":
       return {
-        subject: `[${context.eventName}] Low Response Alert for ${formatDate(context.gameDate)}`,
+        subject: `[${context.eventName}] Low Response Alert for ${context.gameDate ? formatGameDate(context.gameDate) : "upcoming game"}`,
         html: `
           <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
             <div style="background: #fef2f2; border-left: 4px solid #ef4444; padding: 16px; margin-bottom: 20px;">
               <h2 style="color: #991b1b; margin: 0 0 8px 0; font-size: 18px;">Low Response Warning</h2>
-              <p style="margin: 0; color: #374151;">${context.eventName} — ${formatDate(context.gameDate)}</p>
+              <p style="margin: 0; color: #374151;">${context.eventName} — ${context.gameDate ? formatGameDate(context.gameDate) : "upcoming game"}</p>
             </div>
             <p style="color: #374151;">Only <strong>${context.respondedCount}</strong> out of <strong>${context.totalSubscribers}</strong> members have responded so far.</p>
             <p style="color: #374151; font-size: 14px;">Consider sending a custom reminder or reaching out to members who haven't responded.</p>
@@ -197,13 +198,3 @@ function generateAlertEmail(
   }
 }
 
-function formatDate(dateString?: string): string {
-  if (!dateString) return "upcoming game";
-  const [year, month, day] = dateString.split("-").map(Number);
-  const date = new Date(year, month - 1, day);
-  return date.toLocaleDateString("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-  });
-}

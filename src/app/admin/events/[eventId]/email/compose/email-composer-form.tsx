@@ -6,6 +6,7 @@ import {
   type EmailTarget,
   type EmailTemplate,
 } from "./actions";
+import { formatGameDate, formatGameDateShort } from "@/lib/format";
 
 interface Schedule {
   id: string;
@@ -103,13 +104,7 @@ export function EmailComposerForm({
   } | null>(null);
 
   const selectedDate = schedules.find((s) => s.id === selectedSchedule)?.gameDate;
-  const formattedDate = selectedDate
-    ? new Date(selectedDate + "T12:00:00").toLocaleDateString("en-US", {
-        weekday: "long",
-        month: "long",
-        day: "numeric",
-      })
-    : "";
+  const formattedDate = selectedDate ? formatGameDate(selectedDate) : "";
 
   const applyTemplate = (templateKey: EmailTemplate) => {
     setTemplate(templateKey);
@@ -119,11 +114,7 @@ export function EmailComposerForm({
     // Replace placeholders
     const nextDate = schedules.length > 1 ? schedules[1]?.gameDate : "TBD";
     const nextFormatted = nextDate && nextDate !== "TBD"
-      ? new Date(nextDate + "T12:00:00").toLocaleDateString("en-US", {
-          weekday: "long",
-          month: "long",
-          day: "numeric",
-        })
+      ? formatGameDate(nextDate)
       : "TBD";
 
     setSubject(
@@ -197,12 +188,7 @@ export function EmailComposerForm({
         >
           {schedules.map((s) => (
             <option key={s.id} value={s.id}>
-              {new Date(s.gameDate + "T12:00:00").toLocaleDateString("en-US", {
-                weekday: "short",
-                month: "short",
-                day: "numeric",
-                year: "numeric",
-              })}
+              {formatGameDateShort(s.gameDate)}
             </option>
           ))}
         </select>

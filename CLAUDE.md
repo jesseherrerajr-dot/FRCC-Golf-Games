@@ -421,6 +421,53 @@ This project runs entirely on free-tier services. The following constraints are 
 
 ---
 
+## Timezone Rules (READ BEFORE WRITING ANY DATE/TIME CODE)
+
+This project has had **multiple production bugs** caused by UTC/Pacific timezone mismatches. Vercel serverless functions run in UTC, but all user-facing times must display in Pacific Time (America/Los_Angeles). Follow these rules strictly.
+
+### The Two Types of Date Values
+
+1. **Game dates** (`game_date` column) — stored as `YYYY-MM-DD` strings with no time component. These are calendar dates, not timestamps. Format them by parsing components directly: `new Date(year, month-1, day)`. NEVER pass a `YYYY-MM-DD` string directly to `new Date(dateStr)` — that interprets it as UTC midnight and can shift the date.
+
+2. **Timestamps** (`sent_at`, `created_at`, `responded_at`, `updated_at`) — stored as `timestamptz` in Supabase (UTC internally). ALWAYS format these with `timeZone: "America/Los_Angeles"` or use the centralized formatters.
+
+### Required: Use Centralized Formatters
+
+All display formatting MUST use functions from `src/lib/format.ts`:
+
+- `formatGameDate(dateStr)` — "Saturday, March 7, 2026" (for game dates)
+- `formatGameDateShort(dateStr)` — "Sat, Mar 7" (for compact game date display)
+- `formatGameDateForEmail(dateStr)` — "March 7, 2026" (for email subjects)
+- `formatGameDateMonthDay(dateStr)` — "March 7" (for email subjects without year)
+- `formatDateTime(dateStr)` — "Mar 6, 9:29 AM" (for timestamps, Pacific Time)
+- `formatDateTimeDateOnly(dateStr)` — "Mar 6, 2026" (for timestamp dates only, Pacific Time)
+- `formatDateTimeFull(dateStr)` — "Fri, Mar 6, 9:29 AM PST" (for admin audit displays)
+- `formatPhoneDisplay(phone)` — "(XXX) XXX-XXXX" (for all phone number display)
+
+### Forbidden Patterns (These WILL Cause Bugs on Vercel)
+
+- **NEVER** use `.toLocaleDateString()` or `.toLocaleString()` without an explicit `timeZone: "America/Los_Angeles"` option. On Vercel (UTC), omitting `timeZone` produces UTC output.
+- **NEVER** use `.setHours()` on a Date object for cutoff/schedule comparisons. The hours are set in the Date's internal timezone (UTC on Vercel), not Pacific. Use `isPastCutoffPacific()` from `timezone.ts` instead.
+- **NEVER** use `new Date(dateStr)` with a YYYY-MM-DD string — it interprets as UTC midnight. Parse components: `const [y,m,d] = dateStr.split("-").map(Number); new Date(y, m-1, d);`
+- **NEVER** define local `formatDate()`, `formatTime()`, or `formatGameDate()` functions in page files. Import from `@/lib/format`.
+- **NEVER** use `new Date()` comparisons for time-of-day checks that should be in Pacific. Use `getNowPacific()` from `timezone.ts`.
+
+### Required: Use Pacific Time Utilities for Logic
+
+All schedule/cutoff logic MUST use functions from `src/lib/timezone.ts`:
+
+- `getNowPacific()` — current time components in Pacific (year, month, day, hour, minute, dayOfWeek, dateString)
+- `isPastCutoffPacific(gameDateString, cutoffDay, cutoffTime)` — RSVP cutoff check
+- `isWithinSendWindow(sendDateString, sendTime, windowHours)` — email scheduler window check
+- `getTodayPacific()` — today's date as YYYY-MM-DD in Pacific
+- `getDateOffsetPacific(daysOffset)` — date N days from today in Pacific
+
+### Database Constraints
+
+The `email_log.email_type` column has a CHECK constraint allowing only: `'invite'`, `'reminder'`, `'confirmation_golfer'`, `'confirmation_proshop'`, `'no_game'`, `'guest_approved'`, `'guest_denied'`, `'guest_request_pending'`, `'registration_pending'`, `'custom'`. Do NOT use suffixed types like `'reminder_1'` or `'reminder_manual'` — they will silently fail the constraint and the log entry won't be written.
+
+---
+
 ## Build Phases
 ### Phase 1 — Foundation (Complete)
 - [x] Project scaffold (Next.js, Tailwind, Supabase, Resend)

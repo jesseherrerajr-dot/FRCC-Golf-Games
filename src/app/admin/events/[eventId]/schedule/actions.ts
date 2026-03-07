@@ -4,6 +4,7 @@ import { requireAdmin, hasEventAccess } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { generateSchedulesForEvent } from "@/lib/schedule-gen";
 import { sendEmail, rateLimitDelay, generateGameCancelledEmail } from "@/lib/email";
+import { formatGameDateMonthDay } from "@/lib/format";
 import type { Event } from "@/types/events";
 
 export async function generateSchedules(eventId: string) {
@@ -144,10 +145,7 @@ async function sendCancellationEmails(
   );
   const replyTo = (primaryAdmin?.profile as { email: string } | null)?.email;
 
-  const formattedDate = new Date(gameDate + "T12:00:00").toLocaleDateString(
-    "en-US",
-    { month: "long", day: "numeric" }
-  );
+  const formattedDate = formatGameDateMonthDay(gameDate);
 
   let sentCount = 0;
   for (const sub of activeSubscribers) {

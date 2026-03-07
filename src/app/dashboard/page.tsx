@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { formatPhoneDisplay } from "@/lib/format";
+import { formatPhoneDisplay, formatGameDateShort } from "@/lib/format";
 import Header from "@/components/header";
 import { HelpText } from "@/components/help-text";
 import { WelcomeBanner } from "@/components/welcome-banner";
@@ -25,15 +25,6 @@ const statusStyles: Record<RsvpStatus, string> = {
   no_response: "bg-gray-100 text-gray-600 border-gray-200",
   waitlisted: "bg-orange-100 text-orange-800 border-orange-200",
 };
-
-function formatGameDate(dateStr: string): string {
-  const date = new Date(dateStr + "T12:00:00");
-  return date.toLocaleDateString("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-  });
-}
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -191,7 +182,7 @@ export default async function DashboardPage() {
                         {nextEvent?.name || "Game"}
                       </p>
                       <p className="text-sm text-gray-500">
-                        {formatGameDate(nextSchedule.game_date)}
+                        {formatGameDateShort(nextSchedule.game_date)}
                       </p>
                     </div>
                     <div className="flex flex-col items-end gap-2">
@@ -233,7 +224,7 @@ export default async function DashboardPage() {
                                 {event?.name || "Game"}
                               </p>
                               <p className="text-sm text-gray-500">
-                                {formatGameDate(schedule.game_date)}
+                                {formatGameDateShort(schedule.game_date)}
                               </p>
                             </div>
                             <div className="flex items-center gap-2">

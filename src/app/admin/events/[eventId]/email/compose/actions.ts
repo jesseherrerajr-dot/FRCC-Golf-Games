@@ -3,6 +3,7 @@
 import { requireAdmin, hasEventAccess } from "@/lib/auth";
 import { sendEmail, rateLimitDelay } from "@/lib/email";
 import { revalidatePath } from "next/cache";
+import { formatGameDate } from "@/lib/format";
 
 export type EmailTarget =
   | "in"
@@ -61,13 +62,7 @@ export async function sendTargetedEmail(
     .eq("id", scheduleId)
     .single();
 
-  const formattedDate = schedule
-    ? new Date(schedule.game_date + "T12:00:00").toLocaleDateString("en-US", {
-        weekday: "long",
-        month: "long",
-        day: "numeric",
-      })
-    : null;
+  const formattedDate = schedule ? formatGameDate(schedule.game_date) : null;
 
   // Get primary admin for reply-to
   const { data: eventAdmins } = await supabase

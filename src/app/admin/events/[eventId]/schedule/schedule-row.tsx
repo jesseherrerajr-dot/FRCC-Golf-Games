@@ -3,6 +3,7 @@
 import { useTransition, useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { toggleGameStatus, updateWeekSettings } from "./actions";
+import { formatGameDateShort, formatGameDate } from "@/lib/format";
 
 interface ScheduleWithCounts {
   id: string;
@@ -46,22 +47,9 @@ export function ScheduleRow({
 
   const isCancelled = schedule.status === "cancelled";
 
-  const formattedDate = new Date(
-    schedule.game_date + "T12:00:00"
-  ).toLocaleDateString("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-  });
+  const formattedDate = formatGameDateShort(schedule.game_date);
 
-  const formattedDateLong = new Date(
-    schedule.game_date + "T12:00:00"
-  ).toLocaleDateString("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
+  const formattedDateLong = formatGameDate(schedule.game_date);
 
   const fillPct = Math.min(
     (schedule.inCount / schedule.effectiveCapacity) * 100,

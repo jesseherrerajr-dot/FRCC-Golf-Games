@@ -7,6 +7,7 @@ import {
   sendAdminSummaryEmail,
 } from "@/lib/email";
 import { getTodayPacific, getDateOffsetPacific } from "@/lib/timezone";
+import { formatGameDateMonthDay } from "@/lib/format";
 
 /**
  * Friday Confirmation Cron
@@ -144,9 +145,7 @@ export async function GET(request: Request) {
     // Golfer email addresses
     const golferEmails = allPlayers.map((p) => p.email).filter(Boolean);
 
-    const formattedDate = new Date(
-      schedule.game_date + "T12:00:00"
-    ).toLocaleDateString("en-US", { month: "long", day: "numeric" });
+    const formattedDate = formatGameDateMonthDay(schedule.game_date);
 
     // --- Email 1: Golfer Confirmation ---
     const confirmationHtml = generateConfirmationEmail({

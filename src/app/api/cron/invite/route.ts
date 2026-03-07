@@ -6,6 +6,7 @@ import {
   ensureRsvps,
 } from "@/lib/schedule";
 import { sendEmail, generateInviteEmail, sendAdminSummaryEmail, rateLimitDelay } from "@/lib/email";
+import { formatGameDateMonthDay } from "@/lib/format";
 
 /**
  * Monday Invite Cron
@@ -94,7 +95,7 @@ export async function GET(request: Request) {
       } else {
         const result = await sendEmail({
           to: profile.email,
-          subject: `${event.name}: ${new Date(schedule.game_date + "T12:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric" })} — Are You In?`,
+          subject: `${event.name}: ${formatGameDateMonthDay(schedule.game_date)} — Are You In?`,
           html,
         });
         if (result.success) {

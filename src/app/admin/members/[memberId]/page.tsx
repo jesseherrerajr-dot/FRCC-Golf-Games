@@ -1,6 +1,6 @@
 import { requireAdmin } from "@/lib/auth";
 import { getSubscriptionsForProfile } from "@/lib/subscriptions";
-import { formatPhoneDisplay } from "@/lib/format";
+import { formatPhoneDisplay, formatDateTimeDateOnly } from "@/lib/format";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import Header from "@/components/header";
@@ -116,12 +116,7 @@ export default async function MemberDetailPage({
               <div className="flex justify-between">
                 <dt className="text-gray-500">Joined</dt>
                 <dd className="font-medium text-gray-900">
-                  {new Date(member.created_at).toLocaleDateString("en-US", {
-                    timeZone: "America/Los_Angeles",
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                  })}
+                  {formatDateTimeDateOnly(member.created_at)}
                 </dd>
               </div>
               {member.is_super_admin && (

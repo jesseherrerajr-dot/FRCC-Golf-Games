@@ -1,6 +1,6 @@
 import { requireAdmin } from "@/lib/auth";
 import Link from "next/link";
-import { formatPhoneDisplay } from "@/lib/format";
+import { formatPhoneDisplay, formatDateTimeDateOnly } from "@/lib/format";
 import Header from "@/components/header";
 import {
   ApproveButton,
@@ -178,7 +178,7 @@ export default async function MemberDirectory({
                         />
                       </td>
                       <td className="hidden whitespace-nowrap px-4 py-3 text-sm text-gray-500 lg:table-cell">
-                        {new Date(member.created_at).toLocaleDateString()}
+                        {formatDateTimeDateOnly(member.created_at)}
                       </td>
                       <td className="whitespace-nowrap px-4 py-3 text-right">
                         <MemberActions

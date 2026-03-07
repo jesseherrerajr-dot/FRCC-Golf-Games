@@ -7,6 +7,7 @@ import { TeeTimePreference } from "./tee-time-preference";
 import { CollapsibleSection } from "./collapsible-section";
 import { HelpText } from "@/components/help-text";
 import { isPastCutoffPacific, formatCutoffDisplay } from "@/lib/timezone";
+import { formatGameDate } from "@/lib/format";
 
 function createAdminClient() {
   return createClient(
@@ -34,15 +35,6 @@ const statusColors: Record<RsvpStatus, string> = {
   waitlisted: "bg-orange-100 text-orange-800 border-orange-200",
 };
 
-function formatDate(dateStr: string): string {
-  const date = new Date(dateStr + "T12:00:00");
-  return date.toLocaleDateString("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
-}
 
 export default async function RsvpPage({
   params,
@@ -140,7 +132,7 @@ export default async function RsvpPage({
             {event?.name || "FRCC Golf Games"}
           </h1>
           <p className="mt-1 text-lg text-gray-600">
-            {schedule ? formatDate(schedule.game_date) : "Upcoming Game"}
+            {schedule ? formatGameDate(schedule.game_date) : "Upcoming Game"}
           </p>
           <p className="mt-1 text-sm text-gray-400">
             Hey {golferName}, are you playing this week?

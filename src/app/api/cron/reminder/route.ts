@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/schedule";
 import { sendEmail, generateReminderEmail, sendAdminSummaryEmail, rateLimitDelay } from "@/lib/email";
 import { getTodayPacific, getDateOffsetPacific } from "@/lib/timezone";
+import { formatGameDateMonthDay } from "@/lib/format";
 
 /**
  * Thursday Reminder Cron
@@ -101,7 +102,7 @@ export async function GET(request: Request) {
       } else {
         const result = await sendEmail({
           to: profile.email,
-          subject: `${event.name}: ${new Date(schedule.game_date + "T12:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric" })} — Last Chance to RSVP`,
+          subject: `${event.name}: ${formatGameDateMonthDay(schedule.game_date)} — Last Chance to RSVP`,
           html,
         });
         if (result.success) {

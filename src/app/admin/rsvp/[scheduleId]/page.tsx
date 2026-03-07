@@ -10,7 +10,7 @@ import {
   QuickActionButton,
 } from "./rsvp-controls";
 import { GuestApprovalButton, GuestDenialButton } from "./guest-controls";
-import { formatPhoneDisplay } from "@/lib/format";
+import { formatPhoneDisplay, formatGameDate, formatDateTime } from "@/lib/format";
 import { isPastCutoffPacific } from "@/lib/timezone";
 import { EmailStatusPanel } from "./email-controls";
 
@@ -31,27 +31,6 @@ const statusBadgeColors: Record<RsvpStatus, string> = {
   no_response: "bg-gray-100 text-gray-600",
   waitlisted: "bg-orange-100 text-orange-800",
 };
-
-function formatDate(dateStr: string): string {
-  return new Date(dateStr + "T12:00:00").toLocaleDateString("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
-}
-
-function formatTime(dateStr: string | null): string {
-  if (!dateStr) return "—";
-  return new Date(dateStr).toLocaleString("en-US", {
-    timeZone: "America/Los_Angeles",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  });
-}
 
 export default async function AdminRsvpPage({
   params,
@@ -221,7 +200,7 @@ export default async function AdminRsvpPage({
             RSVP Management
           </h1>
           <p className="mt-1 text-lg text-gray-600">
-            {event?.name} — {formatDate(schedule.game_date)}
+            {event?.name} — {formatGameDate(schedule.game_date)}
           </p>
           {schedule.status === "cancelled" && (
             <span className="mt-1 inline-block rounded-full bg-red-100 px-3 py-1 text-sm font-medium text-red-700">
@@ -393,7 +372,7 @@ export default async function AdminRsvpPage({
                         {profile?.email}
                       </td>
                       <td className="hidden whitespace-nowrap px-4 py-3 text-sm text-gray-500 md:table-cell">
-                        {formatTime(rsvp.responded_at as string | null)}
+                        {formatDateTime(rsvp.responded_at as string | null)}
                       </td>
                       <td className="whitespace-nowrap px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-2">
@@ -612,7 +591,7 @@ export default async function AdminRsvpPage({
                           {profile?.email}
                         </td>
                         <td className="hidden whitespace-nowrap px-4 py-3 text-sm text-gray-500 md:table-cell">
-                          {formatTime(rsvp.responded_at as string | null)}
+                          {formatDateTime(rsvp.responded_at as string | null)}
                         </td>
                         <td className="whitespace-nowrap px-4 py-3 text-right">
                           <div className="flex items-center justify-end gap-2">

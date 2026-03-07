@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
+import { isPastCutoffPacific } from "@/lib/timezone";
 
 function createAdminClient() {
   return createClient(
@@ -36,20 +37,20 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid token" }, { status: 404 });
   }
 
-  // Check if past cutoff
+  // Check if past cutoff (using Pacific Time — Vercel runs in UTC)
   const schedule = rsvp.schedule as {
     game_date: string;
     event: { cutoff_day: number; cutoff_time: string };
   };
   const event = schedule.event;
-  const gameDate = new Date(schedule.game_date);
-  const cutoffDate = new Date(gameDate);
-  const dayDiff = event.cutoff_day - gameDate.getDay();
-  cutoffDate.setDate(gameDate.getDate() + (dayDiff <= 0 ? dayDiff : dayDiff - 7));
-  const [hours, minutes] = event.cutoff_time.split(":");
-  cutoffDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
 
-  if (new Date() > cutoffDate) {
+  const pastCutoff = isPastCutoffPacific(
+    schedule.game_date,
+    event.cutoff_day,
+    event.cutoff_time || "10:00"
+  );
+
+  if (pastCutoff) {
     return NextResponse.json(
       { error: "RSVP deadline has passed" },
       { status: 403 }

@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useToast } from "@/components/toast";
 import { ConfirmModal } from "@/components/confirm-modal";
+import { formatDateTime } from "@/lib/format";
 import {
   sendInviteNow,
   sendReminderNow,
@@ -89,17 +90,6 @@ export function EmailStatusPanel(props: EmailControlsProps) {
   );
 }
 
-function formatSentAt(sentAt: string): string {
-  return new Date(sentAt).toLocaleString("en-US", {
-    timeZone: "America/Los_Angeles",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  });
-}
-
 function EmailRow({
   type,
   sent,
@@ -154,7 +144,7 @@ function EmailRow({
   const sentDetails: string[] = [];
   if (sent) {
     if (logEntry?.sentAt) {
-      sentDetails.push(formatSentAt(logEntry.sentAt));
+      sentDetails.push(formatDateTime(logEntry.sentAt));
     }
     if (logEntry?.recipientCount) {
       sentDetails.push(`${logEntry.recipientCount} recipient${logEntry.recipientCount !== 1 ? "s" : ""}`);
