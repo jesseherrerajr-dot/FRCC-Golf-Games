@@ -117,13 +117,13 @@ export function EventContextBar() {
   };
 
   return (
-    <div className="border-b border-teal-200 bg-teal-50 px-4 py-2">
+    <div className="border-b border-teal-200 bg-teal-50 px-4 py-3">
       <div className="mx-auto flex max-w-5xl items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="text-xs font-semibold uppercase tracking-wide text-teal-700">
             Event:
           </span>
-          <span className="font-medium text-teal-900">{currentEvent.name}</span>
+          <span className="text-lg font-bold text-navy-900">{currentEvent.name}</span>
         </div>
 
         {otherEvents.length > 0 && (

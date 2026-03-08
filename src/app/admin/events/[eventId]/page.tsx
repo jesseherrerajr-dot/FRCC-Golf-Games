@@ -114,13 +114,6 @@ export default async function EventDashboardPage({
   return (
     <main className="min-h-screen px-4 py-8">
         <div className="mx-auto max-w-4xl">
-          {/* Description — event name is in the context bar above */}
-          {event.description && (
-            <p className="mb-6 text-sm text-gray-500">
-              {event.description}
-            </p>
-          )}
-
           {/* Action Items Alert */}
           {(pendingCount > 0 || pendingGuestCount > 0) && (
             <div className="mb-6 rounded-lg border border-yellow-200 bg-yellow-50 p-4">
