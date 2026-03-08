@@ -13,6 +13,7 @@ export function CollapsibleSection({
   viewAllHref,
   viewAllLabel = "View All",
   emptyMessage,
+  className,
 }: {
   title: string;
   count?: number;
@@ -23,13 +24,14 @@ export function CollapsibleSection({
   viewAllHref?: string;
   viewAllLabel?: string;
   emptyMessage?: string;
+  className?: string;
 }) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
   const showEmpty = count === 0 && emptyMessage;
 
   return (
-    <section className="mt-8">
+    <section className={className !== undefined ? className : "mt-8"}>
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="flex w-full items-center justify-between rounded-lg px-2 py-2.5 text-left transition-colors hover:bg-gray-50"
