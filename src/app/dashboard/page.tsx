@@ -135,84 +135,90 @@ export default async function DashboardPage() {
             </div>
           )}
 
-          {/* Next Game — highlighted hero card */}
-          {upcoming.length > 0 && (() => {
-            const nextRsvp = upcoming[0] as Record<string, unknown>;
-            const nextSchedule = nextRsvp.schedule as {
-              game_date: string;
-              capacity: number | null;
-              event: { id: string; name: string; default_capacity: number } | null;
-            };
-            const nextEvent = nextSchedule?.event;
-            const nextStatus = nextRsvp.status as RsvpStatus;
-            const nextToken = nextRsvp.token as string;
-            const rest = upcoming.slice(1);
+          {/* My Events — unified section: each event with next game + RSVP + unsubscribe */}
+          {profile?.status === "active" && (
+            <div className="mt-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+              <h3 className="font-serif text-lg font-semibold uppercase tracking-wide text-navy-900">
+                My Events
+              </h3>
+              <div className="mt-1 mb-2">
+                <HelpText>Your subscribed events with upcoming games and RSVP status.</HelpText>
+              </div>
+              {subscriptions && subscriptions.length > 0 ? (
+                <div className="mt-3 space-y-4">
+                  {subscriptions.map((sub) => {
+                    const event = sub.event as {
+                      id: string;
+                      name: string;
+                      day_of_week: number | null;
+                      frequency: string | null;
+                    } | null;
+                    if (!event) return null;
 
-            return (
-              <>
-                <Link
-                  href={`/rsvp/${nextToken}`}
-                  className="mt-4 block rounded-lg border-2 border-teal-200 bg-white p-6 shadow-sm transition-colors hover:bg-teal-50/30"
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs font-medium uppercase tracking-wide text-teal-700">
-                        Next Game
-                      </p>
-                      <p className="mt-1 font-serif text-lg font-semibold text-navy-900">
-                        {nextEvent?.name || "Game"}
-                      </p>
-                      <p className="text-sm text-gray-500">
-                        {formatGameDateShort(nextSchedule.game_date)}
-                      </p>
-                    </div>
-                    <div className="flex flex-col items-end gap-2">
-                      <span
-                        className={`inline-block rounded-full border px-3 py-1.5 text-xs font-semibold ${statusStyles[nextStatus]}`}
+                    // Find the next upcoming RSVP for this event
+                    const nextRsvp = upcoming.find((rsvp: Record<string, unknown>) => {
+                      const schedule = rsvp.schedule as {
+                        event: { id: string } | null;
+                      } | null;
+                      return schedule?.event?.id === event.id;
+                    }) as Record<string, unknown> | undefined;
+
+                    const nextSchedule = nextRsvp?.schedule as {
+                      game_date: string;
+                    } | null;
+                    const nextStatus = nextRsvp?.status as RsvpStatus | undefined;
+                    const nextToken = nextRsvp?.token as string | undefined;
+
+                    const freq =
+                      event.frequency === "biweekly"
+                        ? "Bi-weekly"
+                        : event.frequency === "monthly"
+                          ? "Monthly"
+                          : "Weekly";
+                    const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+                    const day = event.day_of_week != null
+                      ? dayNames[event.day_of_week] || ""
+                      : "";
+
+                    return (
+                      <div
+                        key={sub.id as string}
+                        className="rounded-lg border border-gray-200 bg-gray-50 overflow-hidden"
                       >
-                        {statusLabels[nextStatus]}
-                      </span>
-                      <span className="text-xs text-teal-600">Tap to respond &rarr;</span>
-                    </div>
-                  </div>
-                </Link>
-
-                {/* Additional upcoming games */}
-                {rest.length > 0 && (
-                  <div className="mt-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-                    <h3 className="font-serif text-lg font-semibold uppercase tracking-wide text-navy-900">
-                      More Upcoming
-                    </h3>
-                    <div className="mt-3 space-y-3">
-                      {rest.map((rsvp: Record<string, unknown>) => {
-                        const schedule = rsvp.schedule as {
-                          game_date: string;
-                          capacity: number | null;
-                          event: { id: string; name: string; default_capacity: number } | null;
-                        };
-                        const event = schedule?.event;
-                        const status = rsvp.status as RsvpStatus;
-                        const token = rsvp.token as string;
-
-                        return (
-                          <Link
-                            key={rsvp.id as string}
-                            href={`/rsvp/${token}`}
-                            className="flex items-center justify-between rounded-lg border border-gray-100 bg-gray-50 p-4 transition-colors hover:bg-gray-100"
-                          >
+                        {/* Event header */}
+                        <div className="px-4 pt-4 pb-2">
+                          <div className="flex items-start justify-between">
                             <div>
-                              <p className="font-semibold text-gray-900">
-                                {event?.name || "Game"}
+                              <p className="font-serif font-semibold text-navy-900">
+                                {event.name}
                               </p>
-                              <p className="text-sm text-gray-500">
-                                {formatGameDateShort(schedule.game_date)}
+                              <p className="text-xs text-gray-500">
+                                {freq} &middot; {day}
                               </p>
+                            </div>
+                            <UnsubscribeButton eventId={event.id} />
+                          </div>
+                        </div>
+
+                        {/* Next game row */}
+                        {nextRsvp && nextSchedule && nextToken ? (
+                          <Link
+                            href={`/rsvp/${nextToken}`}
+                            className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 transition-colors hover:bg-teal-50/30"
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-medium uppercase tracking-wide text-teal-700">
+                                Next Game
+                              </span>
+                              <span className="text-sm text-gray-600">
+                                {formatGameDateShort(nextSchedule.game_date)}
+                              </span>
                             </div>
                             <div className="flex items-center gap-2">
                               <span
-                                className={`inline-block rounded-full border px-3 py-1 text-xs font-semibold ${statusStyles[status]}`}
+                                className={`inline-block rounded-full border px-3 py-1 text-xs font-semibold ${statusStyles[nextStatus || "no_response"]}`}
                               >
-                                {statusLabels[status]}
+                                {statusLabels[nextStatus || "no_response"]}
                               </span>
                               <svg
                                 className="h-4 w-4 text-gray-400"
@@ -229,68 +235,13 @@ export default async function DashboardPage() {
                               </svg>
                             </div>
                           </Link>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-              </>
-            );
-          })()}
-
-          {upcoming.length === 0 && profile?.status === "active" && (
-            <div className="mt-4 rounded-lg border border-dashed border-gray-300 bg-white p-8 text-center shadow-sm">
-              <p className="font-serif text-lg font-semibold text-navy-900">
-                No Upcoming Games
-              </p>
-              <p className="mt-2 text-sm text-gray-500">
-                No upcoming games scheduled yet. When an admin opens the next game,
-                you&apos;ll get an invite email with a one-tap link to RSVP.
-              </p>
-            </div>
-          )}
-
-          {/* My Events (subscriptions) */}
-          {profile?.status === "active" && (
-            <div className="mt-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-              <h3 className="font-serif text-lg font-semibold uppercase tracking-wide text-navy-900">
-                My Events
-              </h3>
-              <div className="mt-1 mb-2">
-                <HelpText>These are the games you receive weekly invites for. Unsubscribe anytime.</HelpText>
-              </div>
-              {subscriptions && subscriptions.length > 0 ? (
-                <div className="mt-3 space-y-3">
-                  {subscriptions.map((sub) => {
-                    const event = sub.event as {
-                      id: string;
-                      name: string;
-                      day_of_week: number | null;
-                      frequency: string | null;
-                    } | null;
-                    if (!event) return null;
-                    const freq =
-                      event.frequency === "biweekly"
-                        ? "Bi-weekly"
-                        : event.frequency === "monthly"
-                          ? "Monthly"
-                          : "Weekly";
-                    const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-                    const day = event.day_of_week != null
-                      ? dayNames[event.day_of_week] || ""
-                      : "";
-                    return (
-                      <div
-                        key={sub.id as string}
-                        className="flex items-center justify-between rounded-lg border border-gray-100 bg-gray-50 p-4"
-                      >
-                        <div>
-                          <p className="font-semibold text-gray-900">{event.name}</p>
-                          <p className="text-sm text-gray-500">
-                            {freq} &middot; {day}
-                          </p>
-                        </div>
-                        <UnsubscribeButton eventId={event.id} />
+                        ) : (
+                          <div className="border-t border-gray-200 bg-white px-4 py-3">
+                            <p className="text-xs text-gray-400">
+                              No upcoming game scheduled
+                            </p>
+                          </div>
+                        )}
                       </div>
                     );
                   })}
