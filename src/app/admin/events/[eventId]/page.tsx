@@ -336,95 +336,90 @@ export default async function EventDashboardPage({
             )}
           </section>
 
-          {/* Quick Links */}
-          <section className="mt-8 mb-12">
-            <h2 className="text-lg font-semibold text-gray-900">Quick Links</h2>
-            <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <Link
-                href={`/admin/events/${eventId}/settings`}
-                className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-3 shadow-sm hover:border-teal-300 hover:shadow-md transition"
-              >
-                <span className="text-sm font-medium text-gray-900">
-                  Settings
-                </span>
-                <svg
-                  className="h-4 w-4 text-gray-400"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  strokeWidth={2}
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M9 5l7 7-7 7"
-                  />
-                </svg>
-              </Link>
+          {/* Section 3: Send Message */}
+          <section className="mb-8">
+            <h2 className="mb-4 text-lg font-semibold text-gray-900">Send Message</h2>
+            <Link
+              href={`/admin/events/${eventId}/email/compose`}
+              className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4 shadow-sm hover:border-teal-300 hover:shadow-md transition"
+            >
+              <div>
+                <h3 className="font-semibold text-gray-900">Compose Email</h3>
+                <p className="text-xs text-gray-500 mt-1">
+                  Send a custom message to golfers — cancellations, weather updates, extra spots, and more
+                </p>
+              </div>
+              <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+              </svg>
+            </Link>
+          </section>
 
-              <Link
-                href={`/admin/events/${eventId}/schedule`}
-                className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-3 shadow-sm hover:border-teal-300 hover:shadow-md transition"
-              >
-                <span className="text-sm font-medium text-gray-900">
-                  Schedule
-                </span>
-                <svg
-                  className="h-4 w-4 text-gray-400"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  strokeWidth={2}
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M9 5l7 7-7 7"
-                  />
-                </svg>
-              </Link>
-
-              <Link
-                href={`/admin/events/${eventId}/email/compose`}
-                className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-3 shadow-sm hover:border-teal-300 hover:shadow-md transition"
-              >
-                <span className="text-sm font-medium text-gray-900">
-                  Send Email
-                </span>
-                <svg
-                  className="h-4 w-4 text-gray-400"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  strokeWidth={2}
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M9 5l7 7-7 7"
-                  />
-                </svg>
-              </Link>
-
+          {/* Section 4: Manage Golfers */}
+          <section className="mb-8">
+            <h2 className="mb-4 text-lg font-semibold text-gray-900">Manage Golfers</h2>
+            <div className="space-y-3">
               <Link
                 href={`/admin/events/${eventId}/golfers`}
-                className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-3 shadow-sm hover:border-teal-300 hover:shadow-md transition"
+                className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4 shadow-sm hover:border-teal-300 hover:shadow-md transition"
               >
-                <span className="text-sm font-medium text-gray-900">
-                  Golfers
-                </span>
-                <svg
-                  className="h-4 w-4 text-gray-400"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  strokeWidth={2}
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M9 5l7 7-7 7"
-                  />
+                <div>
+                  <h3 className="font-semibold text-gray-900">Golfer Directory</h3>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Search, view, deactivate, or manage event subscriptions
+                  </p>
+                </div>
+                <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                </svg>
+              </Link>
+              <Link
+                href={`/admin/events/${eventId}/golfers/add`}
+                className="flex items-center justify-between rounded-lg border border-teal-200 bg-teal-50 p-4 shadow-sm hover:border-teal-400 hover:shadow-md transition"
+              >
+                <div>
+                  <h3 className="font-semibold text-teal-900">+ Add Golfer</h3>
+                  <p className="text-xs text-teal-700 mt-1">
+                    Add a new golfer directly to this event
+                  </p>
+                </div>
+                <svg className="h-5 w-5 text-teal-600" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+              </Link>
+            </div>
+          </section>
+
+          {/* Section 5: Manage Event */}
+          <section className="mb-12">
+            <h2 className="mb-4 text-lg font-semibold text-gray-900">Manage Event</h2>
+            <div className="space-y-3">
+              <Link
+                href={`/admin/events/${eventId}/settings`}
+                className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4 shadow-sm hover:border-teal-300 hover:shadow-md transition"
+              >
+                <div>
+                  <h3 className="font-semibold text-gray-900">Event Settings</h3>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Name, capacity, admins, pro shop contacts, and feature flags
+                  </p>
+                </div>
+                <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                </svg>
+              </Link>
+              <Link
+                href={`/admin/events/${eventId}/schedule`}
+                className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4 shadow-sm hover:border-teal-300 hover:shadow-md transition"
+              >
+                <div>
+                  <h3 className="font-semibold text-gray-900">Schedule</h3>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Toggle games on/off, override weekly capacity
+                  </p>
+                </div>
+                <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
                 </svg>
               </Link>
             </div>
