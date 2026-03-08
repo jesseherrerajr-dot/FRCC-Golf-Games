@@ -243,17 +243,17 @@ export default async function AdminDashboard() {
             )}
           </section>
 
-          {/* Global Section (Super Admin Only) */}
+          {/* Super Admin Section */}
           {profile.is_super_admin && (
             <section className="mt-8">
-              <h2 className="mb-4 text-lg font-semibold text-gray-900">Global</h2>
+              <h2 className="mb-4 text-lg font-semibold text-gray-900">Super Admin</h2>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Link
                   href="/admin/golfers"
                   className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4 shadow-sm hover:border-teal-300 hover:shadow-md transition"
                 >
                   <div>
-                    <h3 className="font-semibold text-gray-900">All Golfers</h3>
+                    <h3 className="font-semibold text-gray-900">Golfer Directory (All Events)</h3>
                     <p className="text-xs text-gray-500 mt-1">Manage all golfers and pending approvals</p>
                   </div>
                   <svg
