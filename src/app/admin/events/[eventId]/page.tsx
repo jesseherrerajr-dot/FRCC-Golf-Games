@@ -114,17 +114,12 @@ export default async function EventDashboardPage({
   return (
     <main className="min-h-screen px-4 py-8">
         <div className="mx-auto max-w-4xl">
-          {/* Header — event name is already shown in the context bar above */}
-          <div className="mb-6">
-            <h1 className="text-2xl font-serif font-bold text-navy-900 uppercase tracking-wide">
-              {event.name}
-            </h1>
-            {event.description && (
-              <p className="mt-1 text-sm text-gray-500">
-                {event.description}
-              </p>
-            )}
-          </div>
+          {/* Description — event name is in the context bar above */}
+          {event.description && (
+            <p className="mb-6 text-sm text-gray-500">
+              {event.description}
+            </p>
+          )}
 
           {/* Action Items Alert */}
           {(pendingCount > 0 || pendingGuestCount > 0) && (
