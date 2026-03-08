@@ -34,14 +34,6 @@ export default async function EventDashboardPage({
 
   const today = getTodayPacific();
 
-  // Fetch active golfers subscribed to this event
-  const { data: subscriptions } = await supabase
-    .from("event_subscriptions")
-    .select("profile_id")
-    .eq("event_id", eventId);
-
-  const activeGolferCount = subscriptions?.length || 0;
-
   // Fetch pending registrations for this event
   // (registered through this event's join link OR generic registration)
   const { data: pendingGolfers } = await supabase
@@ -69,14 +61,14 @@ export default async function EventDashboardPage({
 
   const pendingGuestCount = pendingGuestRequests?.length || 0;
 
-  // Fetch upcoming schedules for this event (next 4 weeks)
+  // Fetch next upcoming game for this event (current week only)
   const { data: upcomingGames } = await supabase
     .from("event_schedules")
     .select("*")
     .eq("event_id", eventId)
     .gte("game_date", today)
     .order("game_date", { ascending: true })
-    .limit(4);
+    .limit(1);
 
   // Get RSVP counts for each upcoming game
   const upcomingWithCounts = await Promise.all(
@@ -111,207 +103,157 @@ export default async function EventDashboardPage({
     })
   );
 
+  // Check if guest requests feature is enabled for this event
+  const guestRequestsEnabled = event.allow_guest_requests;
+
   return (
     <main className="min-h-screen px-4 py-8">
         <div className="mx-auto max-w-4xl">
-          {/* Action Items Alert */}
-          {(pendingCount > 0 || pendingGuestCount > 0) && (
-            <div className="mb-6 rounded-lg border border-yellow-200 bg-yellow-50 p-4">
-              <h2 className="font-semibold text-yellow-800">
-                Action Required
-              </h2>
-              <div className="mt-1 space-y-1 text-sm text-yellow-700">
-                {pendingCount > 0 && (
-                  <p>
-                    • {pendingCount} registration{pendingCount !== 1 ? "s" : ""}{" "}
-                    awaiting approval
-                  </p>
-                )}
-                {pendingGuestCount > 0 && (
-                  <p>
-                    • {pendingGuestCount} guest request
-                    {pendingGuestCount !== 1 ? "s" : ""} awaiting review
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
+          {/* Section 1: Action Required */}
+          <section className="mb-8">
+            <h2 className="mb-4 text-lg font-semibold text-gray-900">Action Required</h2>
 
-          {/* Summary Metrics */}
-          <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
-            <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-              <p className="text-2xl font-bold text-teal-700">
-                {activeGolferCount}
-              </p>
-              <p className="text-sm text-gray-500">Active Golfers</p>
-            </div>
-
-            {upcomingWithCounts.length > 0 && (
-              <>
-                <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-                  <p className="text-2xl font-bold text-teal-700">
-                    {upcomingWithCounts[0].inCount}/
-                    {upcomingWithCounts[0].capacity}
-                  </p>
-                  <p className="text-sm text-gray-500">This Week</p>
-                </div>
-              </>
-            )}
-
-            <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-              <p className="text-2xl font-bold text-yellow-600">{pendingCount}</p>
-              <p className="text-sm text-gray-500">Pending Approval</p>
-            </div>
-
-            <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-              <p className="text-2xl font-bold text-orange-600">
-                {pendingGuestCount}
-              </p>
-              <p className="text-sm text-gray-500">Guest Requests</p>
-            </div>
-          </div>
-
-          {/* Pending Registrations */}
-          <CollapsibleSection
-            title="Pending Registrations"
-            count={pendingCount}
-            defaultOpen={pendingCount > 0}
-            emptyMessage="No registrations awaiting approval."
-          >
-            <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                      Name
-                    </th>
-                    <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 sm:table-cell">
-                      Email
-                    </th>
-                    <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 sm:table-cell">
-                      GHIN
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                      Registered
-                    </th>
-                    <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {pendingGolfers?.map((golfer) => (
-                    <tr key={golfer.id}>
-                      <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900">
-                        {golfer.first_name} {golfer.last_name}
-                        <span className="block text-xs text-gray-400 sm:hidden">
-                          {golfer.email}
-                        </span>
-                      </td>
-                      <td className="hidden whitespace-nowrap px-4 py-3 text-sm text-gray-600 sm:table-cell">
-                        {golfer.email}
-                      </td>
-                      <td className="hidden whitespace-nowrap px-4 py-3 text-sm text-gray-600 sm:table-cell">
-                        {golfer.ghin_number || "—"}
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500">
-                        {new Date(golfer.created_at).toLocaleDateString()}
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-3 text-right">
-                        <div className="flex justify-end gap-2">
-                          <ApproveButton profileId={golfer.id} />
-                          <DenyButton profileId={golfer.id} />
-                        </div>
-                      </td>
+            {/* Pending Registrations */}
+            <CollapsibleSection
+              title="Pending Registrations"
+              count={pendingCount}
+              defaultOpen={pendingCount > 0}
+              emptyMessage="No registrations awaiting approval."
+            >
+              <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                        Name
+                      </th>
+                      <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 sm:table-cell">
+                        Email
+                      </th>
+                      <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 sm:table-cell">
+                        GHIN
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                        Registered
+                      </th>
+                      <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
+                        Actions
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </CollapsibleSection>
-
-          {/* Pending Guest Requests */}
-          <CollapsibleSection
-            title="Pending Guest Requests"
-            count={pendingGuestCount}
-            defaultOpen={pendingGuestCount > 0}
-            emptyMessage="No pending guest requests."
-          >
-            <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                      Guest Name
-                    </th>
-                    <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 sm:table-cell">
-                      Requested By
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                      Game Date
-                    </th>
-                    <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {pendingGuestRequests?.map((request: Record<string, unknown>) => {
-                    const schedule = request.schedule as unknown as {
-                      id: string;
-                      game_date: string;
-                      event: { name: string };
-                    };
-                    const requestor = request.requestor as {
-                      first_name: string;
-                      last_name: string;
-                    };
-                    return (
-                      <tr key={request.id as string}>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {pendingGolfers?.map((golfer) => (
+                      <tr key={golfer.id}>
                         <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900">
-                          {request.guest_first_name as string}{" "}
-                          {request.guest_last_name as string}
+                          {golfer.first_name} {golfer.last_name}
                           <span className="block text-xs text-gray-400 sm:hidden">
-                            by {requestor?.first_name} {requestor?.last_name}
+                            {golfer.email}
                           </span>
                         </td>
                         <td className="hidden whitespace-nowrap px-4 py-3 text-sm text-gray-600 sm:table-cell">
-                          {requestor?.first_name} {requestor?.last_name}
+                          {golfer.email}
+                        </td>
+                        <td className="hidden whitespace-nowrap px-4 py-3 text-sm text-gray-600 sm:table-cell">
+                          {golfer.ghin_number || "—"}
                         </td>
                         <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500">
-                          {formatGameDateShort(schedule.game_date)}
+                          {new Date(golfer.created_at).toLocaleDateString()}
                         </td>
                         <td className="whitespace-nowrap px-4 py-3 text-right">
-                          <Link
-                            href={`/admin/events/${eventId}/rsvp/${schedule.id}`}
-                            className="text-sm text-teal-700 hover:text-teal-600"
-                          >
-                            Review →
-                          </Link>
+                          <div className="flex justify-end gap-2">
+                            <ApproveButton profileId={golfer.id} />
+                            <DenyButton profileId={golfer.id} />
+                          </div>
                         </td>
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </CollapsibleSection>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CollapsibleSection>
 
-          {/* Upcoming Games */}
-          <CollapsibleSection
-            title="Upcoming Games"
-            count={upcomingWithCounts.length}
-            defaultOpen={true}
-            emptyMessage="No upcoming games scheduled."
-          >
-            <div className="space-y-3">
-              {upcomingWithCounts.map((game) => {
+            {/* Pending Guest Requests — only shown when feature is enabled */}
+            {guestRequestsEnabled && (
+              <CollapsibleSection
+                title="Pending Guest Requests"
+                count={pendingGuestCount}
+                defaultOpen={pendingGuestCount > 0}
+                emptyMessage="No pending guest requests."
+              >
+                <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                          Guest Name
+                        </th>
+                        <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 sm:table-cell">
+                          Requested By
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                          Game Date
+                        </th>
+                        <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {pendingGuestRequests?.map((request: Record<string, unknown>) => {
+                        const schedule = request.schedule as unknown as {
+                          id: string;
+                          game_date: string;
+                          event: { name: string };
+                        };
+                        const requestor = request.requestor as {
+                          first_name: string;
+                          last_name: string;
+                        };
+                        return (
+                          <tr key={request.id as string}>
+                            <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900">
+                              {request.guest_first_name as string}{" "}
+                              {request.guest_last_name as string}
+                              <span className="block text-xs text-gray-400 sm:hidden">
+                                by {requestor?.first_name} {requestor?.last_name}
+                              </span>
+                            </td>
+                            <td className="hidden whitespace-nowrap px-4 py-3 text-sm text-gray-600 sm:table-cell">
+                              {requestor?.first_name} {requestor?.last_name}
+                            </td>
+                            <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500">
+                              {formatGameDateShort(schedule.game_date)}
+                            </td>
+                            <td className="whitespace-nowrap px-4 py-3 text-right">
+                              <Link
+                                href={`/admin/events/${eventId}/rsvp/${schedule.id}`}
+                                className="text-sm text-teal-700 hover:text-teal-600"
+                              >
+                                Review →
+                              </Link>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </CollapsibleSection>
+            )}
+          </section>
+
+          {/* Section 2: Upcoming Games — current week only */}
+          <section className="mb-8">
+            <h2 className="mb-4 text-lg font-semibold text-gray-900">Upcoming Games</h2>
+
+            {upcomingWithCounts.length > 0 ? (
+              (() => {
+                const game = upcomingWithCounts[0];
                 const isCancelled = game.status === "cancelled";
                 const formattedDate = formatGameDate(game.game_date);
 
                 return (
                   <Link
-                    key={game.id}
                     href={`/admin/events/${eventId}/rsvp/${game.id}`}
                     className={`block rounded-lg border bg-white p-4 shadow-sm transition hover:shadow-md ${
                       isCancelled
@@ -388,9 +330,11 @@ export default async function EventDashboardPage({
                     )}
                   </Link>
                 );
-              })}
-            </div>
-          </CollapsibleSection>
+              })()
+            ) : (
+              <p className="text-sm text-gray-500">No upcoming games scheduled.</p>
+            )}
+          </section>
 
           {/* Quick Links */}
           <section className="mt-8 mb-12">
