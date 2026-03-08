@@ -1,7 +1,6 @@
 import { requireAdmin, hasEventAccess } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Breadcrumbs } from "@/components/breadcrumbs";
 import { CollapsibleSection } from "@/components/collapsible-section";
 import { formatGameDate, formatGameDateShort } from "@/lib/format";
 import { getTodayPacific } from "@/lib/timezone";
@@ -115,20 +114,16 @@ export default async function EventDashboardPage({
   return (
     <main className="min-h-screen px-4 py-8">
         <div className="mx-auto max-w-4xl">
-          {/* Breadcrumb and Header */}
+          {/* Header — event name is already shown in the context bar above */}
           <div className="mb-6">
-            <Breadcrumbs
-              items={[
-                { label: "Admin", href: "/admin" },
-                { label: event.name },
-              ]}
-            />
             <h1 className="text-2xl font-serif font-bold text-navy-900 uppercase tracking-wide">
               {event.name}
             </h1>
-            <p className="mt-1 text-sm text-gray-500">
-              {event.description}
-            </p>
+            {event.description && (
+              <p className="mt-1 text-sm text-gray-500">
+                {event.description}
+              </p>
+            )}
           </div>
 
           {/* Action Items Alert */}
