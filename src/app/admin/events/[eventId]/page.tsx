@@ -2,8 +2,8 @@ import { requireAdmin, hasEventAccess } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { CollapsibleSection } from "@/components/collapsible-section";
-import { formatGameDate, formatGameDateShort } from "@/lib/format";
-import { getTodayPacific } from "@/lib/timezone";
+import { formatGameDate, formatGameDateShort, formatDateTime } from "@/lib/format";
+import { getTodayPacific, calculateSendDateString } from "@/lib/timezone";
 import {
   ApproveButton,
   DenyButton,
@@ -71,35 +71,97 @@ export default async function EventDashboardPage({
     .order("game_date", { ascending: true })
     .limit(1);
 
-  // Get RSVP counts for each upcoming game
+  // Get invite email schedule config for this event
+  const { data: inviteSchedule } = await supabase
+    .from("email_schedules")
+    .select("*")
+    .eq("event_id", eventId)
+    .eq("email_type", "invite")
+    .eq("is_enabled", true)
+    .limit(1)
+    .single();
+
+  // Get RSVP counts and invite info for the upcoming game
   const upcomingWithCounts = await Promise.all(
     (upcomingGames || []).map(async (game) => {
-      const { count: inCount } = await supabase
-        .from("rsvps")
-        .select("*", { count: "exact", head: true })
-        .eq("schedule_id", game.id)
-        .eq("status", "in");
+      const [
+        { count: inCount },
+        { count: outCount },
+        { count: notSureCount },
+        { count: noResponseCount },
+        { count: waitlistCount },
+      ] = await Promise.all([
+        supabase
+          .from("rsvps")
+          .select("*", { count: "exact", head: true })
+          .eq("schedule_id", game.id)
+          .eq("status", "in"),
+        supabase
+          .from("rsvps")
+          .select("*", { count: "exact", head: true })
+          .eq("schedule_id", game.id)
+          .eq("status", "out"),
+        supabase
+          .from("rsvps")
+          .select("*", { count: "exact", head: true })
+          .eq("schedule_id", game.id)
+          .eq("status", "not_sure"),
+        supabase
+          .from("rsvps")
+          .select("*", { count: "exact", head: true })
+          .eq("schedule_id", game.id)
+          .eq("status", "no_response"),
+        supabase
+          .from("rsvps")
+          .select("*", { count: "exact", head: true })
+          .eq("schedule_id", game.id)
+          .eq("status", "waitlisted"),
+      ]);
 
-      const { count: waitlistCount } = await supabase
-        .from("rsvps")
-        .select("*", { count: "exact", head: true })
+      // Check if invite was sent — look up email_log
+      const { data: inviteLog } = await supabase
+        .from("email_log")
+        .select("created_at, recipient_count")
         .eq("schedule_id", game.id)
-        .eq("status", "waitlisted");
+        .eq("email_type", "invite")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
 
-      const { count: noResponseCount } = await supabase
-        .from("rsvps")
-        .select("*", { count: "exact", head: true })
-        .eq("schedule_id", game.id)
-        .in("status", ["no_response", "not_sure"]);
+      // Compute scheduled invite date/time if not yet sent
+      let scheduledInviteDisplay: string | null = null;
+      if (!inviteLog && inviteSchedule) {
+        const sendDate = calculateSendDateString(
+          game.game_date,
+          inviteSchedule.send_day_offset
+        );
+        const sendTime = inviteSchedule.send_time as string; // e.g. "08:45:00"
+        const [h, m] = sendTime.split(":").map(Number);
+        const hour12 = h % 12 || 12;
+        const ampm = h < 12 ? "AM" : "PM";
+        const timeStr = m === 0 ? `${hour12} ${ampm}` : `${hour12}:${String(m).padStart(2, "0")} ${ampm}`;
+        // Format the date
+        const [year, month, day] = sendDate.split("-").map(Number);
+        const dateObj = new Date(year, month - 1, day);
+        const dayName = dateObj.toLocaleDateString("en-US", { weekday: "short" });
+        const monthName = dateObj.toLocaleDateString("en-US", { month: "short" });
+        scheduledInviteDisplay = `${dayName}, ${monthName} ${day} at ${timeStr}`;
+      }
 
       const capacity = game.capacity || event.default_capacity || 16;
 
       return {
         ...game,
         inCount: inCount || 0,
-        waitlistCount: waitlistCount || 0,
+        outCount: outCount || 0,
+        notSureCount: notSureCount || 0,
         noResponseCount: noResponseCount || 0,
+        waitlistCount: waitlistCount || 0,
         capacity,
+        inviteSent: !!inviteLog,
+        inviteSentAt: inviteLog?.created_at || null,
+        inviteRecipientCount: inviteLog?.recipient_count || 0,
+        scheduledInviteDisplay,
       };
     })
   );
@@ -251,9 +313,9 @@ export default async function EventDashboardPage({
             </div>
           </section>
 
-          {/* Section 2: Upcoming Games — current week only */}
+          {/* Section 2: Upcoming Game */}
           <section className="mb-8">
-            <h2 className="mb-4 text-lg font-semibold text-gray-900">Upcoming Games</h2>
+            <h2 className="mb-4 text-lg font-semibold text-gray-900">Upcoming Game</h2>
 
             {upcomingWithCounts.length > 0 ? (
               (() => {
@@ -264,77 +326,122 @@ export default async function EventDashboardPage({
                 return (
                   <Link
                     href={`/admin/events/${eventId}/rsvp/${game.id}`}
-                    className={`block rounded-lg border bg-white p-4 shadow-sm transition hover:shadow-md ${
+                    className={`block rounded-lg border bg-white shadow-sm transition hover:shadow-md ${
                       isCancelled
                         ? "border-red-200 opacity-60"
                         : "border-gray-200 hover:border-teal-300"
                     }`}
                   >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="font-semibold text-gray-900">
-                          {formattedDate}
-                          {isCancelled && (
-                            <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
-                              Cancelled
-                            </span>
-                          )}
-                        </h3>
-                      </div>
-                      <div className="flex items-center gap-4 text-right">
-                        <div>
-                          <p className="text-lg font-bold text-teal-700">
-                            {game.inCount}/{game.capacity}
-                          </p>
-                          <p className="text-xs text-gray-500">Confirmed</p>
-                        </div>
-                        {game.waitlistCount > 0 && (
-                          <div>
-                            <p className="text-lg font-bold text-orange-600">
-                              {game.waitlistCount}
-                            </p>
-                            <p className="text-xs text-gray-500">Waitlist</p>
-                          </div>
+                    {/* Header with date and chevron */}
+                    <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
+                      <h3 className="font-semibold text-gray-900">
+                        {formattedDate}
+                        {isCancelled && (
+                          <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
+                            Cancelled
+                          </span>
                         )}
-                        {game.noResponseCount > 0 && (
-                          <div>
-                            <p className="text-lg font-bold text-gray-400">
-                              {game.noResponseCount}
-                            </p>
-                            <p className="text-xs text-gray-500">Pending</p>
-                          </div>
-                        )}
-                        <svg
-                          className="h-5 w-5 text-gray-400"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          strokeWidth={2}
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M8.25 4.5l7.5 7.5-7.5 7.5"
-                          />
-                        </svg>
-                      </div>
-                    </div>
-                    {/* Mini capacity bar */}
-                    {!isCancelled && (
-                      <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-gray-200">
-                        <div
-                          className={`h-full rounded-full ${
-                            game.inCount >= game.capacity
-                              ? "bg-red-500"
-                              : "bg-teal-500"
-                          }`}
-                          style={{
-                            width: `${Math.min(
-                              (game.inCount / game.capacity) * 100,
-                              100
-                            )}%`,
-                          }}
+                      </h3>
+                      <svg
+                        className="h-5 w-5 text-gray-400"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        strokeWidth={2}
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M8.25 4.5l7.5 7.5-7.5 7.5"
                         />
+                      </svg>
+                    </div>
+
+                    {/* Summary rows */}
+                    {!isCancelled && (
+                      <div className="divide-y divide-gray-50 px-4">
+                        {/* Invited */}
+                        <div className="flex items-center justify-between py-2.5">
+                          <span className="text-sm text-gray-600">Invited</span>
+                          <span className="text-sm text-gray-900">
+                            {game.inviteSent ? (
+                              <>
+                                <span className="font-medium">{game.inviteRecipientCount}</span>
+                                <span className="ml-1 text-xs text-gray-400">
+                                  sent {formatDateTime(game.inviteSentAt)}
+                                </span>
+                              </>
+                            ) : (
+                              <span className="text-xs text-gray-400">
+                                {game.scheduledInviteDisplay
+                                  ? `Scheduled ${game.scheduledInviteDisplay}`
+                                  : "Not scheduled"}
+                              </span>
+                            )}
+                          </span>
+                        </div>
+
+                        {/* I'm In */}
+                        <div className="flex items-center justify-between py-2.5">
+                          <span className="text-sm text-gray-600">I&apos;m In</span>
+                          <span className="text-sm font-medium text-teal-700">
+                            {game.inCount}
+                            <span className="font-normal text-gray-400">/{game.capacity}</span>
+                          </span>
+                        </div>
+
+                        {/* I'm Out */}
+                        <div className="flex items-center justify-between py-2.5">
+                          <span className="text-sm text-gray-600">I&apos;m Out</span>
+                          <span className="text-sm font-medium text-gray-900">
+                            {game.outCount}
+                          </span>
+                        </div>
+
+                        {/* Not Sure Yet */}
+                        <div className="flex items-center justify-between py-2.5">
+                          <span className="text-sm text-gray-600">Not Sure Yet</span>
+                          <span className="text-sm font-medium text-amber-600">
+                            {game.notSureCount}
+                          </span>
+                        </div>
+
+                        {/* No Response */}
+                        <div className="flex items-center justify-between py-2.5">
+                          <span className="text-sm text-gray-600">No Response</span>
+                          <span className="text-sm font-medium text-gray-400">
+                            {game.noResponseCount}
+                          </span>
+                        </div>
+
+                        {/* Waitlist */}
+                        <div className="flex items-center justify-between py-2.5">
+                          <span className="text-sm text-gray-600">Waitlist</span>
+                          <span className={`text-sm font-medium ${game.waitlistCount > 0 ? "text-orange-600" : "text-gray-900"}`}>
+                            {game.waitlistCount}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Capacity bar */}
+                    {!isCancelled && (
+                      <div className="px-4 pb-3 pt-1">
+                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-200">
+                          <div
+                            className={`h-full rounded-full ${
+                              game.inCount >= game.capacity
+                                ? "bg-red-500"
+                                : "bg-teal-500"
+                            }`}
+                            style={{
+                              width: `${Math.min(
+                                (game.inCount / game.capacity) * 100,
+                                100
+                              )}%`,
+                            }}
+                          />
+                        </div>
                       </div>
                     )}
                   </Link>
