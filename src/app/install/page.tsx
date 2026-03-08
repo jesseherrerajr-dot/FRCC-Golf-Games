@@ -11,7 +11,7 @@ export default function InstallPage() {
               href="/dashboard"
               className="text-sm text-teal-700 hover:text-teal-600"
             >
-              &larr; Back to Dashboard
+              &larr; Back to Home
             </Link>
             <h1 className="mt-2 text-2xl font-serif uppercase tracking-wide font-bold text-navy-900">
               Get the App

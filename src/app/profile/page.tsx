@@ -138,14 +138,15 @@ export default function ProfilePage() {
               href="/dashboard"
               className="text-sm text-teal-700 hover:text-teal-600"
             >
-              &larr; Back to Dashboard
+              &larr; Back to Home
             </Link>
             <h1 className="mt-2 text-2xl font-serif uppercase tracking-wide font-bold text-navy-900">
               Profile Settings
             </h1>
           <p className="mt-1 text-sm text-gray-500">
-            Update your personal information. This is shared with the pro shop
-            for game setup, so keep it current.
+            Your contact info is only shared with the Event Admins and the
+            Pro Shop for the purposes of communicating with you and setting up
+            tee times.
           </p>
         </div>
 
