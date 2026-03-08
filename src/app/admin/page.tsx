@@ -98,7 +98,7 @@ export default async function AdminDashboard() {
           {/* Header */}
           <div className="mb-8">
             <h1 className="text-3xl font-serif font-bold text-navy-900 uppercase tracking-wide">
-              Admin Home
+              Admin
             </h1>
             <p className="mt-1 text-sm text-gray-500">
               {profile.is_super_admin ? "Super Admin" : "Event Admin"} — {profile.first_name}{" "}
