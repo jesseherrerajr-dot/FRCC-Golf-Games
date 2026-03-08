@@ -30,26 +30,30 @@ An automated golf participation tracker for recurring games at Fairbanks Ranch C
 - `auth/confirm/` — Email OTP confirmation page
 - `auth/signout/` — Sign-out route
 - `auth/link-error/` — Expired/invalid magic link error page
-- `dashboard/` — Golfer dashboard (upcoming RSVPs, My Events, unsubscribe)
-- `profile/` — Golfer profile settings (name, email, phone, GHIN)
-- `preferences/` — Playing partner preferences (ranked list with up/down reordering, searchable add)
+- `dashboard/` — Golfer dashboard (upcoming RSVPs, My Events, unsubscribe). Nav label: "Home"
+- `profile/` — Golfer profile settings (name, email, phone, GHIN) with per-event playing partner preferences
+- `preferences/` — Redirects to `/profile` (playing partner preferences now scoped per-event on profile page)
+- `help/` — Help documentation with expandable Golfer FAQ + Admin FAQ sections
 - `rsvp/[token]/` — Tokenized RSVP page (one-tap In/Out/Not Sure, guest requests, tee time pref)
 
 ### Admin Pages (src/app/admin/)
-- `page.tsx` — Admin dashboard (weekly RSVP overview, action items, collapsible sections)
+- `page.tsx` — Admin dashboard. Super admins see event summary cards for all events + global section. Event admins see only assigned events.
 - `actions.ts` — Admin dashboard server actions
 - `admin-actions.tsx` — Admin action items component
-- `members/page.tsx` — Member directory (search, filter, approve/deny)
-- `members/member-search.tsx` — Member search component
-- `members/[memberId]/page.tsx` — Member detail page (status, subscriptions)
-- `members/[memberId]/subscription-toggles.tsx` — Event subscription toggle component
-- `members/[memberId]/actions.ts` — Member detail server actions (approve, deactivate, delete)
-- `members/add/` — Admin "Add Golfer" page (direct add, no approval needed)
-- `rsvp/[scheduleId]/page.tsx` — Weekly RSVP management (In/Out/Waitlist breakdown, collapsible sections)
-- `rsvp/[scheduleId]/rsvp-controls.tsx` — RSVP override controls (post-cutoff admin changes)
-- `rsvp/[scheduleId]/guest-controls.tsx` — Guest request approve/deny controls
-- `rsvp/[scheduleId]/actions.ts` — RSVP management server actions
-- `rsvp/[scheduleId]/guest-actions.ts` — Guest approval server actions
+- `golfers/page.tsx` — Global golfer directory (super admin only). Shows all golfers across all events with event filter.
+- `golfers/golfer-search.tsx` — Golfer search component with event filter
+- `golfers/[golferId]/page.tsx` — Global golfer detail page (status, subscriptions to all events)
+- `golfers/add/` — Add golfer globally with multi-event subscription picker
+- `events/[eventId]/page.tsx` — Event dashboard. Shows event summary metrics, action items, upcoming games, quick links.
+- `events/[eventId]/golfers/page.tsx` — Event-scoped golfer directory
+- `events/[eventId]/golfers/golfer-search.tsx` — Event-scoped golfer search
+- `events/[eventId]/golfers/add/` — Add golfer to specific event (auto-subscribes)
+- `events/[eventId]/golfers/[golferId]/page.tsx` — Event-scoped golfer detail (status, subscriptions for this event only)
+- `events/[eventId]/rsvp/[scheduleId]/page.tsx` — Event-scoped RSVP management redirect
+- `events/[eventId]/rsvp/[scheduleId]/rsvp-controls.tsx` — RSVP override controls (post-cutoff admin changes)
+- `events/[eventId]/rsvp/[scheduleId]/guest-controls.tsx` — Guest request approve/deny controls
+- `events/[eventId]/rsvp/[scheduleId]/actions.ts` — RSVP management server actions
+- `events/[eventId]/rsvp/[scheduleId]/guest-actions.ts` — Guest approval server actions
 - `events/new/` — Create new event page
 - `events/[eventId]/settings/` — Event settings (name, capacity, admins, pro shop contacts, feature flags)
 - `events/[eventId]/schedule/` — 4-week rolling schedule (Game On/No Game toggle, capacity override)
@@ -85,6 +89,7 @@ An automated golf participation tracker for recurring games at Fairbanks Ranch C
 - `src/middleware.ts` — Next.js middleware (auth redirects, session refresh)
 - `src/types/events.ts` — TypeScript types for events, RSVPs, profiles, groupings
 - `src/components/header.tsx` — Shared header/nav component
+- `src/components/event-context-bar.tsx` — Event context indicator + event switcher (shows on `/admin/events/[eventId]/*` pages)
 - `src/components/collapsible-section.tsx` — Shared collapsible section component (expand/collapse with chevron, count badge, optional "View All" link)
 - `scripts/import-golfers.ts` — Batch import golfers from Excel
 - `scripts/delete-user.ts` — Delete a user script
@@ -94,20 +99,20 @@ An automated golf participation tracker for recurring games at Fairbanks Ranch C
 ---
 
 ## Terminology
-- **Event**: A recurring game (e.g., "FRCC Saturday Morning Group"). Each event has its own schedule, capacity, RSVP cycle, admin assignments, and member subscriptions. Events can be weekly, bi-weekly, or monthly.
+- **Event**: A recurring game (e.g., "FRCC Saturday Morning Group"). Each event has its own schedule, capacity, RSVP cycle, admin assignments, and golfer subscriptions. Events can be weekly, bi-weekly, or monthly.
 - **Super Admin**: Full platform access. Can manage all events, add/remove admins, manage all settings. Also a golfer on the distribution list.
 - **Event Admin (Primary)**: Manages a specific event. The "reply-to" address on automated emails for that event. Can approve registrations, manage RSVPs, toggle schedule, send custom emails.
 - **Event Admin (Secondary)**: Same permissions as primary for the event, CC'd on all communications. Exists for redundancy.
-- **Golfer (Member)**: A confirmed club member on the distribution list. Receives weekly invites, can RSVP, manage profile, set preferences.
-- **Guest**: A non-member registered in the system (name, email, phone, GHIN) but NOT on any distribution list. Can only play when invited by a member for a specific week.
-- **GHIN**: USGA Golf Handicap & Information Network number. Optional for members and guests (can be added later via profile settings). Future: GHIN API integration.
+- **Golfer**: A confirmed club member on the distribution list. Receives weekly invites, can RSVP, manage profile, set preferences.
+- **Guest**: A non-golfer registered in the system (name, email, phone, GHIN) but NOT on any distribution list. Can only play when invited by a golfer for a specific week.
+- **GHIN**: USGA Golf Handicap & Information Network number. Optional for golfers and guests (can be added later via profile settings). Future: GHIN API integration.
 
 ---
 
 ## User Roles & Dual-Role Design
 Super admins and event admins are also golfers. They register, subscribe to events, RSVP weekly, and appear on the distribution list just like any other golfer. Admin capabilities are layered on top of their golfer account.
 
-When an admin logs in, they see their golfer dashboard (upcoming RSVPs, profile, preferences) PLUS admin tools (member management, schedule, RSVP overview, action items).
+When an admin logs in, they see their golfer dashboard (upcoming RSVPs, profile, preferences) PLUS admin tools (golfer management, schedule, RSVP overview, action items).
 
 ### Permission Hierarchy
 - **Super Admin**: All permissions. Manage events (create/edit/delete). Add/remove other admins. Add/remove golfers. Access all event settings. View all data across all events.
@@ -124,12 +129,12 @@ There are three ways to add golfers to the system:
 2. Golfer visits the link and fills in: first name, last name, email (required), phone and GHIN (optional).
 3. System sends a verification code to the golfer's email.
 4. Golfer enters the code → email is confirmed → account status becomes "Pending Approval." An admin alert email is sent immediately to event admins (via both OTP code and magic link verification paths).
-5. Admin sees the pending registration in the Member Directory and approves or denies.
+5. Admin sees the pending registration in the Golfer Directory and approves or denies.
 6. Once approved, status becomes "Active" and the golfer is subscribed to that specific event only.
 
 ### Path 2 — Admin Adds Golfer Directly
-1. Admin goes to Member Directory → "+ Add Golfer."
-2. Fills in name, email, optional phone/GHIN, and selects which event to subscribe them to (or "All Active Events").
+1. Super admin goes to Admin → Golfers → "+ Add Golfer" (global) or event admin goes to Admin → Events → [Event] → Golfers → "+ Add Golfer" (event-scoped).
+2. Fills in name, email, optional phone/GHIN, and selects which event(s) to subscribe them to.
 3. Golfer is created as Active immediately — no approval step needed.
 4. Golfer can log in anytime using a magic link sent to their email.
 
@@ -147,12 +152,13 @@ The original `/join` page still exists for golfers who aren't referred to a spec
 - GHIN: Optional field stored as-is. Future: API validation.
 - All fields can be modified later by the golfer through their profile settings.
 
-### Member Management
+### Golfer Management
 - Super admins and event admins can deactivate a golfer (stops invites, preserves account and history) or remove/delete them entirely.
 - Deactivated golfers can be reactivated by an admin.
 
 ### Subscription Management
-- Admins can subscribe/unsubscribe any golfer to/from specific events via the member detail page (Member Directory → Manage).
+- Super admins can manage a golfer's subscriptions to all events via the global golfer detail page (Admin → Golfers → [Golfer]).
+- Event admins can manage a golfer's subscription to their specific event via the event-scoped golfer detail page (Admin → Events → [Event] → Golfers → [Golfer]).
 - Golfers can unsubscribe themselves from events via the "My Events" section on their dashboard.
 - Unsubscribed golfers stop receiving invites for that event but retain their account and history.
 
@@ -192,7 +198,7 @@ All email types, days, and times below are **configurable per event** via the `e
 > **Example (FRCC Saturday Morning Group's current config):** Invite on Monday, reminder on Thursday, cutoff Friday 10 AM, confirmations Friday 1 PM. Other events may use entirely different schedules.
 
 ### Step 1 — Invite Email
-- Automated email sent to all active, subscribed members.
+- Automated email sent to all active, subscribed golfers.
 - Each golfer gets a unique tokenized link (no login required for RSVP).
 - Three one-tap response options: **"I'm In"** | **"I'm Out"** | **"Not Sure Yet (remind me later)"**
 - Confirmation shown immediately after responding, with a "Change My Response" link.
@@ -201,7 +207,7 @@ All email types, days, and times below are **configurable per event** via the `e
 ### Step 2 — Open RSVP Period (between invite and cutoff)
 - Golfers can change their response at any time via the link in their confirmation email or by logging in.
 - Capacity is first-come-first-served. Once the weekly cap is reached, subsequent "I'm In" responses go to the waitlist (ranked by response time).
-- Members who are "In" can request to bring guests (provide guest name, email, GHIN). Guest requests go to a pending state.
+- Golfers who are "In" can request to bring guests (provide guest name, email, GHIN). Guest requests go to a pending state.
 
 ### Step 3 — Reminder Email(s)
 - Automated reminder sent ONLY to golfers who haven't responded OR who responded "Not Sure Yet."
@@ -245,11 +251,11 @@ All email types, days, and times below are **configurable per event** via the `e
 ---
 
 ## Guest System
-- Only members can request guests. Guests only fill spots when member capacity isn't full.
-- To request a guest, the member provides: guest name, guest email, guest GHIN number.
+- Only golfers can request guests. Guests only fill spots when golfer capacity isn't full.
+- To request a guest, the golfer provides: guest name, guest email, guest GHIN number.
 - Guest request goes to pending/waitlisted state.
 - After the RSVP cutoff, admins review and approve/deny guest requests.
-- Once approved, an automated confirmation email is sent showing the member name and guest name.
+- Once approved, an automated confirmation email is sent showing the golfer name and guest name.
 - Guests are registered in the system (name, email, phone, GHIN on file) but are NEVER on distribution lists and never receive automated weekly invites.
 
 ---
@@ -270,9 +276,9 @@ All email types, days, and times below are **configurable per event** via the `e
 
 ### Playing Partner Preferences (per event)
 - Optional. Up to 10 preferred playing partners per event, ranked 1–10 (1 = most preferred).
-- Selected via searchable member dropdown (search by name or email; email is not displayed to users).
-- Partners can be reordered via up/down arrows on the preferences page.
-- Standing preference (not per-week). Golfers can update anytime via the Playing Partner Preferences page.
+- Selected via searchable golfer dropdown (search by name or email; email is not displayed to users).
+- Partners can be reordered via up/down arrows on the profile page.
+- Standing preference (not per-week). Golfers can update anytime via the profile page. Preferences are scoped per-event — each event has its own list.
 - Ranking drives the grouping engine's weighted harmony scoring: rank 1 = 100 pts, rank 2 = 50 pts, etc. Mutual preferences are naturally weighted higher (bidirectional scoring).
 - Only active golfers subscribed to the same event appear in the partner search dropdown.
 
@@ -285,36 +291,55 @@ All email types, days, and times below are **configurable per event** via the `e
 
 ## Golfer Dashboard (logged in)
 - Upcoming RSVP status for each subscribed event (with quick-action to change response before cutoff).
-- Link to profile settings and playing partner preferences.
+- Link to profile settings (includes playing partner preferences per-event).
 - View the "In" list (evite-style) for events where they've opted in.
+- "My Events" section to manage event subscriptions and unsubscribe.
 
 ---
 
 ## Admin Dashboard
-### Default View — Current Week Status
+
+### Admin Dashboard Structure (Global)
+The main `/admin` dashboard displays event summary cards. This allows admins to quickly see all events and navigate to event-specific pages.
+- **Super Admin view**: Shows event summary cards for all events (name, next game date, capacity/RSVPs, action item count). Includes a global "Golfers" section to manage all golfers across the platform.
+- **Event Admin view**: Shows only the event summary cards for events they administer. Includes a "Golfers" section to manage golfers for their specific event.
+- Each event card includes quick links to event settings, schedule, RSVP management, and golfers.
+
+### Event Dashboard (per event)
+Admin → Events → [Event] shows event-specific dashboard with:
+- Event summary metrics (next game date, capacity/RSVPs, action item count)
+- Quick action items needing attention (pending registrations, open spots, guest requests)
+- Upcoming games overview (4-week rolling view)
+- Quick links to golfers, schedule, RSVP management, settings, email composer
+
+### RSVP Management (per event)
+Admin → Events → [Event] → RSVP → [Week] shows:
 - Full RSVP breakdown: In, Out, Not Sure, No Response, Waitlisted.
 - Count of confirmed vs. capacity.
 - Waitlist with ranked order.
 - Pending guest requests.
+- Admin override controls (post-cutoff changes).
+- Guest approval/denial controls.
 
-### Action Items / Task Summary
-- Pending registration approvals.
-- Open spots that could be filled from waitlist or guests.
-- Any other items needing attention.
-- Action items also sent via email to admins.
+### Golfer Directory (Global and Event-Scoped)
+- **Global** (Super Admin only): Admin → Golfers shows all registered golfers across all events with event filter.
+  - Search and filter by name, email, event, or status.
+  - Approve/deny pending registrations.
+  - Deactivate, reactivate, or remove golfers.
+  - Manage subscriptions to all events for each golfer.
+- **Event-Scoped**: Admin → Events → [Event] → Golfers shows golfers for that specific event only.
+  - Manage subscriptions to just that event.
+  - Event admins can only see and manage golfers for their assigned event(s).
 
-### Schedule View
+### Schedule Management (per event)
+Admin → Events → [Event] → Schedule shows:
 - Rolling 4-week calendar.
 - Toggle Game On / No Game per week.
 - Override capacity per week.
+- Confirmation modal on "No Game" toggle with optional reason entry.
 
-### Member Directory
-- All registered members with status (active, pending, deactivated).
-- Search and filter.
-- Approve/deny pending registrations.
-- Deactivate or remove members.
-
-### Custom Emails
+### Custom Emails (per event)
+Admin → Events → [Event] → Emails → Compose allows:
 - Compose and send targeted emails to specific RSVP categories (all "In," all "Not Sure" + no response, everyone, etc.).
 - Pre-built templates for common scenarios (can be added over time):
   - **Game Cancelled**: "[Event] for [Date] has been cancelled due to [reason]. Next game: [Date]." (Note: This template is also sent automatically when an admin toggles a game to "No Game" on the schedule page. The admin is prompted for an optional reason via confirmation modal.)
@@ -418,6 +443,22 @@ This project runs entirely on free-tier services. The following constraints are 
 - **Do NOT** propose architectural changes that require more than 6 time-triggered jobs per day.
 - **DO** keep the single-endpoint cron pattern (`email-scheduler` checks all events and all email types on each invocation).
 - **DO** monitor email volume when adding new events — the 100/day Resend limit is the first constraint that will be hit as the platform grows.
+
+---
+
+## Navigation Structure
+
+The main navigation includes:
+- **Home** — Golfer dashboard (upcoming RSVPs, My Events, unsubscribe)
+- **Admin** (for admins only) — Main admin dashboard showing event summary cards
+  - **Events** (submenu) — Links to each event's dashboard
+    - **[Event Name]** — Event-specific dashboard, schedule, golfers, RSVP management, settings, emails
+  - **Golfers** (super admin only) — Global golfer directory across all events
+- **Profile** (accessible from Home page, not in top-level nav) — Profile settings with per-event playing partner preferences
+- **Help** — Help documentation with expandable Golfer FAQ + Admin FAQ sections
+- **Sign Out**
+
+When on event-scoped admin pages (e.g., `/admin/events/saturday-morning/golfers`), an event context bar displays at the top showing the current event with an event switcher dropdown.
 
 ---
 
@@ -537,27 +578,28 @@ This project enforces centralized utility functions for common patterns. **Do NO
 - [x] Schedule management (4-week rolling view; 8 weeks generated as buffer)
 - [x] Custom email composer with templates
 - [x] Automatic game cancellation emails (triggered on "No Game" toggle, with confirmation modal and optional reason)
-- [ ] Action items / task summary
-- [x] Member directory with search/filter
-- [x] Member detail page with subscription management
-- [x] Admin "Add Golfer" page (direct add, no approval needed)
+- [x] Action items / task summary (displayed on event dashboard)
+- [x] Golfer directory with search/filter (global + event-scoped)
+- [x] Golfer detail page with subscription management (global + event-scoped)
+- [x] Admin "Add Golfer" page (direct add, no approval needed; global + event-scoped)
 - [x] Event-specific join links (/join/[slug]) with admin copy button
 - [x] Golfer dashboard "My Events" with self-service unsubscribe
 - [x] Configurable email schedule (6 time slots synced with Vercel crons)
 - [x] Admin notification emails (new_registration from all auth paths, capacity_reached, spot_opened with golfer name, low_response)
+- [x] Event-centric admin dashboard with summary cards and quick links
+- [x] Per-event admin pages scoped to assigned events only
+- [x] Help and support features
+  - Help page with expandable Golfer FAQ + Admin FAQ sections
 - [ ] UI/UX improvements and branding
   - Align visual design with Fairbanks Ranch website (colors, fonts, imagery)
   - Add Fairbanks Ranch logo
   - Polish copy and messaging
   - Ensure consistent look and feel across all pages
-- [ ] Help and support features
-  - Self-service help documentation for common questions
-  - Contextual help/tooltips where needed
-  - Support contact guidance (who to reach out to for assistance)
+  - Mobile-first responsive design refinements
 
 ### Phase 5 — Multi-Event & Future (Post-MVP Enhancements)
 - [ ] Add additional events (Thursday league, Friday afternoon, etc.)
-- [ ] Per-event admin scoping
+- [x] Per-event admin scoping
 - [ ] Participation history / reporting
 - [x] Recommended Foursome Algorithm — fully implemented (greedy heuristic with weighted partner preferences, tee time constraints, shuffle randomization, guest-host pairing). See `docs/GROUPING_ENGINE_SPEC.md`.
   - [x] Grouping engine algorithm (`grouping-engine.ts`) with 36 unit tests, shuffle support, group order randomization within tee-time tiers

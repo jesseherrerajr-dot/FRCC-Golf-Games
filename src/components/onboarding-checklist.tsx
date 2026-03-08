@@ -47,8 +47,8 @@ export function OnboardingChecklist({
     {
       label: "Set a playing partner preference",
       complete: hasPartnerPrefs,
-      href: "/preferences",
-      cta: "Go to Preferences",
+      href: "/profile",
+      cta: "Go to Profile",
     },
   ];
 

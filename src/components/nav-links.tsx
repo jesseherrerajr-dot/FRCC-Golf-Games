@@ -12,8 +12,7 @@ export function NavLinks({ isAdmin }: NavLinksProps) {
   const pathname = usePathname();
 
   const links = [
-    { href: "/dashboard", label: "Dashboard" },
-    { href: "/profile", label: "Profile" },
+    { href: "/dashboard", label: "Home" },
     ...(isAdmin ? [{ href: "/admin", label: "Admin" }] : []),
     { href: "/help", label: "Help" },
   ];
@@ -21,13 +20,12 @@ export function NavLinks({ isAdmin }: NavLinksProps) {
   return (
     <>
       {links.map((link) => {
-        // Match /dashboard, /profile exactly; /admin matches /admin and /admin/*
+        // Match /dashboard, /help exactly; /admin matches /admin and /admin/*
         const isActive =
           link.href === "/admin"
             ? pathname.startsWith("/admin")
             : pathname === link.href ||
-              (link.href === "/dashboard" && pathname === "/preferences") ||
-              (link.href === "/help" && pathname === "/help");
+              (link.href === "/dashboard" && pathname === "/profile");
 
         return (
           <Link

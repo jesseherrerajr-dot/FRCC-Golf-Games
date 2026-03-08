@@ -21,8 +21,8 @@ export async function approveGuestRequest(
     return { error: "Guest request not found" };
   }
 
-  // Check if guest is also a member (by email)
-  // This is rare but possible - a member might bring another member as a guest
+  // Check if guest is also a golfer (by email)
+  // This is rare but possible - a golfer might bring another golfer as a guest
   const { data: existingProfile } = await supabase
     .from("profiles")
     .select("id, is_guest, status")
@@ -32,7 +32,7 @@ export async function approveGuestRequest(
     .single();
 
   // Update the guest request to approved
-  // If the guest is also a member, link to their profile
+  // If the guest is also a golfer, link to their profile
   const { error: updateError } = await supabase
     .from("guest_requests")
     .update({
@@ -47,8 +47,8 @@ export async function approveGuestRequest(
     return { error: "Failed to approve guest request" };
   }
 
-  // Fetch member and schedule info for email
-  const { data: memberProfile } = await supabase
+  // Fetch golfer and schedule info for email
+  const { data: golferProfile } = await supabase
     .from("profiles")
     .select("email, first_name, last_name")
     .eq("id", guestRequest.requested_by)
@@ -60,8 +60,8 @@ export async function approveGuestRequest(
     .eq("id", scheduleId)
     .single();
 
-  // Send email notification to the member
-  if (memberProfile && schedule) {
+  // Send email notification to the golfer
+  if (golferProfile && schedule) {
     const formattedDate = new Date(
       schedule.game_date + "T12:00:00"
     ).toLocaleDateString("en-US", {
@@ -75,14 +75,14 @@ export async function approveGuestRequest(
     const eventName = event.name;
 
     await sendEmail({
-      to: memberProfile.email,
+      to: golferProfile.email,
       subject: `${eventName}: Guest Request Approved`,
       html: `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
           <h2 style="color: #15803d; margin-bottom: 4px;">${eventName}</h2>
           <p style="color: #6b7280; font-size: 16px; margin-top: 0;">${formattedDate}</p>
 
-          <p style="color: #374151;">Great news, ${memberProfile.first_name}!</p>
+          <p style="color: #374151;">Great news, ${golferProfile.first_name}!</p>
           <p style="color: #374151;">Your guest request for <strong>${guestName}</strong> has been approved for ${formattedDate}.</p>
           <p style="color: #374151;">Your guest will be included in the confirmation email and pro shop details.</p>
 
@@ -137,8 +137,8 @@ export async function denyGuestRequest(
     return { error: "Failed to deny guest request" };
   }
 
-  // Fetch member and schedule info for email
-  const { data: memberProfile } = await supabase
+  // Fetch golfer and schedule info for email
+  const { data: golferProfile } = await supabase
     .from("profiles")
     .select("email, first_name, last_name")
     .eq("id", guestRequest.requested_by)
@@ -150,8 +150,8 @@ export async function denyGuestRequest(
     .eq("id", scheduleId)
     .single();
 
-  // Send email notification to the member
-  if (memberProfile && schedule) {
+  // Send email notification to the golfer
+  if (golferProfile && schedule) {
     const formattedDate = new Date(
       schedule.game_date + "T12:00:00"
     ).toLocaleDateString("en-US", {
@@ -165,14 +165,14 @@ export async function denyGuestRequest(
     const eventName = event.name;
 
     await sendEmail({
-      to: memberProfile.email,
+      to: golferProfile.email,
       subject: `${eventName}: Guest Request Update`,
       html: `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
           <h2 style="color: #15803d; margin-bottom: 4px;">${eventName}</h2>
           <p style="color: #6b7280; font-size: 16px; margin-top: 0;">${formattedDate}</p>
 
-          <p style="color: #374151;">Hi ${memberProfile.first_name},</p>
+          <p style="color: #374151;">Hi ${golferProfile.first_name},</p>
           <p style="color: #374151;">Unfortunately, we were unable to accommodate your guest request for <strong>${guestName}</strong> for ${formattedDate}.</p>
           <p style="color: #374151;">If you have questions, please contact a event admin.</p>
 

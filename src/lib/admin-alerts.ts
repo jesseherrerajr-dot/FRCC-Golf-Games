@@ -184,8 +184,8 @@ function generateAlertEmail(
               <h2 style="color: #991b1b; margin: 0 0 8px 0; font-size: 18px;">Low Response Warning</h2>
               <p style="margin: 0; color: #374151;">${context.eventName} — ${context.gameDate ? formatGameDate(context.gameDate) : "upcoming game"}</p>
             </div>
-            <p style="color: #374151;">Only <strong>${context.respondedCount}</strong> out of <strong>${context.totalSubscribers}</strong> members have responded so far.</p>
-            <p style="color: #374151; font-size: 14px;">Consider sending a custom reminder or reaching out to members who haven't responded.</p>
+            <p style="color: #374151;">Only <strong>${context.respondedCount}</strong> out of <strong>${context.totalSubscribers}</strong> golfers have responded so far.</p>
+            <p style="color: #374151; font-size: 14px;">Consider sending a custom reminder or reaching out to golfers who haven't responded.</p>
           </div>
         `,
       };

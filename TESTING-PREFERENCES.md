@@ -8,10 +8,10 @@
 
 ## Test Plan
 
-### Part 1: Member Preferences Page
+### Part 1: Golfer Preferences Page
 
 **Access:**
-1. Log in as a regular member (active status)
+1. Log in as a regular golfer (active status)
 2. From dashboard, click "Playing Preferences" card
 3. Should navigate to `/preferences`
 
@@ -22,10 +22,10 @@
 **Playing Partners:**
 1. Click in the "Add Playing Partner" search box
 2. Type a partial name (e.g., "Herr" for "Herrera")
-   - Dropdown should appear with matching members
+   - Dropdown should appear with matching golfers
    - Should show full name only (no email displayed)
    - Email can be used as a search term but is not shown
-3. Click on a member to add them
+3. Click on a golfer to add them
    - Should see success message "Playing partner added successfully"
    - Search box should clear
    - Partner should appear in numbered list below with ▲/▼ arrows
@@ -115,7 +115,7 @@ After testing, check Supabase:
 ## Known Issues / Notes
 
 - Preferences are suggestions only (not guaranteed pairings)
-- Dropdown shows up to 50 members at a time
+- Dropdown shows up to 50 golfers at a time
 - On small screens, preferences column hidden on admin page
 - Cannot add yourself as a playing partner
 - Preferences are completely independent per event

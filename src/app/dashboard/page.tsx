@@ -2,7 +2,6 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { formatPhoneDisplay, formatGameDateShort } from "@/lib/format";
-import Header from "@/components/header";
 import { HelpText } from "@/components/help-text";
 import { WelcomeBanner } from "@/components/welcome-banner";
 import { OnboardingChecklist } from "@/components/onboarding-checklist";
@@ -79,9 +78,7 @@ export default async function DashboardPage() {
     });
 
   return (
-    <>
-      <Header />
-      <main className="min-h-screen px-4 py-8">
+    <main className="min-h-screen px-4 py-8">
         <div className="mx-auto max-w-2xl">
           {/* Welcome */}
           <div className="rounded-lg border border-navy-200 bg-white p-6 shadow-sm">
@@ -93,7 +90,7 @@ export default async function DashboardPage() {
             {profile?.status === "pending_approval" && (
               <div className="mt-3 rounded-lg border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-800">
                 Your registration is pending admin approval. You&apos;ll receive
-                invite emails once an administrator confirms your membership.
+                invite emails once an administrator confirms your account.
               </div>
             )}
 
@@ -358,7 +355,7 @@ export default async function DashboardPage() {
               <div>
                 <h3 className="font-semibold text-navy-900">Admin Dashboard</h3>
                 <p className="text-sm text-navy-600">
-                  Manage members, events, and approvals
+                  Manage golfers, events, and approvals
                 </p>
               </div>
               <svg className="h-5 w-5 text-navy-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
@@ -370,7 +367,7 @@ export default async function DashboardPage() {
           {/* Quick links */}
           <div className="mt-4 space-y-3">
             <Link
-              href="/preferences"
+              href="/profile"
               className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4 shadow-sm transition-colors hover:bg-gray-50"
             >
               <div>
@@ -386,6 +383,5 @@ export default async function DashboardPage() {
           </div>
         </div>
       </main>
-    </>
   );
 }

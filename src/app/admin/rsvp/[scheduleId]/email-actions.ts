@@ -161,7 +161,7 @@ export async function sendReminderNow(scheduleId: string) {
 
     if (schedule.status === "cancelled") return { error: "Game is cancelled" };
 
-    // Get members who haven't RSVP'd or said "not sure"
+    // Get golfers who haven't RSVP'd or said "not sure"
     const { data: pendingRsvps } = await supabase
       .from("rsvps")
       .select("*, profile:profiles(id, first_name, last_name, email)")
@@ -311,7 +311,7 @@ export async function sendGolferConfirmationNow(scheduleId: string) {
         last_name: g.guest_last_name as string,
         email: g.guest_email as string,
         is_guest: true,
-        sponsor_name: sponsor ? formatSponsorName(sponsor.first_name, sponsor.last_name) : "Member",
+        sponsor_name: sponsor ? formatSponsorName(sponsor.first_name, sponsor.last_name) : "Golfer",
       };
     });
 
@@ -459,7 +459,7 @@ export async function sendProShopDetailNow(scheduleId: string) {
         phone: (g.guest_phone as string) || "",
         ghin_number: (g.guest_ghin_number as string) || "",
         is_guest: true,
-        sponsor_name: sponsor ? formatSponsorName(sponsor.first_name, sponsor.last_name) : "Member",
+        sponsor_name: sponsor ? formatSponsorName(sponsor.first_name, sponsor.last_name) : "Golfer",
       };
     });
 

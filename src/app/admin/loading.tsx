@@ -1,11 +1,8 @@
-import Header from "@/components/header";
 import { SkeletonLine, SkeletonCard, SkeletonTable } from "@/components/skeleton";
 
 export default function AdminLoading() {
   return (
-    <>
-      <Header />
-      <main className="min-h-screen px-4 py-8">
+    <main className="min-h-screen px-4 py-8">
         <div className="mx-auto max-w-5xl">
           {/* Header skeleton */}
           <SkeletonLine className="mb-2 h-8 w-56" />
@@ -29,7 +26,6 @@ export default function AdminLoading() {
             <SkeletonLine className="h-10 w-32 rounded-lg" />
           </div>
         </div>
-      </main>
-    </>
+          </main>
   );
 }

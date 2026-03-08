@@ -247,7 +247,7 @@ export default function JoinPage() {
 
         {/* Footer links */}
         <p className="mt-6 text-center text-sm text-gray-500">
-          Already a member?{" "}
+          Already registered?{" "}
           <Link href="/login" className="font-medium text-teal-700 hover:text-teal-600">
             Sign in
           </Link>

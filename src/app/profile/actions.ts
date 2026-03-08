@@ -78,7 +78,7 @@ export async function updateProfile(
   if (profileError) {
     console.error("Profile update error:", profileError);
     if (profileError.code === "23505") {
-      return { error: "That email address is already in use by another member." };
+      return { error: "That email address is already in use by another golfer." };
     }
     return { error: "Failed to update profile. Please try again." };
   }

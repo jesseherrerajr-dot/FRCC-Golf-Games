@@ -96,7 +96,7 @@ export async function GET(request: Request) {
         phone: (g.guest_phone as string) || "",
         ghin_number: g.guest_ghin_number as string,
         is_guest: true,
-        sponsor_name: sponsor ? formatSponsorName(sponsor.first_name, sponsor.last_name) : "Member",
+        sponsor_name: sponsor ? formatSponsorName(sponsor.first_name, sponsor.last_name) : "Golfer",
       };
     });
 
@@ -219,7 +219,7 @@ export async function GET(request: Request) {
       // Send admin summary
       const confirmedNames = allPlayers.map((p) =>
         p.is_guest
-          ? `${p.first_name} ${p.last_name} (Guest of ${(p as Record<string, unknown>).sponsor_name || "Member"})`
+          ? `${p.first_name} ${p.last_name} (Guest of ${(p as Record<string, unknown>).sponsor_name || "Golfer"})`
           : `${p.first_name} ${p.last_name}`
       );
       await sendAdminSummaryEmail({

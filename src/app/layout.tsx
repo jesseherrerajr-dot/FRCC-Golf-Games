@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Providers } from "@/components/providers";
+import Header from "@/components/header";
+import { EventContextBar } from "@/components/event-context-bar";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -33,7 +35,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="min-h-screen bg-navy-50 text-gray-900 antialiased">
-        <Providers>{children}</Providers>
+        <Providers>
+          <Header />
+          <EventContextBar />
+          {children}
+        </Providers>
       </body>
     </html>
   );

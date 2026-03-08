@@ -4,9 +4,9 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
 /**
- * Get all active members (for search dropdown)
+ * Get all active golfers (for search dropdown)
  */
-export async function getActiveMembers() {
+export async function getActiveGolfers() {
   const supabase = await createClient();
 
   const { data, error } = await supabase
@@ -18,7 +18,7 @@ export async function getActiveMembers() {
     .order("first_name", { ascending: true });
 
   if (error) {
-    console.error("Error fetching active members:", error);
+    console.error("Error fetching active golfers:", error);
     return [];
   }
 
@@ -26,7 +26,39 @@ export async function getActiveMembers() {
 }
 
 /**
- * Get all events (for displaying preferences per event)
+ * Get active golfers subscribed to a specific event
+ */
+export async function getActiveGolfersByEvent(eventId: string) {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .select(
+      `
+      id,
+      first_name,
+      last_name,
+      email,
+      event_subscriptions!inner(event_id)
+    `
+    )
+    .eq("status", "active")
+    .eq("is_guest", false)
+    .eq("event_subscriptions.event_id", eventId)
+    .eq("event_subscriptions.is_active", true)
+    .order("last_name", { ascending: true })
+    .order("first_name", { ascending: true });
+
+  if (error) {
+    console.error("Error fetching active golfers for event:", error);
+    return [];
+  }
+
+  return data || [];
+}
+
+/**
+ * Get all active events
  */
 export async function getEvents() {
   const supabase = await createClient();
@@ -43,6 +75,46 @@ export async function getEvents() {
   }
 
   return data || [];
+}
+
+/**
+ * Get current user's subscribed events with preference flag
+ */
+export async function getSubscribedEvents() {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from("event_subscriptions")
+    .select(
+      `
+      event_id,
+      events!inner(id, name, allow_playing_partner_preferences)
+    `
+    )
+    .eq("profile_id", user.id)
+    .eq("is_active", true)
+    .order("events(name)", { ascending: true });
+
+  if (error) {
+    console.error("Error fetching subscribed events:", error);
+    return [];
+  }
+
+  return (data || [])
+    .map((sub) => ({
+      event_id: sub.event_id,
+      event_name: (sub.events as any).name,
+      allow_playing_partner_preferences: (sub.events as any).allow_playing_partner_preferences,
+    }))
+    .filter(Boolean);
 }
 
 /**
@@ -147,7 +219,7 @@ export async function addPlayingPartner(
     return { error: "Failed to add playing partner" };
   }
 
-  revalidatePath("/preferences");
+  revalidatePath("/profile");
   return { success: true };
 }
 
@@ -199,7 +271,7 @@ export async function removePlayingPartner(
     }
   }
 
-  revalidatePath("/preferences");
+  revalidatePath("/profile");
   return { success: true };
 }
 
@@ -280,7 +352,7 @@ export async function updatePartnerRank(
     return { error: "Failed to update rank" };
   }
 
-  revalidatePath("/preferences");
+  revalidatePath("/profile");
   return { success: true };
 }
 

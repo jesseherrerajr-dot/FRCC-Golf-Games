@@ -30,7 +30,7 @@ Generate suggested foursome groupings for each weekly event after RSVP cutoff. G
 ## 3. Constraint Hierarchy
 
 ### Level 1 — Guest-Host Pairing (Hard Constraint)
-- A guest MUST be in the same group as their sponsoring member.
+- A guest MUST be in the same group as their sponsoring golfer.
 - Guest+host count as a unit when filling group slots.
 - Guests inherit the host's tee time preference. Guests have no independent preferences.
 - **Implemented:** Guests are placed in their host's group after the engine runs. Guests appear immediately after their host in the roster, labeled "(Guest of F. Last)".
@@ -143,7 +143,7 @@ Formula: `points = round(100 / rank)`
 - **Round Robin tiebreaker:** When harmony scores are equal, prioritize pairing golfers who haven't played together recently. Requires historical grouping data (which will accumulate once the `groupings` table is populated weekly). Not included in initial build.
 
 ### Guest Handling (Implemented):
-- After the engine assigns members to groups, approved guests are placed into their host's group.
+- After the engine assigns golfers to groups, approved guests are placed into their host's group.
 - Guests appear immediately after their host in the roster.
 - Guest preferences are ignored; only the host's preferences and tee time apply.
 - The DB layer (`grouping-db.ts`) handles guest placement via `fetchApprovedGuests()` and `storeGroupings()`.

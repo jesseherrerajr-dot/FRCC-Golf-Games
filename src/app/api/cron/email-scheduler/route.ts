@@ -401,7 +401,7 @@ async function handleReminderEmails(
     return { message: `Reminder ${priorityOrder} already sent`, sent: 0 };
   }
 
-  // Get members who haven't RSVP'd or said "not sure"
+  // Get golfers who haven't RSVP'd or said "not sure"
   const { data: pendingRsvps, error } = await supabase
     .from("rsvps")
     .select("*, profile:profiles(id, first_name, last_name, email)")
@@ -624,7 +624,7 @@ async function handleGolferConfirmation(
         is_guest: true,
         sponsor_name: sponsor
           ? formatSponsorName(sponsor.first_name, sponsor.last_name)
-          : "Member",
+          : "Golfer",
       };
     }
   );
@@ -821,7 +821,7 @@ async function handleProShopDetail(
         is_guest: true,
         sponsor_name: sponsor
           ? formatSponsorName(sponsor.first_name, sponsor.last_name)
-          : "Member",
+          : "Golfer",
       };
     }
   );

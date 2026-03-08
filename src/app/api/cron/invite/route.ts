@@ -10,7 +10,7 @@ import { formatGameDateMonthDay, getSiteUrl } from "@/lib/format";
 
 /**
  * Monday Invite Cron
- * Sends weekly invite emails to all active, subscribed members.
+ * Sends weekly invite emails to all active, subscribed golfers.
  * Also callable manually via GET for testing.
  *
  * Query params:

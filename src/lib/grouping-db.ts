@@ -119,7 +119,7 @@ export async function fetchApprovedGuests(
 
 /**
  * Store grouping results in the database, including approved guests.
- * Each guest is placed in the same group as their host member.
+ * Each guest is placed in the same group as their host golfer.
  * Deletes any existing groupings for this schedule first (idempotent).
  */
 export async function storeGroupings(
@@ -140,10 +140,10 @@ export async function storeGroupings(
   }
 
   // Build a lookup: profileId → groupNumber/teeOrder
-  const memberGroupMap = new Map<string, { groupNumber: number; teeOrder: number; harmonyScore: number }>();
+  const golferGroupMap = new Map<string, { groupNumber: number; teeOrder: number; harmonyScore: number }>();
   for (const group of result.groups) {
-    for (const profileId of group.members) {
-      memberGroupMap.set(profileId, {
+    for (const profileId of group.golfers) {
+      golferGroupMap.set(profileId, {
         groupNumber: group.groupNumber,
         teeOrder: group.teeOrder,
         harmonyScore: group.harmonyScore,
@@ -151,7 +151,7 @@ export async function storeGroupings(
     }
   }
 
-  // Build member rows
+  // Build golfer rows
   const rows: Array<{
     schedule_id: string;
     group_number: number;
@@ -160,7 +160,7 @@ export async function storeGroupings(
     guest_request_id: string | null;
     harmony_score: number;
   }> = result.groups.flatMap((group) =>
-    group.members.map((profileId) => ({
+    group.golfers.map((profileId) => ({
       schedule_id: scheduleId,
       group_number: group.groupNumber,
       tee_order: group.teeOrder,
@@ -172,7 +172,7 @@ export async function storeGroupings(
 
   // Build guest rows — place each guest in their host's group
   for (const guest of guests) {
-    const hostGroup = memberGroupMap.get(guest.hostProfileId);
+    const hostGroup = golferGroupMap.get(guest.hostProfileId);
     if (hostGroup) {
       rows.push({
         schedule_id: scheduleId,
@@ -207,7 +207,7 @@ export async function storeGroupings(
 // Fetch Stored Groupings (for email templates / admin display)
 // ============================================================
 
-export interface StoredGroupMember {
+export interface StoredGroupGolfer {
   profileId: string | null;
   guestRequestId: string | null;
   firstName: string;
@@ -227,20 +227,20 @@ export interface StoredGrouping {
   groupNumber: number;
   teeOrder: number;
   harmonyScore: number | null;
-  members: StoredGroupMember[];
+  golfers: StoredGroupGolfer[];
 }
 
 /**
  * Fetch stored groupings for a schedule, with profile and guest details.
- * Returns groups sorted by tee_order. Within each group, members are sorted
+ * Returns groups sorted by tee_order. Within each group, golfers are sorted
  * alphabetically but guests are placed immediately after their host.
  */
 export async function fetchStoredGroupings(
   supabase: SupabaseClient,
   scheduleId: string
 ): Promise<StoredGrouping[]> {
-  // Fetch member groupings
-  const { data: memberData, error: memberError } = await supabase
+  // Fetch golfer groupings
+  const { data: golferData, error: golferError } = await supabase
     .from("groupings")
     .select(
       `
@@ -257,8 +257,8 @@ export async function fetchStoredGroupings(
     .order("tee_order", { ascending: true })
     .order("group_number", { ascending: true });
 
-  if (memberError) {
-    console.error("Error fetching member groupings:", memberError);
+  if (golferError) {
+    console.error("Error fetching golfer groupings:", golferError);
     return [];
   }
 
@@ -283,13 +283,13 @@ export async function fetchStoredGroupings(
     // Continue without guests — don't fail the whole thing
   }
 
-  if ((!memberData || memberData.length === 0) && (!guestData || guestData.length === 0)) {
+  if ((!golferData || golferData.length === 0) && (!guestData || guestData.length === 0)) {
     return [];
   }
 
   // Collect all profile IDs for batch lookups
   const allProfileIds: string[] = [];
-  for (const row of (memberData || []) as unknown as Array<{ profile_id: string }>) {
+  for (const row of (golferData || []) as unknown as Array<{ profile_id: string }>) {
     if (row.profile_id) allProfileIds.push(row.profile_id);
   }
 
@@ -308,7 +308,7 @@ export async function fetchStoredGroupings(
     }
   }
 
-  // Fetch partner preferences for members in this schedule's event
+  // Fetch partner preferences for golfers in this schedule's event
   // We need the event_id — get it from the schedule
   const { data: scheduleRow } = await supabase
     .from("event_schedules")
@@ -339,7 +339,7 @@ export async function fetchStoredGroupings(
 
   // Build a profileId → "F. Last" name map for display
   const profileNameMap = new Map<string, string>();
-  for (const row of (memberData || []) as unknown as Array<{
+  for (const row of (golferData || []) as unknown as Array<{
     profile: { id: string; first_name: string; last_name: string } | null;
   }>) {
     if (row.profile) {
@@ -350,10 +350,10 @@ export async function fetchStoredGroupings(
     }
   }
 
-  // Group members by group_number
+  // Group golfers by group_number
   const groupMap = new Map<number, StoredGrouping>();
 
-  for (const row of (memberData || []) as unknown as Array<{
+  for (const row of (golferData || []) as unknown as Array<{
     group_number: number;
     tee_order: number;
     harmony_score: number | null;
@@ -372,13 +372,13 @@ export async function fetchStoredGroupings(
         groupNumber: row.group_number,
         teeOrder: row.tee_order,
         harmonyScore: row.harmony_score,
-        members: [],
+        golfers: [],
       });
     }
 
     const group = groupMap.get(row.group_number)!;
     if (row.profile) {
-      group.members.push({
+      group.golfers.push({
         profileId: row.profile.id,
         guestRequestId: null,
         firstName: row.profile.first_name,
@@ -390,7 +390,7 @@ export async function fetchStoredGroupings(
         hostName: null,
         hostProfileId: null,
         teeTimePreference: teeTimeMap.get(row.profile.id) || null,
-        preferredPartnersInGroup: [], // populated below after all members are placed
+        preferredPartnersInGroup: [], // populated below after all golfers are placed
       });
     }
   }
@@ -411,8 +411,8 @@ export async function fetchStoredGroupings(
   }>) {
     const group = groupMap.get(row.group_number);
     if (group && row.guest) {
-      const hostName = profileNameMap.get(row.guest.requested_by) || "Member";
-      group.members.push({
+      const hostName = profileNameMap.get(row.guest.requested_by) || "Golfer";
+      group.golfers.push({
         profileId: null,
         guestRequestId: row.guest.id,
         firstName: row.guest.guest_first_name,
@@ -429,14 +429,14 @@ export async function fetchStoredGroupings(
     }
   }
 
-  // Populate preferredPartnersInGroup: for each member, check which of their
+  // Populate preferredPartnersInGroup: for each golfer, check which of their
   // preferred partners ended up in the same group, and list their display names.
   const allGroups = Array.from(groupMap.values());
   for (const group of allGroups) {
-    const groupProfileIds = new Set(group.members.filter((m) => m.profileId).map((m) => m.profileId!));
-    for (const member of group.members) {
-      if (!member.profileId || member.isGuest) continue;
-      const prefs = partnerPrefsMap.get(member.profileId);
+    const groupProfileIds = new Set(group.golfers.filter((g) => g.profileId).map((g) => g.profileId!));
+    for (const golfer of group.golfers) {
+      if (!golfer.profileId || golfer.isGuest) continue;
+      const prefs = partnerPrefsMap.get(golfer.profileId);
       if (!prefs) continue;
       // Find which preferred partners are in this group
       const prefArray = Array.from(prefs);
@@ -444,41 +444,41 @@ export async function fetchStoredGroupings(
         if (groupProfileIds.has(partnerId)) {
           const partnerName = profileNameMap.get(partnerId);
           if (partnerName) {
-            member.preferredPartnersInGroup.push(partnerName);
+            golfer.preferredPartnersInGroup.push(partnerName);
           }
         }
       }
     }
   }
 
-  // Sort groups by tee order, then sort members within each group:
-  // Members sorted by last name, but guests placed immediately after their host.
+  // Sort groups by tee order, then sort golfers within each group:
+  // Golfers sorted by last name, but guests placed immediately after their host.
   const groups = allGroups.sort((a, b) => a.teeOrder - b.teeOrder);
   for (const g of groups) {
-    // First sort all members alphabetically
-    const members = g.members.filter((m) => !m.isGuest);
-    members.sort((a, b) =>
+    // First sort all golfers alphabetically
+    const golfers = g.golfers.filter((gf) => !gf.isGuest);
+    golfers.sort((a, b) =>
       a.lastName.localeCompare(b.lastName) || a.firstName.localeCompare(b.firstName)
     );
 
     // Insert guests right after their host
-    const guestsInGroup = g.members.filter((m) => m.isGuest);
-    const orderedMembers: StoredGroupMember[] = [];
-    for (const member of members) {
-      orderedMembers.push(member);
-      const memberGuests = guestsInGroup.filter((gst) => gst.hostProfileId === member.profileId);
-      memberGuests.sort((a, b) =>
+    const guestsInGroup = g.golfers.filter((gf) => gf.isGuest);
+    const orderedGolfers: StoredGroupGolfer[] = [];
+    for (const golfer of golfers) {
+      orderedGolfers.push(golfer);
+      const golferGuests = guestsInGroup.filter((gst) => gst.hostProfileId === golfer.profileId);
+      golferGuests.sort((a, b) =>
         a.lastName.localeCompare(b.lastName) || a.firstName.localeCompare(b.firstName)
       );
-      orderedMembers.push(...memberGuests);
+      orderedGolfers.push(...golferGuests);
     }
 
     // Any orphaned guests
-    const placedGuestIds = new Set(orderedMembers.filter((m) => m.isGuest).map((m) => m.guestRequestId));
+    const placedGuestIds = new Set(orderedGolfers.filter((gf) => gf.isGuest).map((gf) => gf.guestRequestId));
     const orphans = guestsInGroup.filter((gst) => !placedGuestIds.has(gst.guestRequestId));
-    orderedMembers.push(...orphans);
+    orderedGolfers.push(...orphans);
 
-    g.members = orderedMembers;
+    g.golfers = orderedGolfers;
   }
 
   return groups;

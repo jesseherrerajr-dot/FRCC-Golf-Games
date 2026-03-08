@@ -3,6 +3,8 @@
 import { useActionState, useState, useEffect, useMemo } from "react";
 import { updateProfile, type ProfileFormState } from "./actions";
 import { createClient } from "@/lib/supabase/client";
+import { getSubscribedEvents } from "./preferences-actions";
+import { PlayingPartnerPreferencesSection } from "./playing-partner-preferences";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -13,6 +15,12 @@ import {
 } from "@/components/form-field";
 
 const initialState: ProfileFormState = {};
+
+type SubscribedEvent = {
+  event_id: string;
+  event_name: string;
+  allow_playing_partner_preferences: boolean;
+};
 
 /** Format phone as (XXX) XXX-XXXX.
  *  Strips leading US country code (+1 or 1) from Chrome autofill. */
@@ -44,7 +52,9 @@ export default function ProfilePage() {
   );
   const [profile, setProfile] = useState<Profile | null>(null);
   const [phone, setPhone] = useState("");
+  const [subscribedEvents, setSubscribedEvents] = useState<SubscribedEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [expandedEvents, setExpandedEvents] = useState<Set<string>>(new Set());
 
   const fieldDefs = useMemo(() => ({
     firstName: [validators.required("First name")],
@@ -54,9 +64,9 @@ export default function ProfilePage() {
   }), []);
   const { errors, touched, handleBlur, validateAll } = useFieldValidation(fieldDefs);
 
-  // Load profile data on mount
+  // Load profile data and subscribed events on mount
   useEffect(() => {
-    async function loadProfile() {
+    async function loadData() {
       const supabase = createClient();
       const {
         data: { user },
@@ -67,20 +77,41 @@ export default function ProfilePage() {
         return;
       }
 
-      const { data } = await supabase
+      // Load profile
+      const { data: profileData } = await supabase
         .from("profiles")
         .select("*")
         .eq("id", user.id)
         .single();
 
-      if (data) {
-        setProfile(data);
-        setPhone(formatPhone(data.phone || ""));
+      if (profileData) {
+        setProfile(profileData);
+        setPhone(formatPhone(profileData.phone || ""));
       }
+
+      // Load subscribed events
+      const eventsData = await getSubscribedEvents();
+      setSubscribedEvents(eventsData);
+
+      // Expand first event by default if there are any
+      if (eventsData.length > 0) {
+        setExpandedEvents(new Set([eventsData[0].event_id]));
+      }
+
       setLoading(false);
     }
-    loadProfile();
+    loadData();
   }, []);
+
+  function toggleEventExpanded(eventId: string) {
+    const newExpanded = new Set(expandedEvents);
+    if (newExpanded.has(eventId)) {
+      newExpanded.delete(eventId);
+    } else {
+      newExpanded.add(eventId);
+    }
+    setExpandedEvents(newExpanded);
+  }
 
   if (loading) {
     return (
@@ -277,6 +308,65 @@ export default function ProfilePage() {
             {isPending ? "Saving..." : "Save Changes"}
           </button>
         </form>
+
+        {/* Playing Partner Preferences Section */}
+        {subscribedEvents.length > 0 && (
+          <div className="mt-12 border-t border-gray-200 pt-12">
+            <h2 className="mb-2 text-2xl font-serif uppercase tracking-wide font-bold text-navy-900">
+              Playing Partner Preferences
+            </h2>
+            <p className="mb-6 text-sm text-gray-500">
+              Rank your preferred playing partners for each event. Higher-ranked
+              partners have more weight in suggested groupings. Your preferences
+              are private — only you can see them. You can update them at any time.
+            </p>
+
+            {subscribedEvents.length === 1 ? (
+              // Single event: show preferences directly without collapsible
+              <PlayingPartnerPreferencesSection
+                eventId={subscribedEvents[0].event_id}
+                eventName={subscribedEvents[0].event_name}
+                preferencesEnabled={subscribedEvents[0].allow_playing_partner_preferences}
+              />
+            ) : (
+              // Multiple events: show as collapsible sections
+              <div className="space-y-3">
+                {subscribedEvents.map((event) => (
+                  <div key={event.event_id} className="border border-gray-200 rounded-lg">
+                    {/* Collapsible header */}
+                    <button
+                      type="button"
+                      onClick={() => toggleEventExpanded(event.event_id)}
+                      className="w-full flex items-center justify-between bg-gray-50 hover:bg-gray-100 px-4 py-3 rounded-lg transition-colors"
+                    >
+                      <h3 className="font-semibold text-gray-900">
+                        {event.event_name}
+                      </h3>
+                      <span
+                        className={`text-gray-500 transition-transform ${
+                          expandedEvents.has(event.event_id) ? "rotate-180" : ""
+                        }`}
+                      >
+                        ▼
+                      </span>
+                    </button>
+
+                    {/* Collapsible content */}
+                    {expandedEvents.has(event.event_id) && (
+                      <div className="p-4 border-t border-gray-200">
+                        <PlayingPartnerPreferencesSection
+                          eventId={event.event_id}
+                          eventName={event.event_name}
+                          preferencesEnabled={event.allow_playing_partner_preferences}
+                        />
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
         </div>
       </main>
   );

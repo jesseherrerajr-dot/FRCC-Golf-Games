@@ -1,4 +1,3 @@
-import Header from "@/components/header";
 import Link from "next/link";
 import { CollapsibleSection } from "@/components/collapsible-section";
 import { createClient } from "@/lib/supabase/server";
@@ -62,9 +61,7 @@ export default async function HelpPage() {
   }
 
   return (
-    <>
-      <Header />
-      <main className="min-h-screen px-4 py-8">
+    <main className="min-h-screen px-4 py-8">
         <div className="mx-auto max-w-2xl">
           {/* Header */}
           <div className="mb-8">
@@ -86,8 +83,8 @@ export default async function HelpPage() {
 
           {/* Golfer FAQ */}
           <section>
-            <h2 className="mb-3 text-lg font-semibold text-navy-900">
-              For Golfers
+            <h2 className="mb-4 text-xl font-semibold text-navy-900">
+              Golfer FAQ
             </h2>
             <div className="space-y-2">
               <FAQ question="How do I RSVP for a game?">
@@ -147,7 +144,7 @@ export default async function HelpPage() {
                   <strong>Request Guest</strong> section on the RSVP page. Enter your
                   guest&apos;s name, email, and GHIN number. An admin will review and
                   approve guest requests after the RSVP cutoff. Guests only fill spots
-                  that members haven&apos;t claimed.
+                  that golfers haven&apos;t claimed.
                 </p>
               </FAQ>
               */}
@@ -252,8 +249,8 @@ export default async function HelpPage() {
           {/* Admin FAQ */}
           {isAdmin && (
             <section className="mt-10">
-              <h2 className="mb-3 text-lg font-semibold text-navy-900">
-                For Admins
+              <h2 className="mb-4 text-xl font-semibold text-navy-900">
+                Admin FAQ
               </h2>
               <div className="space-y-2">
                 <FAQ question="How does the email cycle work?">
@@ -275,11 +272,11 @@ export default async function HelpPage() {
                   </p>
                 </FAQ>
 
-                <FAQ question="How do I approve new member registrations?">
+                <FAQ question="How do I approve new golfer registrations?">
                   <p>
                     When someone registers through a join link, they appear as
                     &quot;Pending Approval&quot; on the Admin Dashboard and in the{" "}
-                    <strong>Member Directory</strong>. Tap <strong>Approve</strong> to
+                    <strong>Golfer Directory</strong>. Tap <strong>Approve</strong> to
                     activate their account and subscribe them to the event, or{" "}
                     <strong>Deny</strong> to reject. You can also add golfers directly
                     via <strong>+ Add Golfer</strong> — this bypasses the approval
@@ -328,7 +325,7 @@ export default async function HelpPage() {
                     RSVP cutoff, review each request and tap{" "}
                     <strong>Approve</strong> or <strong>Deny</strong>. Approved guests
                     are included in the confirmation emails. Guests only fill spots that
-                    members haven&apos;t claimed.
+                    golfers haven&apos;t claimed.
                   </p>
                 </FAQ>
 
@@ -338,7 +335,7 @@ export default async function HelpPage() {
                     <strong>Join Link</strong> section. You&apos;ll see the event-specific
                     URL with a copy button. Share this link with anyone you want to
                     invite — they&apos;ll fill out a short registration form and
-                    you&apos;ll approve them from the Member Directory.
+                    you&apos;ll approve them from the Golfer Directory.
                   </p>
                 </FAQ>
 
@@ -363,12 +360,12 @@ export default async function HelpPage() {
                   </p>
                 </FAQ>
 
-                <FAQ question="How do I manage member subscriptions?">
+                <FAQ question="How do I manage golfer subscriptions?">
                   <p>
-                    From the <strong>Member Directory</strong>, tap{" "}
-                    <strong>Manage</strong> next to any member to see their detail
+                    From the <strong>Golfer Directory</strong>, tap{" "}
+                    <strong>Manage</strong> next to any golfer to see their detail
                     page. There you can toggle which events they&apos;re subscribed to.
-                    You can also deactivate a member (stops all invites, preserves
+                    You can also deactivate a golfer (stops all invites, preserves
                     history) or reactivate them later.
                   </p>
                 </FAQ>
@@ -389,7 +386,6 @@ export default async function HelpPage() {
             </p>
           </section>
         </div>
-      </main>
-    </>
+          </main>
   );
 }

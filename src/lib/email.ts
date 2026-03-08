@@ -1,5 +1,5 @@
 import { Resend } from "resend";
-import type { StoredGrouping, StoredGroupMember } from "./grouping-db";
+import type { StoredGrouping, StoredGroupGolfer } from "./grouping-db";
 import { formatPhoneDisplay, formatInitialLastName, formatFullName, formatSponsorName, formatGameDate, getSiteUrl } from "./format";
 import { formatCutoffDayTime } from "./timezone";
 
@@ -241,11 +241,11 @@ export function generateProShopEmail({
 
   // Grouped format: single consolidated list with group headers + preference columns
   if (groupings && groupings.length > 0) {
-    const totalPlayers = groupings.reduce((sum, g) => sum + g.members.length, 0);
+    const totalPlayers = groupings.reduce((sum, g) => sum + g.golfers.length, 0);
 
     const groupRows = groupings
       .map((group) => {
-        const memberRows = group.members
+        const golferRows = group.golfers
           .map((m) => {
             const guestLabel = m.isGuest && m.hostName
               ? ` <span style="color: #6b7280; font-size: 12px;">(Guest of ${m.hostName})</span>`
@@ -278,7 +278,7 @@ export function generateProShopEmail({
               Group ${group.groupNumber}
             </td>
           </tr>
-          ${memberRows}`;
+          ${golferRows}`;
       })
       .join("");
 

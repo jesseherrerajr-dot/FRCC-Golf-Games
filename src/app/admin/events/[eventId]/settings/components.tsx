@@ -874,7 +874,7 @@ export function FeatureFlagsForm({ event }: { event: any }) {
     {
       key: "allow_guest_requests",
       label: "Guest Requests",
-      description: "Allow members to request to bring guests",
+      description: "Allow golfers to request to bring guests",
     },
     {
       key: "allow_tee_time_preferences",

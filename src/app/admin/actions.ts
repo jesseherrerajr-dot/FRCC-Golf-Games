@@ -122,7 +122,7 @@ export async function denyRegistration(profileId: string) {
   return { success: true };
 }
 
-export async function deactivateMember(profileId: string) {
+export async function deactivateGolfer(profileId: string) {
   const supabase = await createClient();
 
   const {
@@ -153,14 +153,14 @@ export async function deactivateMember(profileId: string) {
 
   if (error) {
     console.error("Deactivate error:", error);
-    return { error: "Failed to deactivate member." };
+    return { error: "Failed to deactivate golfer." };
   }
 
   revalidatePath("/admin");
   return { success: true };
 }
 
-export async function reactivateMember(profileId: string) {
+export async function reactivateGolfer(profileId: string) {
   const supabase = await createClient();
 
   const {
@@ -191,7 +191,7 @@ export async function reactivateMember(profileId: string) {
 
   if (error) {
     console.error("Reactivate error:", error);
-    return { error: "Failed to reactivate member." };
+    return { error: "Failed to reactivate golfer." };
   }
 
   // Re-subscribe to all active events

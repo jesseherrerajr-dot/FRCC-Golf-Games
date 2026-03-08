@@ -184,11 +184,11 @@ export interface GroupingAssignment {
   guestRequestId?: string; // future: for guest assignments
 }
 
-/** A complete group with its members and score */
+/** A complete group with its golfers and score */
 export interface GroupResult {
   groupNumber: number;
   teeOrder: number;       // tee position (1 = first off)
-  members: string[];      // profile IDs
+  golfers: string[];      // profile IDs
   harmonyScore: number;   // sum of pairwise partner scores
 }
 

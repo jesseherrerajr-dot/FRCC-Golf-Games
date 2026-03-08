@@ -50,7 +50,7 @@ export async function ensureSchedule(
 }
 
 /**
- * Ensure RSVP rows exist for all active, subscribed members for a given schedule.
+ * Ensure RSVP rows exist for all active, subscribed golfers for a given schedule.
  * Creates RSVP rows with unique tokens for anyone who doesn't have one.
  */
 export async function ensureRsvps(
@@ -58,7 +58,7 @@ export async function ensureRsvps(
   scheduleId: string,
   eventId: string
 ) {
-  // Get all active, subscribed members
+  // Get all active, subscribed golfers
   const { data: subscribers } = await supabase
     .from("event_subscriptions")
     .select("profile_id, profiles(id, status, is_guest)")

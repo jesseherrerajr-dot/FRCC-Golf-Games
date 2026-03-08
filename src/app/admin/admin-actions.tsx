@@ -6,8 +6,8 @@ import { ConfirmModal } from "@/components/confirm-modal";
 import {
   approveRegistration,
   denyRegistration,
-  deactivateMember,
-  reactivateMember,
+  deactivateGolfer,
+  reactivateGolfer,
 } from "./actions";
 
 export function ApproveButton({ profileId }: { profileId: string }) {
@@ -20,7 +20,7 @@ export function ApproveButton({ profileId }: { profileId: string }) {
       onClick={() =>
         startTransition(async () => {
           await approveRegistration(profileId);
-          showToast("Member approved");
+          showToast("Golfer approved");
         })
       }
       className="rounded-md bg-teal-600 px-3 py-2 text-xs font-medium text-white hover:bg-teal-500 disabled:opacity-50"
@@ -80,7 +80,7 @@ export function DeactivateButton({ profileId }: { profileId: string }) {
       </button>
       <ConfirmModal
         open={showConfirm}
-        title="Deactivate Member"
+        title="Deactivate Golfer"
         message="This golfer will stop receiving weekly invites. Their account and history will be preserved — you can reactivate them anytime."
         confirmLabel="Deactivate"
         variant="danger"
@@ -89,8 +89,8 @@ export function DeactivateButton({ profileId }: { profileId: string }) {
         onConfirm={() => {
           setShowConfirm(false);
           startTransition(async () => {
-            await deactivateMember(profileId);
-            showToast("Member deactivated");
+            await deactivateGolfer(profileId);
+            showToast("Golfer deactivated");
           });
         }}
       />
@@ -107,8 +107,8 @@ export function ReactivateButton({ profileId }: { profileId: string }) {
       disabled={isPending}
       onClick={() =>
         startTransition(async () => {
-          await reactivateMember(profileId);
-          showToast("Member reactivated");
+          await reactivateGolfer(profileId);
+          showToast("Golfer reactivated");
         })
       }
       className="rounded-md bg-teal-600 px-3 py-2 text-xs font-medium text-white hover:bg-teal-500 disabled:opacity-50"

@@ -1,7 +1,6 @@
 import { requireAdmin } from "@/lib/auth";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import Header from "@/components/header";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { CollapsibleSection } from "@/components/collapsible-section";
 import {
@@ -453,7 +452,7 @@ export default async function AdminRsvpPage({
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                      Member
+                      Golfer
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                       Guest Name

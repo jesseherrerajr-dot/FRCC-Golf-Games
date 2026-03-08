@@ -128,13 +128,13 @@ export function pairKey(a: string, b: string): string {
 
 /** Calculate the harmony score for a group of golfer IDs */
 export function groupHarmonyScore(
-  members: string[],
+  golfers: string[],
   pairScores: Map<string, number>
 ): number {
   let score = 0;
-  for (let i = 0; i < members.length; i++) {
-    for (let j = i + 1; j < members.length; j++) {
-      const key = pairKey(members[i], members[j]);
+  for (let i = 0; i < golfers.length; i++) {
+    for (let j = i + 1; j < golfers.length; j++) {
+      const key = pairKey(golfers[i], golfers[j]);
       score += pairScores.get(key) || 0;
     }
   }
@@ -239,17 +239,17 @@ export function generateGroupings(
   const lateIds = new Set(pools.late);
 
   interface PrelimGroup {
-    members: string[];
+    golfers: string[];
     harmony: number;
     priority: 'early' | 'late' | 'none'; // tee-time tier
   }
 
-  const prelimGroups: PrelimGroup[] = groupSlots.map((members) => {
-    const harmony = groupHarmonyScore(members, pairScores);
-    const hasEarly = members.some((id) => earlyIds.has(id));
-    const hasLate = members.some((id) => lateIds.has(id));
+  const prelimGroups: PrelimGroup[] = groupSlots.map((golfers) => {
+    const harmony = groupHarmonyScore(golfers, pairScores);
+    const hasEarly = golfers.some((id) => earlyIds.has(id));
+    const hasLate = golfers.some((id) => lateIds.has(id));
     const priority = hasEarly ? 'early' : hasLate ? 'late' : 'none';
-    return { members: [...members], harmony, priority };
+    return { golfers: [...golfers], harmony, priority };
   });
 
   // Step 6: Randomize group order while respecting tee-time tiers.
@@ -279,11 +279,11 @@ export function generateGroupings(
     groups.push({
       groupNumber: i + 1,
       teeOrder,
-      members: pg.members,
+      golfers: pg.golfers,
       harmonyScore: pg.harmony,
     });
 
-    for (const profileId of pg.members) {
+    for (const profileId of pg.golfers) {
       assignments.push({
         groupNumber: i + 1,
         teeOrder,
@@ -340,18 +340,18 @@ function assignPoolToGroups(
 
 /**
  * Find the index in `candidates` of the golfer who adds the most harmony
- * to the existing group members.
+ * to the existing group golfers.
  *
  * If all scores are 0 (no preferences), returns 0 (first candidate — stable ordering).
  */
 function findBestCandidate(
   candidates: string[],
-  currentMembers: string[],
+  currentGolfers: string[],
   pairScores: Map<string, number>
 ): number {
   if (candidates.length === 1) return 0;
-  if (currentMembers.length === 0) {
-    // No existing members to score against — pick first candidate (stable)
+  if (currentGolfers.length === 0) {
+    // No existing golfers to score against — pick first candidate (stable)
     return 0;
   }
 
@@ -360,8 +360,8 @@ function findBestCandidate(
 
   for (let i = 0; i < candidates.length; i++) {
     let score = 0;
-    for (const member of currentMembers) {
-      const key = pairKey(candidates[i], member);
+    for (const golfer of currentGolfers) {
+      const key = pairKey(candidates[i], golfer);
       score += pairScores.get(key) || 0;
     }
     if (score > bestScore) {

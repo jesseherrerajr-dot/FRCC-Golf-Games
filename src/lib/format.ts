@@ -166,7 +166,7 @@ export function formatDateTime(dateStr: string | null): string {
  * Format a database timestamp as a date only in Pacific Time.
  * Example: "2026-03-06T16:29:00+00:00" → "Mar 6, 2026"
  *
- * Use this for: created_at on member pages, etc.
+ * Use this for: created_at on golfer pages, etc.
  */
 export function formatDateTimeDateOnly(dateStr: string | null): string {
   if (!dateStr) return "—";

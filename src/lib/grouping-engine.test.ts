@@ -220,21 +220,21 @@ describe('generateGroupings', () => {
     it('should create correct number of groups for N=4', () => {
       const result = generateGroupings(makeGolfers(4), []);
       assert.equal(result.groups.length, 1);
-      assert.equal(result.groups[0].members.length, 4);
+      assert.equal(result.groups[0].golfers.length, 4);
     });
 
     it('should create correct groups for N=8', () => {
       const result = generateGroupings(makeGolfers(8), []);
       assert.equal(result.groups.length, 2);
-      assert.equal(result.groups[0].members.length, 4);
-      assert.equal(result.groups[1].members.length, 4);
+      assert.equal(result.groups[0].golfers.length, 4);
+      assert.equal(result.groups[1].golfers.length, 4);
     });
 
     it('should create correct groups for N=16 (typical Saturday)', () => {
       const result = generateGroupings(makeGolfers(16), []);
       assert.equal(result.groups.length, 4);
       for (const g of result.groups) {
-        assert.equal(g.members.length, 4);
+        assert.equal(g.golfers.length, 4);
       }
     });
 
@@ -265,14 +265,14 @@ describe('generateGroupings', () => {
       const result = generateGroupings(golfers, []);
 
       // Group 1 (tee order 1) should be all early
-      const group1Ids = result.groups[0].members;
+      const group1Ids = result.groups[0].golfers;
       assert.ok(
         group1Ids.every((id) => id.startsWith('early')),
         `Group 1 should be early golfers, got: ${group1Ids}`
       );
 
       // Group 2 (tee order 2) should be all late
-      const group2Ids = result.groups[1].members;
+      const group2Ids = result.groups[1].golfers;
       assert.ok(
         group2Ids.every((id) => id.startsWith('late')),
         `Group 2 should be late golfers, got: ${group2Ids}`
@@ -290,9 +290,9 @@ describe('generateGroupings', () => {
 
       // All 8 golfers should be assigned
       assert.equal(result.assignments.length, 8);
-      // Both groups should have 4 members
-      assert.equal(result.groups[0].members.length, 4);
-      assert.equal(result.groups[1].members.length, 4);
+      // Both groups should have 4 golfers
+      assert.equal(result.groups[0].golfers.length, 4);
+      assert.equal(result.groups[1].golfers.length, 4);
     });
 
     it('should handle all golfers with same preference', () => {
@@ -315,19 +315,19 @@ describe('generateGroupings', () => {
 
       // Group 1: early golfers
       assert.ok(
-        result.groups[0].members.every((id) => id.startsWith('early')),
+        result.groups[0].golfers.every((id) => id.startsWith('early')),
         `Group 1 should be early golfers`
       );
 
       // Group 3: late golfers
       assert.ok(
-        result.groups[2].members.every((id) => id.startsWith('late')),
+        result.groups[2].golfers.every((id) => id.startsWith('late')),
         `Group 3 should be late golfers`
       );
 
       // Group 2: no_preference golfers
       assert.ok(
-        result.groups[1].members.every((id) => id.startsWith('nopref')),
+        result.groups[1].golfers.every((id) => id.startsWith('nopref')),
         `Group 2 should be no_preference golfers`
       );
     });
@@ -428,14 +428,14 @@ describe('generateGroupings', () => {
     it('should handle single golfer', () => {
       const result = generateGroupings([golfer('g1')], []);
       assert.equal(result.groups.length, 1);
-      assert.equal(result.groups[0].members.length, 1);
-      assert.deepEqual(result.groups[0].members, ['g1']);
+      assert.equal(result.groups[0].golfers.length, 1);
+      assert.deepEqual(result.groups[0].golfers, ['g1']);
     });
 
     it('should handle two golfers', () => {
       const result = generateGroupings([golfer('g1'), golfer('g2')], []);
       assert.equal(result.groups.length, 1);
-      assert.equal(result.groups[0].members.length, 2);
+      assert.equal(result.groups[0].golfers.length, 2);
     });
 
     it('should handle no preferences at all', () => {
@@ -458,12 +458,12 @@ describe('generateGroupings', () => {
     it('should handle 5 golfers (single fivesome)', () => {
       const result = generateGroupings(makeGolfers(5), []);
       assert.equal(result.groups.length, 1);
-      assert.equal(result.groups[0].members.length, 5);
+      assert.equal(result.groups[0].golfers.length, 5);
     });
 
     it('should handle 13 golfers (4+4+5)', () => {
       const result = generateGroupings(makeGolfers(13), []);
-      const sizes = result.groups.map((g) => g.members.length);
+      const sizes = result.groups.map((g) => g.golfers.length);
       assert.deepEqual(sizes, [4, 4, 5]);
     });
 

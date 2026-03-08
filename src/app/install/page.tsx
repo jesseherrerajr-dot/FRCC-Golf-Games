@@ -1,12 +1,9 @@
 import Link from "next/link";
-import Header from "@/components/header";
 import { InstallContent } from "./install-content";
 
 export default function InstallPage() {
   return (
-    <>
-      <Header />
-      <main className="min-h-screen px-4 py-8">
+    <main className="min-h-screen px-4 py-8">
         <div className="mx-auto max-w-2xl">
           {/* Header */}
           <div className="mb-8">
@@ -37,7 +34,6 @@ export default function InstallPage() {
             </Link>
           </div>
         </div>
-      </main>
-    </>
+          </main>
   );
 }

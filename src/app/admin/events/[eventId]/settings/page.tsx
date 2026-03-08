@@ -109,7 +109,7 @@ export default async function EventSettingsPage({
           </h2>
           <p className="mt-1 text-sm text-gray-500">
             Share this link with new golfers. They&apos;ll fill out a short
-            registration form and you&apos;ll approve them in the Member Directory.
+            registration form and you&apos;ll approve them in the Golfer Directory.
           </p>
           <div className="mt-3 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
             <JoinLinkSection slug={event.slug} />

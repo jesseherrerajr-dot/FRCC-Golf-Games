@@ -34,14 +34,14 @@ export async function createGuestRequest(formData: FormData) {
     return { error: "Invalid RSVP token" };
   }
 
-  // Verify the member is "in" (only "in" members can request guests)
+  // Verify the golfer is "in" (only "in" golfers can request guests)
   if (rsvp.status !== "in") {
     return {
       error: "You must be confirmed to play before requesting a guest",
     };
   }
 
-  // Check how many guest requests this member already has for this week
+  // Check how many guest requests this golfer already has for this week
   const { count: existingCount } = await supabase
     .from("guest_requests")
     .select("*", { count: "exact", head: true })
@@ -92,7 +92,7 @@ export async function getGuestRequests(token: string) {
     return [];
   }
 
-  // Fetch all guest requests for this member for this week
+  // Fetch all guest requests for this golfer for this week
   const { data: guestRequests } = await supabase
     .from("guest_requests")
     .select("*")
@@ -106,7 +106,7 @@ export async function getGuestRequests(token: string) {
 export async function getPastGuests(token: string) {
   const supabase = createAdminClient();
 
-  // Look up the RSVP by token to get the member's profile_id
+  // Look up the RSVP by token to get the golfer's profile_id
   const { data: rsvp } = await supabase
     .from("rsvps")
     .select("profile_id")
@@ -117,7 +117,7 @@ export async function getPastGuests(token: string) {
     return [];
   }
 
-  // Fetch all unique past guests for this member
+  // Fetch all unique past guests for this golfer
   // Group by guest email to get unique guests (most recent request per guest)
   const { data: pastGuests } = await supabase
     .from("guest_requests")
