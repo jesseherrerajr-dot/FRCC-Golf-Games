@@ -22,7 +22,7 @@ export default async function CreateEventPage() {
           href="/admin"
           className="text-sm text-teal-600 hover:text-teal-500"
         >
-          ← Back to Dashboard
+          ← Back to Admin
         </Link>
         <h1 className="mt-1 text-2xl font-bold text-navy-900">
           Create New Event
