@@ -93,11 +93,6 @@ export default function ProfilePage() {
       const eventsData = await getSubscribedEvents();
       setSubscribedEvents(eventsData);
 
-      // Expand first event by default if there are any
-      if (eventsData.length > 0) {
-        setExpandedEvents(new Set([eventsData[0].event_id]));
-      }
-
       setLoading(false);
     }
     loadData();
@@ -321,50 +316,44 @@ export default function ProfilePage() {
               are private — only you can see them. You can update them at any time.
             </p>
 
-            {subscribedEvents.length === 1 ? (
-              // Single event: show preferences directly without collapsible
-              <PlayingPartnerPreferencesSection
-                eventId={subscribedEvents[0].event_id}
-                eventName={subscribedEvents[0].event_name}
-                preferencesEnabled={subscribedEvents[0].allow_playing_partner_preferences}
-              />
-            ) : (
-              // Multiple events: show as collapsible sections
-              <div className="space-y-3">
-                {subscribedEvents.map((event) => (
-                  <div key={event.event_id} className="border border-gray-200 rounded-lg">
-                    {/* Collapsible header */}
-                    <button
-                      type="button"
-                      onClick={() => toggleEventExpanded(event.event_id)}
-                      className="w-full flex items-center justify-between bg-gray-50 hover:bg-gray-100 px-4 py-3 rounded-lg transition-colors"
+            <div className="space-y-3">
+              {subscribedEvents.map((event) => (
+                <div key={event.event_id} className="border border-gray-200 rounded-lg">
+                  {/* Collapsible header */}
+                  <button
+                    type="button"
+                    onClick={() => toggleEventExpanded(event.event_id)}
+                    className="w-full flex items-center justify-between bg-gray-50 hover:bg-gray-100 px-4 py-3 rounded-lg transition-colors"
+                  >
+                    <h3 className="font-semibold text-gray-900">
+                      {event.event_name}
+                    </h3>
+                    <svg
+                      className={`h-4 w-4 text-gray-500 transition-transform ${
+                        expandedEvents.has(event.event_id) ? "rotate-180" : ""
+                      }`}
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      strokeWidth={2}
+                      stroke="currentColor"
                     >
-                      <h3 className="font-semibold text-gray-900">
-                        {event.event_name}
-                      </h3>
-                      <span
-                        className={`text-gray-500 transition-transform ${
-                          expandedEvents.has(event.event_id) ? "rotate-180" : ""
-                        }`}
-                      >
-                        ▼
-                      </span>
-                    </button>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                    </svg>
+                  </button>
 
-                    {/* Collapsible content */}
-                    {expandedEvents.has(event.event_id) && (
-                      <div className="p-4 border-t border-gray-200">
-                        <PlayingPartnerPreferencesSection
-                          eventId={event.event_id}
-                          eventName={event.event_name}
-                          preferencesEnabled={event.allow_playing_partner_preferences}
-                        />
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
+                  {/* Collapsible content */}
+                  {expandedEvents.has(event.event_id) && (
+                    <div className="p-4 border-t border-gray-200">
+                      <PlayingPartnerPreferencesSection
+                        eventId={event.event_id}
+                        eventName={event.event_name}
+                        preferencesEnabled={event.allow_playing_partner_preferences}
+                      />
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
         )}
         </div>
