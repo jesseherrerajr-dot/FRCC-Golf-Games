@@ -361,35 +361,42 @@ export default async function EventDashboardPage({
             <h2 className="mb-4 text-lg font-semibold text-gray-900">Manage Golfers</h2>
 
             {/* Add New Golfer subsection */}
-            <div className="mb-4">
-              <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-gray-500">
-                Add New Golfer to Event
-              </h3>
-              <div className="space-y-3">
-                {/* Share Join Link */}
-                <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-                  <h4 className="font-semibold text-gray-900">Share Join Link</h4>
-                  <p className="text-xs text-gray-500 mt-1 mb-3">
-                    Send this link to the golfer so they can self-register. You&apos;ll need to approve them before they become active.
-                  </p>
-                  <JoinLinkSection slug={event.slug} />
-                </div>
+            <div className="mb-4 rounded-lg border border-gray-200 bg-white shadow-sm">
+              <div className="border-b border-gray-100 px-4 py-3">
+                <h3 className="text-sm font-semibold text-gray-900">Add New Golfer</h3>
+              </div>
 
-                {/* Add Golfer Directly */}
+              <div className="divide-y divide-gray-100">
+                {/* Option 1: Register on their behalf */}
                 <Link
                   href={`/admin/events/${eventId}/golfers/add`}
-                  className="flex items-center justify-between rounded-lg border border-teal-200 bg-teal-50 p-4 shadow-sm hover:border-teal-400 hover:shadow-md transition"
+                  className="flex items-center justify-between px-4 py-4 transition-colors hover:bg-gray-50"
                 >
                   <div>
-                    <h4 className="font-semibold text-teal-900">+ Add Golfer Directly</h4>
-                    <p className="text-xs text-teal-700 mt-1">
-                      Register a golfer with their info — they&apos;ll be automatically approved and subscribed
+                    <p className="text-sm font-medium text-gray-900">
+                      Already know the golfer&apos;s info?
+                    </p>
+                    <p className="mt-0.5 text-xs text-gray-500">
+                      Register on their behalf — they&apos;ll be automatically approved and subscribed.
                     </p>
                   </div>
-                  <svg className="h-5 w-5 text-teal-600" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                  <svg className="ml-3 h-5 w-5 flex-shrink-0 text-gray-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
                   </svg>
                 </Link>
+
+                {/* Option 2: Share join link */}
+                <div className="px-4 py-4">
+                  <p className="text-sm font-medium text-gray-900">
+                    Don&apos;t know the golfer&apos;s info?
+                  </p>
+                  <p className="mt-0.5 text-xs text-gray-500">
+                    Share this link so they can self-register. You&apos;ll need to approve them before they become active and subscribed.
+                  </p>
+                  <div className="mt-3">
+                    <JoinLinkSection slug={event.slug} />
+                  </div>
+                </div>
               </div>
             </div>
 
