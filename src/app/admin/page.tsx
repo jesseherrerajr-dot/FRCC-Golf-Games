@@ -96,79 +96,15 @@ export default async function AdminDashboard() {
     <main className="min-h-screen px-4 py-8">
         <div className="mx-auto max-w-6xl">
           {/* Header */}
-          <div className="mb-8 flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-serif font-bold text-navy-900 uppercase tracking-wide">
-                Admin Home
-              </h1>
-              <p className="mt-1 text-sm text-gray-500">
-                {profile.is_super_admin ? "Super Admin" : "Event Admin"} — {profile.first_name}{" "}
-                {profile.last_name}
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Link
-                href="/dashboard"
-                className="text-sm text-teal-700 hover:text-teal-600"
-              >
-                My Dashboard →
-              </Link>
-            </div>
+          <div className="mb-8">
+            <h1 className="text-3xl font-serif font-bold text-navy-900 uppercase tracking-wide">
+              Admin Home
+            </h1>
+            <p className="mt-1 text-sm text-gray-500">
+              {profile.is_super_admin ? "Super Admin" : "Event Admin"} — {profile.first_name}{" "}
+              {profile.last_name}
+            </p>
           </div>
-
-          {/* Global Section (Super Admin Only) */}
-          {profile.is_super_admin && (
-            <section className="mb-8">
-              <h2 className="mb-4 text-lg font-semibold text-gray-900">Global</h2>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Link
-                  href="/admin/golfers"
-                  className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4 shadow-sm hover:border-teal-300 hover:shadow-md transition"
-                >
-                  <div>
-                    <h3 className="font-semibold text-gray-900">All Golfers</h3>
-                    <p className="text-xs text-gray-500 mt-1">Manage all golfers and pending approvals</p>
-                  </div>
-                  <svg
-                    className="h-5 w-5 text-gray-400"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    strokeWidth={2}
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M8.25 4.5l7.5 7.5-7.5 7.5"
-                    />
-                  </svg>
-                </Link>
-
-                <Link
-                  href="/admin/events/new"
-                  className="flex items-center justify-between rounded-lg border border-teal-200 bg-teal-50 p-4 shadow-sm hover:border-teal-400 hover:shadow-md transition"
-                >
-                  <div>
-                    <h3 className="font-semibold text-teal-900">+ Create New Event</h3>
-                    <p className="text-xs text-teal-700 mt-1">Set up a new recurring golf game</p>
-                  </div>
-                  <svg
-                    className="h-5 w-5 text-teal-600"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    strokeWidth={2}
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M12 4.5v15m7.5-7.5h-15"
-                    />
-                  </svg>
-                </Link>
-              </div>
-            </section>
-          )}
 
           {/* Action Alert (Global) */}
           {hasActionItems && (
@@ -191,7 +127,7 @@ export default async function AdminDashboard() {
             </div>
           )}
 
-          {/* Event Summary Cards */}
+          {/* Event Summary Cards (first — most used section) */}
           <section>
             <h2 className="mb-4 text-lg font-semibold text-gray-900">
               {profile.is_super_admin ? "Events" : "Your Events"}
@@ -306,6 +242,60 @@ export default async function AdminDashboard() {
               </div>
             )}
           </section>
+
+          {/* Global Section (Super Admin Only) */}
+          {profile.is_super_admin && (
+            <section className="mt-8">
+              <h2 className="mb-4 text-lg font-semibold text-gray-900">Global</h2>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Link
+                  href="/admin/golfers"
+                  className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4 shadow-sm hover:border-teal-300 hover:shadow-md transition"
+                >
+                  <div>
+                    <h3 className="font-semibold text-gray-900">All Golfers</h3>
+                    <p className="text-xs text-gray-500 mt-1">Manage all golfers and pending approvals</p>
+                  </div>
+                  <svg
+                    className="h-5 w-5 text-gray-400"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    strokeWidth={2}
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M8.25 4.5l7.5 7.5-7.5 7.5"
+                    />
+                  </svg>
+                </Link>
+
+                <Link
+                  href="/admin/events/new"
+                  className="flex items-center justify-between rounded-lg border border-teal-200 bg-teal-50 p-4 shadow-sm hover:border-teal-400 hover:shadow-md transition"
+                >
+                  <div>
+                    <h3 className="font-semibold text-teal-900">+ Create New Event</h3>
+                    <p className="text-xs text-teal-700 mt-1">Set up a new recurring golf game</p>
+                  </div>
+                  <svg
+                    className="h-5 w-5 text-teal-600"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    strokeWidth={2}
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M12 4.5v15m7.5-7.5h-15"
+                    />
+                  </svg>
+                </Link>
+              </div>
+            </section>
+          )}
         </div>
       </main>
   );
