@@ -256,82 +256,68 @@ export default async function DashboardPage() {
             </div>
           )}
 
-          {/* Profile summary */}
+          {/* My Profile — unified: contact info + playing partner preferences */}
           {profile && (
-            <div className="mt-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-              <div className="flex items-center justify-between">
-                <h3 className="font-serif text-lg font-semibold uppercase tracking-wide text-navy-900">
-                  Your Profile
-                </h3>
+            <div className="mt-4 rounded-lg border border-gray-200 bg-white shadow-sm overflow-hidden">
+              <div className="p-6">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-serif text-lg font-semibold uppercase tracking-wide text-navy-900">
+                    My Profile
+                  </h3>
+                  <Link
+                    href="/profile"
+                    className="text-sm font-medium text-teal-700 hover:text-teal-600"
+                  >
+                    Edit
+                  </Link>
+                </div>
+                <dl className="mt-3 space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <dt className="text-gray-500">Name</dt>
+                    <dd className="font-medium text-gray-900">
+                      {profile.first_name} {profile.last_name}
+                    </dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt className="text-gray-500">Email</dt>
+                    <dd className="font-medium text-gray-900">{profile.email}</dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt className="text-gray-500">Phone</dt>
+                    <dd className="font-medium text-gray-900">
+                      {formatPhoneDisplay(profile.phone) || "Not set"}
+                    </dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt className="text-gray-500">GHIN</dt>
+                    <dd className="font-medium text-gray-900">
+                      {profile.ghin_number || "Not set"}
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+
+              {/* Playing Partner Preferences — per event */}
+              {subscriptions && subscriptions.length > 0 && (
                 <Link
                   href="/profile"
-                  className="text-sm font-medium text-teal-700 hover:text-teal-600"
+                  className="flex items-center justify-between border-t border-gray-200 bg-gray-50 px-6 py-4 transition-colors hover:bg-gray-100"
                 >
-                  Edit
+                  <div>
+                    <p className="font-semibold text-gray-900">Playing Partner Preferences</p>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {subscriptions.length === 1
+                        ? "Manage your preferred playing partners"
+                        : `Manage preferences for ${subscriptions.length} events`}
+                    </p>
+                  </div>
+                  <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                  </svg>
                 </Link>
-              </div>
-              <dl className="mt-3 space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <dt className="text-gray-500">Name</dt>
-                  <dd className="font-medium text-gray-900">
-                    {profile.first_name} {profile.last_name}
-                  </dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-gray-500">Email</dt>
-                  <dd className="font-medium text-gray-900">{profile.email}</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-gray-500">Phone</dt>
-                  <dd className="font-medium text-gray-900">
-                    {formatPhoneDisplay(profile.phone) || "Not set"}
-                  </dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-gray-500">GHIN</dt>
-                  <dd className="font-medium text-gray-900">
-                    {profile.ghin_number || "Not set"}
-                  </dd>
-                </div>
-              </dl>
+              )}
             </div>
           )}
-
-          {/* Admin link */}
-          {profile?.is_super_admin && (
-            <Link
-              href="/admin"
-              className="mt-4 flex items-center justify-between rounded-lg border border-navy-200 bg-navy-50 p-4 shadow-sm transition-colors hover:bg-navy-100"
-            >
-              <div>
-                <h3 className="font-semibold text-navy-900">Admin Dashboard</h3>
-                <p className="text-sm text-navy-600">
-                  Manage golfers, events, and approvals
-                </p>
-              </div>
-              <svg className="h-5 w-5 text-navy-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-              </svg>
-            </Link>
-          )}
-
-          {/* Quick links */}
-          <div className="mt-4 space-y-3">
-            <Link
-              href="/profile"
-              className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4 shadow-sm transition-colors hover:bg-gray-50"
-            >
-              <div>
-                <h3 className="font-semibold text-gray-900">Playing Partner Preferences</h3>
-                <p className="text-sm text-gray-600">
-                  Manage your preferred playing partners
-                </p>
-              </div>
-              <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-              </svg>
-            </Link>
-          </div>
         </div>
       </main>
   );
