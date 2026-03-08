@@ -256,21 +256,13 @@ export default async function DashboardPage() {
             </div>
           )}
 
-          {/* My Profile — unified: contact info + playing partner preferences */}
+          {/* My Profile */}
           {profile && (
             <div className="mt-4 rounded-lg border border-gray-200 bg-white shadow-sm overflow-hidden">
               <div className="p-6">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-serif text-lg font-semibold uppercase tracking-wide text-navy-900">
-                    My Profile
-                  </h3>
-                  <Link
-                    href="/profile"
-                    className="text-sm font-medium text-teal-700 hover:text-teal-600"
-                  >
-                    Edit
-                  </Link>
-                </div>
+                <h3 className="font-serif text-lg font-semibold uppercase tracking-wide text-navy-900">
+                  My Profile
+                </h3>
                 <dl className="mt-3 space-y-2 text-sm">
                   <div className="flex justify-between">
                     <dt className="text-gray-500">Name</dt>
@@ -297,25 +289,21 @@ export default async function DashboardPage() {
                 </dl>
               </div>
 
-              {/* Playing Partner Preferences — per event */}
-              {subscriptions && subscriptions.length > 0 && (
-                <Link
-                  href="/profile"
-                  className="flex items-center justify-between border-t border-gray-200 bg-gray-50 px-6 py-4 transition-colors hover:bg-gray-100"
-                >
-                  <div>
-                    <p className="font-semibold text-gray-900">Playing Partner Preferences</p>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      {subscriptions.length === 1
-                        ? "Manage your preferred playing partners"
-                        : `Manage preferences for ${subscriptions.length} events`}
-                    </p>
-                  </div>
-                  <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                  </svg>
-                </Link>
-              )}
+              {/* Single edit link */}
+              <Link
+                href="/profile"
+                className="flex items-center justify-between border-t border-gray-200 bg-gray-50 px-6 py-4 transition-colors hover:bg-gray-100"
+              >
+                <div>
+                  <p className="font-semibold text-teal-700">Edit Profile &amp; Playing Partners</p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Update your contact info, GHIN, and playing partner preferences
+                  </p>
+                </div>
+                <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                </svg>
+              </Link>
             </div>
           )}
         </div>
