@@ -131,12 +131,6 @@ export default async function GolferDirectory({
             >
               + Add Golfer
             </Link>
-            <Link
-              href="/admin"
-              className="text-sm text-teal-700 hover:text-teal-600"
-            >
-              ← Back to Admin
-            </Link>
           </div>
         </div>
 

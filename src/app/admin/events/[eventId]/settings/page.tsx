@@ -74,7 +74,8 @@ export default async function EventSettingsPage({
             <Breadcrumbs
               items={[
                 { label: "Admin", href: "/admin" },
-                { label: event.name },
+                { label: event.name, href: `/admin/events/${eventId}` },
+                { label: "Settings" },
               ]}
             />
             <h1 className="text-2xl font-bold text-navy-900">

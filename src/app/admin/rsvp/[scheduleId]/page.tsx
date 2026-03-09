@@ -175,6 +175,7 @@ export default async function AdminRsvpPage({
           <Breadcrumbs
             items={[
               { label: "Admin", href: "/admin" },
+              { label: event?.name || "Event", href: `/admin/events/${event?.id}` },
               { label: "RSVP Management" },
             ]}
           />

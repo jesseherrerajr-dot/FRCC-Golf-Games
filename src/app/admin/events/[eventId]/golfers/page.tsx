@@ -147,12 +147,6 @@ export default async function EventGolferDirectoryPage({
               >
                 + Add Golfer
               </Link>
-              <Link
-                href={`/admin/events/${eventId}`}
-                className="text-sm text-teal-700 hover:text-teal-600"
-              >
-                ← Back to Event
-              </Link>
             </div>
           </div>
 

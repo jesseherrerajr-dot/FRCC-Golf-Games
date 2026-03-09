@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { CollapsibleSection } from "@/components/collapsible-section";
 import { createClient } from "@/lib/supabase/server";
+import { Breadcrumbs } from "@/components/breadcrumbs";
 
 function FAQ({
   question,
@@ -66,14 +67,14 @@ export default async function HelpPage() {
           {/* Header */}
           <div className="mb-8">
             {user && (
-              <Link
-                href="/dashboard"
-                className="text-sm text-teal-700 hover:text-teal-600"
-              >
-                &larr; Back to Home
-              </Link>
+              <Breadcrumbs
+                items={[
+                  { label: "Home", href: "/dashboard" },
+                  { label: "Help" },
+                ]}
+              />
             )}
-            <h1 className="mt-2 text-2xl font-serif uppercase tracking-wide font-bold text-navy-900">
+            <h1 className="text-2xl font-serif uppercase tracking-wide font-bold text-navy-900">
               Help & How It Works
             </h1>
             <p className="mt-1 text-sm text-gray-500">

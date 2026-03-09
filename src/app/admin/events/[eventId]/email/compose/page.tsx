@@ -44,7 +44,7 @@ export default async function EmailComposerPage({
           <Breadcrumbs
             items={[
               { label: "Admin", href: "/admin" },
-              { label: event.name, href: `/admin/events/${eventId}/settings` },
+              { label: event.name, href: `/admin/events/${eventId}` },
               { label: "Send Email" },
             ]}
           />

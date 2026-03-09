@@ -7,6 +7,7 @@ import { getSubscribedEvents } from "./preferences-actions";
 import { PlayingPartnerPreferencesSection } from "./playing-partner-preferences";
 import Link from "next/link";
 import Image from "next/image";
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import {
   useFieldValidation,
   FieldError,
@@ -134,13 +135,13 @@ export default function ProfilePage() {
         <div className="mx-auto max-w-md">
           {/* Header */}
           <div className="mb-6">
-            <Link
-              href="/dashboard"
-              className="text-sm text-teal-700 hover:text-teal-600"
-            >
-              &larr; Back to Home
-            </Link>
-            <h1 className="mt-2 text-2xl font-serif uppercase tracking-wide font-bold text-navy-900">
+            <Breadcrumbs
+              items={[
+                { label: "Home", href: "/dashboard" },
+                { label: "Profile" },
+              ]}
+            />
+            <h1 className="text-2xl font-serif uppercase tracking-wide font-bold text-navy-900">
               Profile Settings
             </h1>
           <p className="mt-1 text-sm text-gray-500">

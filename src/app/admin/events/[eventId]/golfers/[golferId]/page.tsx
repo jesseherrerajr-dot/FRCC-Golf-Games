@@ -182,15 +182,6 @@ export default async function EventGolferDetailPage({
             </p>
           </div>
 
-          {/* Back Link */}
-          <div className="mt-6">
-            <Link
-              href={`/admin/events/${eventId}/golfers`}
-              className="text-sm text-teal-700 hover:text-teal-600"
-            >
-              ← Back to Golfer Directory
-            </Link>
-          </div>
         </div>
           </main>
   );
