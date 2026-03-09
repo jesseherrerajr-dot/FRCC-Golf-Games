@@ -1,6 +1,7 @@
 import { requireAdmin, hasEventAccess } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import { CollapsibleSection } from "@/components/collapsible-section";
 import { formatGameDate, formatGameDateShort, formatDateTime } from "@/lib/format";
 import { getTodayPacific, calculateSendDateString } from "@/lib/timezone";
@@ -172,6 +173,13 @@ export default async function EventDashboardPage({
   return (
     <main className="min-h-screen px-4 py-8">
         <div className="mx-auto max-w-4xl">
+          <Breadcrumbs
+            items={[
+              { label: "Admin", href: "/admin" },
+              { label: event.name },
+            ]}
+          />
+
           {/* Section 1: Action Required */}
           <section className="mb-8">
             <h2 className="mb-4 text-lg font-semibold text-gray-900">Action Required</h2>
