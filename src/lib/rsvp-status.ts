@@ -27,8 +27,8 @@ export const RSVP_ADMIN_LABELS: Record<RsvpStatus, string> = {
   in: "In",
   out: "Out",
   not_sure: "Not Sure",
-  no_response: "No Response",
-  waitlisted: "Waitlisted",
+  no_response: "No Reply",
+  waitlisted: "Waitlist",
 };
 
 /**
@@ -61,6 +61,6 @@ export const RSVP_ADMIN_OPTIONS: { value: RsvpStatus; label: string }[] = [
   { value: "in", label: "In" },
   { value: "out", label: "Out" },
   { value: "not_sure", label: "Not Sure" },
-  { value: "no_response", label: "No Response" },
-  { value: "waitlisted", label: "Waitlisted" },
+  { value: "no_response", label: "No Reply" },
+  { value: "waitlisted", label: "Waitlist" },
 ];

@@ -183,7 +183,8 @@ export default async function AdminRsvpPage({
             RSVP Management
           </h1>
           <p className="mt-1 text-lg text-gray-600">
-            {event?.name} — {formatGameDate(schedule.game_date)}
+            <span className="font-semibold text-gray-900">{formatGameDate(schedule.game_date)}</span>
+            {" — "}{event?.name}
           </p>
           {schedule.status === "cancelled" && (
             <span className="mt-1 inline-block rounded-full bg-red-100 px-3 py-1 text-sm font-medium text-red-700">
@@ -242,58 +243,15 @@ export default async function AdminRsvpPage({
           </div>
         </div>
 
-        {/* Email Status & Send Controls */}
-        <CollapsibleSection
-          title="Email Controls"
-          defaultOpen={false}
-          headerColor="text-gray-700"
-          badge={{
-            label: `${[schedule.invite_sent, schedule.reminder_sent, schedule.golfer_confirmation_sent, schedule.pro_shop_sent].filter(Boolean).length}/4 sent`,
-            className: [schedule.invite_sent, schedule.reminder_sent, schedule.golfer_confirmation_sent, schedule.pro_shop_sent].every(Boolean)
-              ? "bg-teal-100 text-teal-700"
-              : "bg-gray-100 text-gray-600",
-          }}
-        >
-          <EmailStatusPanel
-            scheduleId={scheduleId}
-            status={{
-              inviteSent: schedule.invite_sent,
-              reminderSent: schedule.reminder_sent,
-              golferConfirmationSent: schedule.golfer_confirmation_sent,
-              proShopSent: schedule.pro_shop_sent,
-            }}
-            emailLog={emailLogMap}
-            confirmedCount={inCount}
-            pendingCount={notSureCount + noResponseCount}
-            totalSubscribers={allRsvps.length}
-          />
+        {/* RSVP Detail Sections — order matches tiles: In, Out, Not Sure, No Reply, Waitlist */}
 
-          {/* Compose custom email — contextual to this week */}
-          <div className="mt-4 border-t border-gray-200 pt-4">
-            <Link
-              href={`/admin/events/${event?.id}/email/compose`}
-              className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4 shadow-sm hover:border-teal-300 hover:shadow-md transition"
-            >
-              <div>
-                <h3 className="font-semibold text-gray-900">Message Golfers</h3>
-                <p className="text-xs text-gray-500 mt-1">
-                  Send a custom message — cancellations, weather updates, extra spots, and more
-                </p>
-              </div>
-              <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-              </svg>
-            </Link>
-          </div>
-        </CollapsibleSection>
-
-        {/* Confirmed Players — always expanded */}
+        {/* In */}
         <CollapsibleSection
-          title="Confirmed"
+          title="In"
           count={inCount}
           defaultOpen={true}
-          headerColor="text-navy-900"
-          emptyMessage="No confirmed players yet."
+          headerColor="text-teal-800"
+          emptyMessage="No golfers confirmed yet."
         >
           <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
             <table className="min-w-full divide-y divide-gray-200">
@@ -379,7 +337,7 @@ export default async function AdminRsvpPage({
           </div>
         </CollapsibleSection>
 
-        {/* Approved Guests — expanded */}
+        {/* Approved Guests — only shown when there are approved guests */}
         {approvedGuests.length > 0 && (
           <CollapsibleSection
             title="Approved Guests"
@@ -441,7 +399,7 @@ export default async function AdminRsvpPage({
           </CollapsibleSection>
         )}
 
-        {/* Pending Guest Requests — expanded (actionable) */}
+        {/* Pending Guest Requests — only shown when there are pending requests */}
         {pendingGuests.length > 0 && (
           <CollapsibleSection
             title="Pending Guest Requests"
@@ -450,7 +408,7 @@ export default async function AdminRsvpPage({
             headerColor="text-yellow-800"
           >
             <p className="mb-3 text-sm text-gray-500">
-              Review these guest requests and approve or deny after the Friday
+              Review these guest requests and approve or deny after the RSVP
               cutoff.
             </p>
             <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
@@ -524,293 +482,326 @@ export default async function AdminRsvpPage({
           </CollapsibleSection>
         )}
 
-        {/* Waitlisted — expanded (actionable) */}
-        {waitlistCount > 0 && (
-          <CollapsibleSection
-            title="Waitlisted"
-            count={waitlistCount}
-            defaultOpen={true}
-            headerColor="text-orange-800"
-          >
+        {/* Out */}
+        <CollapsibleSection
+          title="Out"
+          count={outCount}
+          defaultOpen={false}
+          headerColor="text-gray-700"
+          emptyMessage="No golfers have declined yet."
+        >
+          <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Name
+                  </th>
+                  <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 sm:table-cell">
+                    Email
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {grouped.out.map((rsvp: Record<string, unknown>) => {
+                  const profile = rsvp.profile as {
+                    first_name: string;
+                    last_name: string;
+                    email: string;
+                  };
+                  return (
+                    <tr key={rsvp.id as string}>
+                      <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900">
+                        {profile?.first_name} {profile?.last_name}
+                        <span className="block text-xs text-gray-400 sm:hidden">
+                          {profile?.email}
+                        </span>
+                      </td>
+                      <td className="hidden whitespace-nowrap px-4 py-3 text-sm text-gray-600 sm:table-cell">
+                        {profile?.email}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <QuickActionButton
+                            rsvpId={rsvp.id as string}
+                            scheduleId={scheduleId}
+                            action="in"
+                            label="Set In"
+                            className="border border-teal-300 text-teal-600 hover:bg-navy-50"
+                          />
+                          <StatusDropdown
+                            rsvpId={rsvp.id as string}
+                            scheduleId={scheduleId}
+                            currentStatus={rsvp.status as RsvpStatus}
+                          />
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </CollapsibleSection>
+
+        {/* Not Sure */}
+        <CollapsibleSection
+          title="Not Sure"
+          count={notSureCount}
+          defaultOpen={false}
+          headerColor="text-gray-700"
+          emptyMessage="No golfers are undecided."
+        >
+          <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Name
+                  </th>
+                  <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 sm:table-cell">
+                    Email
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {grouped.not_sure.map((rsvp: Record<string, unknown>) => {
+                  const profile = rsvp.profile as {
+                    first_name: string;
+                    last_name: string;
+                    email: string;
+                  };
+                  return (
+                    <tr key={rsvp.id as string}>
+                      <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900">
+                        {profile?.first_name} {profile?.last_name}
+                        <span className="block text-xs text-gray-400 sm:hidden">
+                          {profile?.email}
+                        </span>
+                      </td>
+                      <td className="hidden whitespace-nowrap px-4 py-3 text-sm text-gray-600 sm:table-cell">
+                        {profile?.email}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <QuickActionButton
+                            rsvpId={rsvp.id as string}
+                            scheduleId={scheduleId}
+                            action="in"
+                            label="Set In"
+                            className="bg-teal-600 text-white hover:bg-teal-500"
+                          />
+                          <StatusDropdown
+                            rsvpId={rsvp.id as string}
+                            scheduleId={scheduleId}
+                            currentStatus={rsvp.status as RsvpStatus}
+                          />
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </CollapsibleSection>
+
+        {/* No Reply */}
+        <CollapsibleSection
+          title="No Reply"
+          count={noResponseCount}
+          defaultOpen={false}
+          headerColor="text-gray-700"
+          emptyMessage="All golfers have responded."
+        >
+          <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Name
+                  </th>
+                  <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 sm:table-cell">
+                    Email
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {grouped.no_response.map((rsvp: Record<string, unknown>) => {
+                  const profile = rsvp.profile as {
+                    first_name: string;
+                    last_name: string;
+                    email: string;
+                  };
+                  return (
+                    <tr key={rsvp.id as string}>
+                      <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900">
+                        {profile?.first_name} {profile?.last_name}
+                        <span className="block text-xs text-gray-400 sm:hidden">
+                          {profile?.email}
+                        </span>
+                      </td>
+                      <td className="hidden whitespace-nowrap px-4 py-3 text-sm text-gray-600 sm:table-cell">
+                        {profile?.email}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <QuickActionButton
+                            rsvpId={rsvp.id as string}
+                            scheduleId={scheduleId}
+                            action="in"
+                            label="Set In"
+                            className="bg-teal-600 text-white hover:bg-teal-500"
+                          />
+                          <StatusDropdown
+                            rsvpId={rsvp.id as string}
+                            scheduleId={scheduleId}
+                            currentStatus={rsvp.status as RsvpStatus}
+                          />
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </CollapsibleSection>
+
+        {/* Waitlist */}
+        <CollapsibleSection
+          title="Waitlist"
+          count={waitlistCount}
+          defaultOpen={waitlistCount > 0}
+          headerColor="text-gray-700"
+          emptyMessage="No golfers on the waitlist."
+        >
+          {waitlistCount > 0 && (
             <p className="mb-3 text-sm text-gray-500">
               Select golfers to promote to confirmed. Order is by response
               time, but you can promote anyone.
             </p>
-            <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                      #
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                      Name
-                    </th>
-                    <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 sm:table-cell">
-                      Email
-                    </th>
-                    <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 md:table-cell">
-                      Responded
-                    </th>
-                    <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {grouped.waitlisted.map((rsvp: Record<string, unknown>) => {
-                    const profile = rsvp.profile as {
-                      first_name: string;
-                      last_name: string;
-                      email: string;
-                    };
-                    return (
-                      <tr key={rsvp.id as string}>
-                        <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-orange-600">
-                          #{rsvp.waitlist_position as number}
-                        </td>
-                        <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900">
-                          {profile?.first_name} {profile?.last_name}
-                          <span className="block text-xs text-gray-400 sm:hidden">
-                            {profile?.email}
-                          </span>
-                        </td>
-                        <td className="hidden whitespace-nowrap px-4 py-3 text-sm text-gray-600 sm:table-cell">
+          )}
+          <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    #
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Name
+                  </th>
+                  <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 sm:table-cell">
+                    Email
+                  </th>
+                  <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 md:table-cell">
+                    Responded
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {grouped.waitlisted.map((rsvp: Record<string, unknown>) => {
+                  const profile = rsvp.profile as {
+                    first_name: string;
+                    last_name: string;
+                    email: string;
+                  };
+                  return (
+                    <tr key={rsvp.id as string}>
+                      <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-orange-600">
+                        #{rsvp.waitlist_position as number}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900">
+                        {profile?.first_name} {profile?.last_name}
+                        <span className="block text-xs text-gray-400 sm:hidden">
                           {profile?.email}
-                        </td>
-                        <td className="hidden whitespace-nowrap px-4 py-3 text-sm text-gray-500 md:table-cell">
-                          {formatDateTime(rsvp.responded_at as string | null)}
-                        </td>
-                        <td className="whitespace-nowrap px-4 py-3 text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <PromoteButton
-                              rsvpId={rsvp.id as string}
-                              scheduleId={scheduleId}
-                              golferName={`${profile?.first_name} ${profile?.last_name}`}
-                            />
-                            <StatusDropdown
-                              rsvpId={rsvp.id as string}
-                              scheduleId={scheduleId}
-                              currentStatus={rsvp.status as RsvpStatus}
-                            />
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </CollapsibleSection>
-        )}
-
-        {/* Not Sure — collapsed by default (less actionable) */}
-        {notSureCount > 0 && (
-          <CollapsibleSection
-            title="Not Sure"
-            count={notSureCount}
-            defaultOpen={false}
-            headerColor="text-yellow-800"
-          >
-            <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                      Name
-                    </th>
-                    <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 sm:table-cell">
-                      Email
-                    </th>
-                    <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {grouped.not_sure.map((rsvp: Record<string, unknown>) => {
-                    const profile = rsvp.profile as {
-                      first_name: string;
-                      last_name: string;
-                      email: string;
-                    };
-                    return (
-                      <tr key={rsvp.id as string}>
-                        <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900">
-                          {profile?.first_name} {profile?.last_name}
-                          <span className="block text-xs text-gray-400 sm:hidden">
-                            {profile?.email}
-                          </span>
-                        </td>
-                        <td className="hidden whitespace-nowrap px-4 py-3 text-sm text-gray-600 sm:table-cell">
-                          {profile?.email}
-                        </td>
-                        <td className="whitespace-nowrap px-4 py-3 text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <QuickActionButton
-                              rsvpId={rsvp.id as string}
-                              scheduleId={scheduleId}
-                              action="in"
-                              label="Set In"
-                              className="bg-teal-600 text-white hover:bg-teal-500"
-                            />
-                            <StatusDropdown
-                              rsvpId={rsvp.id as string}
-                              scheduleId={scheduleId}
-                              currentStatus={rsvp.status as RsvpStatus}
-                            />
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </CollapsibleSection>
-        )}
-
-        {/* No Response — collapsed by default */}
-        {noResponseCount > 0 && (
-          <CollapsibleSection
-            title="No Response"
-            count={noResponseCount}
-            defaultOpen={false}
-            headerColor="text-gray-700"
-          >
-            <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                      Name
-                    </th>
-                    <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 sm:table-cell">
-                      Email
-                    </th>
-                    <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {grouped.no_response.map((rsvp: Record<string, unknown>) => {
-                    const profile = rsvp.profile as {
-                      first_name: string;
-                      last_name: string;
-                      email: string;
-                    };
-                    return (
-                      <tr key={rsvp.id as string}>
-                        <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900">
-                          {profile?.first_name} {profile?.last_name}
-                          <span className="block text-xs text-gray-400 sm:hidden">
-                            {profile?.email}
-                          </span>
-                        </td>
-                        <td className="hidden whitespace-nowrap px-4 py-3 text-sm text-gray-600 sm:table-cell">
-                          {profile?.email}
-                        </td>
-                        <td className="whitespace-nowrap px-4 py-3 text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <QuickActionButton
-                              rsvpId={rsvp.id as string}
-                              scheduleId={scheduleId}
-                              action="in"
-                              label="Set In"
-                              className="bg-teal-600 text-white hover:bg-teal-500"
-                            />
-                            <StatusDropdown
-                              rsvpId={rsvp.id as string}
-                              scheduleId={scheduleId}
-                              currentStatus={rsvp.status as RsvpStatus}
-                            />
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </CollapsibleSection>
-        )}
-
-        {/* Out — collapsed by default */}
-        {outCount > 0 && (
-          <CollapsibleSection
-            title="Out"
-            count={outCount}
-            defaultOpen={false}
-            headerColor="text-red-800"
-          >
-            <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                      Name
-                    </th>
-                    <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 sm:table-cell">
-                      Email
-                    </th>
-                    <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {grouped.out.map((rsvp: Record<string, unknown>) => {
-                    const profile = rsvp.profile as {
-                      first_name: string;
-                      last_name: string;
-                      email: string;
-                    };
-                    return (
-                      <tr key={rsvp.id as string}>
-                        <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900">
-                          {profile?.first_name} {profile?.last_name}
-                          <span className="block text-xs text-gray-400 sm:hidden">
-                            {profile?.email}
-                          </span>
-                        </td>
-                        <td className="hidden whitespace-nowrap px-4 py-3 text-sm text-gray-600 sm:table-cell">
-                          {profile?.email}
-                        </td>
-                        <td className="whitespace-nowrap px-4 py-3 text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <QuickActionButton
-                              rsvpId={rsvp.id as string}
-                              scheduleId={scheduleId}
-                              action="in"
-                              label="Set In"
-                              className="border border-teal-300 text-teal-600 hover:bg-navy-50"
-                            />
-                            <StatusDropdown
-                              rsvpId={rsvp.id as string}
-                              scheduleId={scheduleId}
-                              currentStatus={rsvp.status as RsvpStatus}
-                            />
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </CollapsibleSection>
-        )}
-
-        {/* No RSVPs at all */}
-        {allRsvps.length === 0 && (
-          <div className="mt-8 rounded-lg border border-gray-200 bg-white p-8 text-center shadow-sm">
-            <p className="text-gray-500">
-              No RSVPs have been created for this game yet. Invites will
-              generate RSVPs automatically when the Monday cron runs.
-            </p>
+                        </span>
+                      </td>
+                      <td className="hidden whitespace-nowrap px-4 py-3 text-sm text-gray-600 sm:table-cell">
+                        {profile?.email}
+                      </td>
+                      <td className="hidden whitespace-nowrap px-4 py-3 text-sm text-gray-500 md:table-cell">
+                        {formatDateTime(rsvp.responded_at as string | null)}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <PromoteButton
+                            rsvpId={rsvp.id as string}
+                            scheduleId={scheduleId}
+                            golferName={`${profile?.first_name} ${profile?.last_name}`}
+                          />
+                          <StatusDropdown
+                            rsvpId={rsvp.id as string}
+                            scheduleId={scheduleId}
+                            currentStatus={rsvp.status as RsvpStatus}
+                          />
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
-        )}
+        </CollapsibleSection>
+
+        {/* Emails & Communications */}
+        <CollapsibleSection
+          title="Emails & Communications"
+          defaultOpen={false}
+          headerColor="text-gray-700"
+          badge={{
+            label: `${[schedule.invite_sent, schedule.reminder_sent, schedule.golfer_confirmation_sent, schedule.pro_shop_sent].filter(Boolean).length}/4 sent`,
+            className: [schedule.invite_sent, schedule.reminder_sent, schedule.golfer_confirmation_sent, schedule.pro_shop_sent].every(Boolean)
+              ? "bg-teal-100 text-teal-700"
+              : "bg-gray-100 text-gray-600",
+          }}
+        >
+          <EmailStatusPanel
+            scheduleId={scheduleId}
+            status={{
+              inviteSent: schedule.invite_sent,
+              reminderSent: schedule.reminder_sent,
+              golferConfirmationSent: schedule.golfer_confirmation_sent,
+              proShopSent: schedule.pro_shop_sent,
+            }}
+            emailLog={emailLogMap}
+            confirmedCount={inCount}
+            pendingCount={notSureCount + noResponseCount}
+            totalSubscribers={allRsvps.length}
+          />
+
+          {/* Compose custom email — contextual to this week */}
+          <div className="mt-4 border-t border-gray-200 pt-4">
+            <Link
+              href={`/admin/events/${event?.id}/email/compose`}
+              className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4 shadow-sm hover:border-teal-300 hover:shadow-md transition"
+            >
+              <div>
+                <h3 className="font-semibold text-gray-900">Message Golfers</h3>
+                <p className="text-xs text-gray-500 mt-1">
+                  Send a custom message — cancellations, weather updates, extra spots, and more
+                </p>
+              </div>
+              <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+              </svg>
+            </Link>
+          </div>
+        </CollapsibleSection>
       </div>
     </main>
   );

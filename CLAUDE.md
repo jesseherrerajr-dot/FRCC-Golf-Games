@@ -583,6 +583,25 @@ This project enforces centralized utility functions for common patterns. **Do NO
 
 **NEVER** define local `statusLabels`, `statusColors`, or `type RsvpStatus` in page files. Import from `@/lib/rsvp-status`.
 
+### RSVP Status Display Labels (Consistency Rule)
+
+Admin-facing RSVP status labels **must** be consistent across all surfaces — summary tiles, collapsible section headers, badges, and documentation. The canonical admin display labels are:
+
+| DB Status | Admin Display Label | Tile Label (uppercase) |
+|---|---|---|
+| `in` | In | IN |
+| `out` | Out | OUT |
+| `not_sure` | Not Sure | NOT SURE |
+| `no_response` | No Reply | NO REPLY |
+| `waitlisted` | Waitlist | WAITLIST |
+
+**Rules:**
+- **Do NOT** use "Confirmed" — use "In".
+- **Do NOT** use "No Response" — use "No Reply".
+- **Do NOT** use "Waitlisted" — use "Waitlist".
+- Summary tiles and their corresponding detail sections below must use identical labels.
+- When adding new admin views that display RSVP status, use these exact labels.
+
 ### Supabase Admin Client (`src/lib/supabase/server.ts`)
 
 - `createAdminClient()` — Supabase client that bypasses RLS (uses service role key). For cron jobs, API routes, and server-side operations without a user session.
