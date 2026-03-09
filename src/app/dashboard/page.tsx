@@ -306,6 +306,27 @@ export default async function DashboardPage() {
               </Link>
             </div>
           )}
+
+          {/* Get the App */}
+          <Link
+            href="/install"
+            className="mt-4 flex items-center gap-4 rounded-lg border border-gray-200 bg-white p-5 shadow-sm transition-colors hover:bg-teal-50/30"
+          >
+            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-teal-50">
+              <svg className="h-5 w-5 text-teal-600" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 18.75h3" />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <p className="font-semibold text-teal-700">Get the App</p>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Add FRCC Golf Games to your home screen for one-tap access
+              </p>
+            </div>
+            <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+            </svg>
+          </Link>
         </div>
       </main>
   );
