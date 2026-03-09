@@ -159,9 +159,10 @@ export default async function AdminDashboard() {
                       : "No upcoming games";
 
                     return (
-                      <div
+                      <Link
                         key={event.id}
-                        className={`relative rounded-lg border shadow-sm transition hover:shadow-md ${
+                        href={`/admin/events/${event.id}`}
+                        className={`relative block rounded-lg border shadow-sm transition hover:shadow-md ${
                           hasActionNeeded
                             ? "border-yellow-200 bg-yellow-50"
                             : "border-gray-200 bg-white hover:border-teal-300"
@@ -178,17 +179,22 @@ export default async function AdminDashboard() {
 
                         <div className="p-4">
                           {/* Event name and next game date */}
-                          <div className="mb-4">
-                            <h3 className="text-base font-semibold text-gray-900">
-                              {event.name}
-                            </h3>
-                            <p className="mt-0.5 text-sm text-gray-500">
-                              Next game: {nextGameDate}
-                            </p>
+                          <div className="flex items-center justify-between">
+                            <div className="mb-4">
+                              <h3 className="text-base font-semibold text-gray-900">
+                                {event.name}
+                              </h3>
+                              <p className="mt-0.5 text-sm text-gray-500">
+                                Next game: {nextGameDate}
+                              </p>
+                            </div>
+                            <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                            </svg>
                           </div>
 
                           {/* Key metrics */}
-                          <div className="mb-4 grid grid-cols-2 gap-3">
+                          <div className="grid grid-cols-2 gap-3">
                             {nextGame && (
                               <div className="rounded border border-gray-200 bg-white px-3 py-2">
                                 <p className="text-lg font-bold text-teal-700">
@@ -222,20 +228,8 @@ export default async function AdminDashboard() {
                               </div>
                             )}
                           </div>
-
-                          {/* Manage button */}
-                          <Link
-                            href={`/admin/events/${event.id}`}
-                            className={`inline-flex items-center gap-1 text-sm font-medium transition ${
-                              hasActionNeeded
-                                ? "text-yellow-700 hover:text-yellow-600"
-                                : "text-teal-700 hover:text-teal-600"
-                            }`}
-                          >
-                            Manage →
-                          </Link>
                         </div>
-                      </div>
+                      </Link>
                     );
                   }
                 )}
