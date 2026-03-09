@@ -28,6 +28,37 @@ When displaying a set of related metrics or status counts (e.g., RSVP breakdown,
 
 Tiles should have subtle colored backgrounds to differentiate categories (e.g., `bg-teal-50` for positive, `bg-amber-50` for warning, `bg-gray-50` for neutral). This pattern ensures content reflows naturally across screen sizes without horizontal scrolling or cramped layouts.
 
+### Hierarchical Breadcrumbs (Required on All Pages)
+Every page (except the landing page and login) **must** have a `<Breadcrumbs>` component from `@/components/breadcrumbs` at the top of the content area, showing the user's position in the navigation hierarchy.
+
+**Rules:**
+- The last item in the breadcrumb trail is the current page (no `href` — renders as plain text).
+- All preceding items are clickable links to their respective pages.
+- **Golfer pages** start with `Home` (links to `/dashboard`): e.g., `Home > Profile`, `Home > Help`.
+- **Admin pages** start with `Admin` (links to `/admin`): e.g., `Admin > Create Event`.
+- **Event-scoped admin pages** include the event name linking to the event dashboard (`/admin/events/[eventId]`): e.g., `Admin > FRCC Saturday Morning Group > Schedule`, `Admin > FRCC Saturday Morning Group > Settings`.
+- **Do NOT** use "← Back to X" links. All backward navigation is handled by breadcrumbs.
+- **Do NOT** duplicate navigation — if a page has breadcrumbs, it should not also have a separate back link.
+- When creating a new page, always add breadcrumbs as the first element inside the content area, before the `<h1>` heading.
+
+**Current breadcrumb trails:**
+| Page | Breadcrumb |
+|---|---|
+| Profile | `Home > Profile` |
+| Help | `Home > Help` |
+| Install | `Home > Get the App` |
+| Admin → Create Event | `Admin > Create Event` |
+| Admin → Golfers | `Admin > Golfers` |
+| Admin → Event Dashboard | `Admin > [Event Name]` |
+| Admin → Event Settings | `Admin > [Event Name] > Settings` |
+| Admin → Event Schedule | `Admin > [Event Name] > Schedule` |
+| Admin → Event Golfers | `Admin > [Event Name] > Golfers` |
+| Admin → Event Golfer Detail | `Admin > [Event Name] > Golfers > [Golfer Name]` |
+| Admin → RSVP Management | `Admin > [Event Name] > RSVP Management` |
+| Admin → Send Email | `Admin > [Event Name] > Send Email` |
+| Admin → Add Golfer (global) | `Admin > Golfers > Add Golfer` |
+| Admin → Add Golfer (event) | `Admin > [Event Name] > Golfers > Add Golfer` |
+
 ### General Mobile-First Principles
 - **Avoid wide tables on mobile.** If a table has more than 3-4 columns, hide less critical columns on mobile with `hidden sm:table-cell` or switch to a card/tile layout.
 - **Tap targets should be at least 44px.** Buttons, links, and interactive elements need generous padding for thumb-friendly interaction.
