@@ -6,7 +6,6 @@ import { CollapsibleSection } from "@/components/collapsible-section";
 import {
   StatusDropdown,
   PromoteButton,
-  QuickActionButton,
 } from "./rsvp-controls";
 import { GuestApprovalButton, GuestDenialButton } from "./guest-controls";
 import { formatPhoneDisplay, formatGameDate, formatDateTime, formatInitialLastName } from "@/lib/format";
@@ -569,20 +568,11 @@ export default async function AdminRsvpPage({
                         {profile?.email}
                       </td>
                       <td className="whitespace-nowrap px-4 py-3 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <QuickActionButton
-                            rsvpId={rsvp.id as string}
-                            scheduleId={scheduleId}
-                            action="in"
-                            label="Set In"
-                            className="border border-teal-300 text-teal-600 hover:bg-navy-50"
-                          />
-                          <StatusDropdown
-                            rsvpId={rsvp.id as string}
-                            scheduleId={scheduleId}
-                            currentStatus={rsvp.status as RsvpStatus}
-                          />
-                        </div>
+                        <StatusDropdown
+                          rsvpId={rsvp.id as string}
+                          scheduleId={scheduleId}
+                          currentStatus={rsvp.status as RsvpStatus}
+                        />
                       </td>
                     </tr>
                   );
@@ -634,20 +624,11 @@ export default async function AdminRsvpPage({
                         {profile?.email}
                       </td>
                       <td className="whitespace-nowrap px-4 py-3 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <QuickActionButton
-                            rsvpId={rsvp.id as string}
-                            scheduleId={scheduleId}
-                            action="in"
-                            label="Set In"
-                            className="bg-teal-600 text-white hover:bg-teal-500"
-                          />
-                          <StatusDropdown
-                            rsvpId={rsvp.id as string}
-                            scheduleId={scheduleId}
-                            currentStatus={rsvp.status as RsvpStatus}
-                          />
-                        </div>
+                        <StatusDropdown
+                          rsvpId={rsvp.id as string}
+                          scheduleId={scheduleId}
+                          currentStatus={rsvp.status as RsvpStatus}
+                        />
                       </td>
                     </tr>
                   );
@@ -699,20 +680,11 @@ export default async function AdminRsvpPage({
                         {profile?.email}
                       </td>
                       <td className="whitespace-nowrap px-4 py-3 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <QuickActionButton
-                            rsvpId={rsvp.id as string}
-                            scheduleId={scheduleId}
-                            action="in"
-                            label="Set In"
-                            className="bg-teal-600 text-white hover:bg-teal-500"
-                          />
-                          <StatusDropdown
-                            rsvpId={rsvp.id as string}
-                            scheduleId={scheduleId}
-                            currentStatus={rsvp.status as RsvpStatus}
-                          />
-                        </div>
+                        <StatusDropdown
+                          rsvpId={rsvp.id as string}
+                          scheduleId={scheduleId}
+                          currentStatus={rsvp.status as RsvpStatus}
+                        />
                       </td>
                     </tr>
                   );
