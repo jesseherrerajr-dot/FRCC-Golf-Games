@@ -1,6 +1,5 @@
 import { requireAdmin, hasEventAccess } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import {
   BasicSettingsForm,
@@ -69,33 +68,23 @@ export default async function EventSettingsPage({
     <main className="min-h-screen px-4 py-8">
       <div className="mx-auto max-w-3xl">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <Breadcrumbs
-              items={[
-                { label: "Admin", href: "/admin" },
-                { label: event.name, href: `/admin/events/${eventId}` },
-                { label: "Settings" },
-              ]}
-            />
-            <h1 className="text-2xl font-bold text-navy-900">
-              Event Settings
-            </h1>
-          </div>
-          <div className="flex gap-2">
-            <Link
-              href={`/admin/events/${eventId}/schedule`}
-              className="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-            >
-              Schedule
-            </Link>
-          </div>
+        <div>
+          <Breadcrumbs
+            items={[
+              { label: "Admin", href: "/admin" },
+              { label: event.name, href: `/admin/events/${eventId}` },
+              { label: "Settings" },
+            ]}
+          />
+          <h1 className="text-2xl font-bold text-navy-900">
+            Event Settings
+          </h1>
         </div>
 
         {/* Basic Settings */}
         <section className="mt-8">
           <h2 className="text-lg font-semibold text-gray-900">
-            Basic Settings
+            Event Details
           </h2>
           <div className="mt-3 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
             <BasicSettingsForm event={event} />
@@ -105,7 +94,7 @@ export default async function EventSettingsPage({
         {/* Email Schedule */}
         <section className="mt-8">
           <h2 className="text-lg font-semibold text-gray-900">
-            Email Schedule
+            Automated Email Settings
           </h2>
           <p className="mt-1 text-sm text-gray-500">
             Configure when automated emails are sent each week. All times are Pacific Time.
