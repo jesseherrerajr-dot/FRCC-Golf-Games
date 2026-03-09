@@ -357,61 +357,62 @@ export default async function EventDashboardPage({
                       </svg>
                     </div>
 
-                    {/* Summary table */}
+                    {/* Summary tiles — responsive: 2col mobile, 3col tablet, 6col desktop */}
                     {!isCancelled && (
-                      <div className="px-4 pb-4">
-                        {/* 6-column RSVP table: headers on top, counts below */}
-                        <table className="mt-3 w-full">
-                          <thead>
-                            <tr className="text-sm font-semibold text-gray-600">
-                              <th className="pb-2 text-center">Invited</th>
-                              <th className="pb-2 text-center">In</th>
-                              <th className="pb-2 text-center">Out</th>
-                              <th className="pb-2 text-center">Not Sure</th>
-                              <th className="pb-2 text-center">No Reply</th>
-                              <th className="pb-2 text-center">Waitlist</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            <tr>
-                              <td className="pt-1 text-center align-top">
-                                <span className="text-2xl font-bold text-gray-700">
-                                  {game.inviteSent ? game.inviteRecipientCount : "—"}
-                                </span>
-                                {/* Invite timing — directly under the Invited count */}
-                                <p className="mt-1 text-xs leading-tight text-gray-400">
-                                  {game.inviteSent
-                                    ? <>Sent {formatDateTime(game.inviteSentAt)}</>
-                                    : game.scheduledInviteDisplay
-                                      ? <>{game.scheduledInviteDisplay}</>
-                                      : <>Not scheduled</>
-                                  }
-                                </p>
-                              </td>
-                              <td className="pt-1 text-center align-top">
-                                <span className="text-2xl font-bold text-teal-700">{game.inCount}</span>
-                                <span className="text-base text-gray-400">/{game.capacity}</span>
-                              </td>
-                              <td className="pt-1 text-center align-top">
-                                <span className="text-2xl font-bold text-gray-700">{game.outCount}</span>
-                              </td>
-                              <td className="pt-1 text-center align-top">
-                                <span className="text-2xl font-bold text-amber-600">{game.notSureCount}</span>
-                              </td>
-                              <td className="pt-1 text-center align-top">
-                                <span className="text-2xl font-bold text-gray-400">{game.noResponseCount}</span>
-                              </td>
-                              <td className="pt-1 text-center align-top">
-                                <span className={`text-2xl font-bold ${game.waitlistCount > 0 ? "text-orange-600" : "text-gray-400"}`}>
-                                  {game.waitlistCount}
-                                </span>
-                              </td>
-                            </tr>
-                          </tbody>
-                        </table>
+                      <div className="px-3 pb-4 pt-3">
+                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+                          {/* Invited */}
+                          <div className="rounded-lg bg-gray-50 px-3 py-3 text-center">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Invited</p>
+                            <p className="mt-1 text-2xl font-bold text-gray-700">
+                              {game.inviteSent ? game.inviteRecipientCount : "—"}
+                            </p>
+                            <p className="mt-1 text-xs leading-snug text-gray-400">
+                              {game.inviteSent
+                                ? <>Sent {formatDateTime(game.inviteSentAt)}</>
+                                : game.scheduledInviteDisplay
+                                  ? <>{game.scheduledInviteDisplay}</>
+                                  : <>Not scheduled</>
+                              }
+                            </p>
+                          </div>
+
+                          {/* I'm In */}
+                          <div className="rounded-lg bg-teal-50 px-3 py-3 text-center">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-teal-600">In</p>
+                            <p className="mt-1">
+                              <span className="text-2xl font-bold text-teal-700">{game.inCount}</span>
+                              <span className="text-base text-teal-400">/{game.capacity}</span>
+                            </p>
+                          </div>
+
+                          {/* I'm Out */}
+                          <div className="rounded-lg bg-gray-50 px-3 py-3 text-center">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Out</p>
+                            <p className="mt-1 text-2xl font-bold text-gray-700">{game.outCount}</p>
+                          </div>
+
+                          {/* Not Sure */}
+                          <div className="rounded-lg bg-amber-50 px-3 py-3 text-center">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-amber-600">Not Sure</p>
+                            <p className="mt-1 text-2xl font-bold text-amber-600">{game.notSureCount}</p>
+                          </div>
+
+                          {/* No Reply */}
+                          <div className="rounded-lg bg-gray-50 px-3 py-3 text-center">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">No Reply</p>
+                            <p className="mt-1 text-2xl font-bold text-gray-400">{game.noResponseCount}</p>
+                          </div>
+
+                          {/* Waitlist */}
+                          <div className={`rounded-lg px-3 py-3 text-center ${game.waitlistCount > 0 ? "bg-orange-50" : "bg-gray-50"}`}>
+                            <p className={`text-xs font-semibold uppercase tracking-wide ${game.waitlistCount > 0 ? "text-orange-600" : "text-gray-400"}`}>Waitlist</p>
+                            <p className={`mt-1 text-2xl font-bold ${game.waitlistCount > 0 ? "text-orange-600" : "text-gray-400"}`}>{game.waitlistCount}</p>
+                          </div>
+                        </div>
 
                         {/* Capacity bar */}
-                        <div className="mt-4">
+                        <div className="mt-3">
                           <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-200">
                             <div
                               className={`h-full rounded-full ${
