@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { sendAdminAlert } from "@/lib/admin-alerts";
 import { isPastCutoffPacific } from "@/lib/timezone";
 import { createAdminClient } from "@/lib/supabase/server";
+import { isSuspicious, getClientIp } from "@/lib/scanner-detection";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -103,13 +104,26 @@ export async function GET(request: Request) {
         })
         .eq("id", rsvp.id);
 
-      // Log to history
+      // Log to history with scanner detection metadata
+      const wlUserAgent = request.headers.get("user-agent") || null;
+      const wlIpAddress = getClientIp(request.headers);
+      const { data: wlRecentHistory } = await supabase
+        .from("rsvp_history")
+        .select("created_at")
+        .eq("profile_id", rsvp.profile_id)
+        .eq("schedule_id", rsvp.schedule_id)
+        .order("created_at", { ascending: false })
+        .limit(5);
+
       await supabase.from("rsvp_history").insert({
         rsvp_id: rsvp.id,
         schedule_id: rsvp.schedule_id,
         profile_id: rsvp.profile_id,
         old_status: rsvp.status,
         new_status: "waitlisted",
+        user_agent: wlUserAgent,
+        ip_address: wlIpAddress,
+        is_suspicious: isSuspicious(wlUserAgent, wlRecentHistory || []),
       });
 
       return NextResponse.redirect(
@@ -131,13 +145,26 @@ export async function GET(request: Request) {
 
   await supabase.from("rsvps").update(updateData).eq("id", rsvp.id);
 
-  // Log to history
+  // Log to history with scanner detection metadata
+  const userAgent = request.headers.get("user-agent") || null;
+  const ipAddress = getClientIp(request.headers);
+  const { data: recentHistory } = await supabase
+    .from("rsvp_history")
+    .select("created_at")
+    .eq("profile_id", rsvp.profile_id)
+    .eq("schedule_id", rsvp.schedule_id)
+    .order("created_at", { ascending: false })
+    .limit(5);
+
   await supabase.from("rsvp_history").insert({
     rsvp_id: rsvp.id,
     schedule_id: rsvp.schedule_id,
     profile_id: rsvp.profile_id,
     old_status: rsvp.status,
     new_status: newStatus,
+    user_agent: userAgent,
+    ip_address: ipAddress,
+    is_suspicious: isSuspicious(userAgent, recentHistory || []),
   });
 
   // Fire admin alerts (non-blocking — don't delay the redirect)
