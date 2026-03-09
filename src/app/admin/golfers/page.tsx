@@ -1,6 +1,5 @@
 import { requireSuperAdmin } from "@/lib/auth";
 import Link from "next/link";
-import { formatPhoneDisplay, formatDateTimeDateOnly } from "@/lib/format";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import {
   ApproveButton,
@@ -158,92 +157,29 @@ export default async function GolferDirectory({
                 : "No golfers in this category."}
             </p>
           ) : (
-            <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                      Name
-                    </th>
-                    <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 sm:table-cell">
-                      Email
-                    </th>
-                    <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 md:table-cell">
-                      Phone
-                    </th>
-                    <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 sm:table-cell">
-                      GHIN
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                      Status
-                    </th>
-                    <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 lg:table-cell">
-                      Events
-                    </th>
-                    <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 lg:table-cell">
-                      Joined
-                    </th>
-                    <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {golfers.map((golfer: any) => {
-                    const golferEvents = subscriptionMap.get(golfer.id) || [];
-                    const eventNames = golferEvents
-                      .map((eventId) => allEvents?.find((e) => e.id === eventId)?.name)
-                      .filter(Boolean) as string[];
-                    return (
-                      <tr key={golfer.id} className="hover:bg-gray-50">
-                        <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900">
-                          {golfer.first_name} {golfer.last_name}
-                          <span className="block text-xs text-gray-400 sm:hidden">
-                            {golfer.email}
-                          </span>
-                        </td>
-                        <td className="hidden whitespace-nowrap px-4 py-3 text-sm text-gray-600 sm:table-cell">
-                          {golfer.email}
-                        </td>
-                        <td className="hidden whitespace-nowrap px-4 py-3 text-sm text-gray-600 md:table-cell">
-                          {formatPhoneDisplay(golfer.phone)}
-                        </td>
-                        <td className="hidden whitespace-nowrap px-4 py-3 text-sm text-gray-600 sm:table-cell">
-                          {golfer.ghin_number || "—"}
-                        </td>
-                        <td className="whitespace-nowrap px-4 py-3 text-sm">
-                          <StatusBadge
-                            status={golfer.status}
-                            isSuperAdmin={golfer.is_super_admin}
-                          />
-                        </td>
-                        <td className="hidden px-4 py-3 text-sm text-gray-600 lg:table-cell">
-                          <div className="flex flex-wrap gap-1">
-                            {eventNames.length > 0 ? (
-                              eventNames.map((name) => (
-                                <span
-                                  key={name}
-                                  className="inline-flex rounded-full bg-teal-50 px-2 py-0.5 text-xs font-medium text-teal-700"
-                                >
-                                  {name}
-                                </span>
-                              ))
-                            ) : (
-                              <span className="text-xs text-gray-400">None</span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="hidden whitespace-nowrap px-4 py-3 text-sm text-gray-500 lg:table-cell">
-                          {formatDateTimeDateOnly(golfer.created_at)}
-                        </td>
-                        <td className="whitespace-nowrap px-4 py-3 text-right">
-                          <GolferActions golfer={golfer} />
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+            <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm divide-y divide-gray-200">
+              {golfers.map((golfer: any) => (
+                <div key={golfer.id} className="flex items-center justify-between px-4 py-3 hover:bg-gray-50">
+                  <Link
+                    href={`/admin/golfers/${golfer.id}`}
+                    className="flex min-w-0 flex-1 items-center gap-3"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <span className="text-sm font-medium text-gray-900">
+                        {golfer.first_name} {golfer.last_name}
+                      </span>
+                      <span className="block truncate text-xs text-gray-400">
+                        {golfer.email}
+                      </span>
+                    </div>
+                    <StatusBadge
+                      status={golfer.status}
+                      isSuperAdmin={golfer.is_super_admin}
+                    />
+                  </Link>
+                  <GolferActions golfer={golfer} />
+                </div>
+              ))}
             </div>
           )}
 
@@ -309,14 +245,16 @@ function GolferActions({
   const id = golfer.id as string;
   const golferIsSuperAdmin = golfer.is_super_admin as boolean;
 
+  // Only show inline action buttons for statuses that need quick actions
+  const hasActions =
+    status === "pending_approval" ||
+    (status === "active" && !golferIsSuperAdmin) ||
+    status === "deactivated";
+
+  if (!hasActions) return null;
+
   return (
-    <div className="flex items-center justify-end gap-2">
-      <Link
-        href={`/admin/golfers/${id}`}
-        className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
-      >
-        Manage
-      </Link>
+    <div className="ml-3 flex shrink-0 items-center gap-2">
       {status === "pending_approval" && (
         <>
           <ApproveButton profileId={id} />

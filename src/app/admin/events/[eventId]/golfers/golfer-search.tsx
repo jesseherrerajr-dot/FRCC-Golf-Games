@@ -157,8 +157,6 @@ export function EventGolferSearch({
           className="rounded border border-gray-300 px-2 py-2 text-sm text-gray-600"
         >
           <option value="name">Sort by Name</option>
-          <option value="email">Sort by Email</option>
-          <option value="joined">Sort by Joined Date</option>
           <option value="status">Sort by Status</option>
         </select>
       </div>
