@@ -359,41 +359,50 @@ export default async function EventDashboardPage({
 
                     {/* Summary table */}
                     {!isCancelled && (
-                      <div className="px-4 pb-3">
+                      <div className="px-4 pb-4">
                         {/* 6-column RSVP table: headers on top, counts below */}
-                        <table className="mt-2 w-full">
+                        <table className="mt-3 w-full">
                           <thead>
-                            <tr className="text-xs text-gray-500">
-                              <th className="pb-1 text-center font-medium">Invited</th>
-                              <th className="pb-1 text-center font-medium">In</th>
-                              <th className="pb-1 text-center font-medium">Out</th>
-                              <th className="pb-1 text-center font-medium">Not Sure</th>
-                              <th className="pb-1 text-center font-medium">No Reply</th>
-                              <th className="pb-1 text-center font-medium">Waitlist</th>
+                            <tr className="text-sm font-semibold text-gray-600">
+                              <th className="pb-2 text-center">Invited</th>
+                              <th className="pb-2 text-center">In</th>
+                              <th className="pb-2 text-center">Out</th>
+                              <th className="pb-2 text-center">Not Sure</th>
+                              <th className="pb-2 text-center">No Reply</th>
+                              <th className="pb-2 text-center">Waitlist</th>
                             </tr>
                           </thead>
                           <tbody>
                             <tr>
-                              <td className="pt-1 text-center">
-                                <span className="text-xl font-bold text-gray-700">
+                              <td className="pt-1 text-center align-top">
+                                <span className="text-2xl font-bold text-gray-700">
                                   {game.inviteSent ? game.inviteRecipientCount : "—"}
                                 </span>
+                                {/* Invite timing — directly under the Invited count */}
+                                <p className="mt-1 text-xs leading-tight text-gray-400">
+                                  {game.inviteSent
+                                    ? <>Sent {formatDateTime(game.inviteSentAt)}</>
+                                    : game.scheduledInviteDisplay
+                                      ? <>{game.scheduledInviteDisplay}</>
+                                      : <>Not scheduled</>
+                                  }
+                                </p>
                               </td>
-                              <td className="pt-1 text-center">
-                                <span className="text-xl font-bold text-teal-700">{game.inCount}</span>
-                                <span className="text-sm text-gray-400">/{game.capacity}</span>
+                              <td className="pt-1 text-center align-top">
+                                <span className="text-2xl font-bold text-teal-700">{game.inCount}</span>
+                                <span className="text-base text-gray-400">/{game.capacity}</span>
                               </td>
-                              <td className="pt-1 text-center">
-                                <span className="text-xl font-bold text-gray-700">{game.outCount}</span>
+                              <td className="pt-1 text-center align-top">
+                                <span className="text-2xl font-bold text-gray-700">{game.outCount}</span>
                               </td>
-                              <td className="pt-1 text-center">
-                                <span className="text-xl font-bold text-amber-600">{game.notSureCount}</span>
+                              <td className="pt-1 text-center align-top">
+                                <span className="text-2xl font-bold text-amber-600">{game.notSureCount}</span>
                               </td>
-                              <td className="pt-1 text-center">
-                                <span className="text-xl font-bold text-gray-400">{game.noResponseCount}</span>
+                              <td className="pt-1 text-center align-top">
+                                <span className="text-2xl font-bold text-gray-400">{game.noResponseCount}</span>
                               </td>
-                              <td className="pt-1 text-center">
-                                <span className={`text-xl font-bold ${game.waitlistCount > 0 ? "text-orange-600" : "text-gray-400"}`}>
+                              <td className="pt-1 text-center align-top">
+                                <span className={`text-2xl font-bold ${game.waitlistCount > 0 ? "text-orange-600" : "text-gray-400"}`}>
                                   {game.waitlistCount}
                                 </span>
                               </td>
@@ -401,18 +410,8 @@ export default async function EventDashboardPage({
                           </tbody>
                         </table>
 
-                        {/* Invite date/time detail */}
-                        <p className="mt-2 text-center text-xs text-gray-400">
-                          {game.inviteSent
-                            ? <>Sent {formatDateTime(game.inviteSentAt)}</>
-                            : game.scheduledInviteDisplay
-                              ? <>Invite scheduled {game.scheduledInviteDisplay}</>
-                              : <>Invite not scheduled</>
-                          }
-                        </p>
-
                         {/* Capacity bar */}
-                        <div className="mt-3">
+                        <div className="mt-4">
                           <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-200">
                             <div
                               className={`h-full rounded-full ${
