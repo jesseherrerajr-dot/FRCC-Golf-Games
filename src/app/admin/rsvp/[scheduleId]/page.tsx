@@ -197,61 +197,48 @@ export default async function AdminRsvpPage({
           )}
         </div>
 
-        {/* Capacity bar — most important at-a-glance info */}
-        <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-          <div className="flex items-center justify-between text-sm">
-            <span className="font-medium text-gray-900">
-              {inCount} / {capacity} spots filled
-            </span>
-            <span
-              className={`font-semibold ${
-                spotsRemaining > 0 ? "text-teal-600" : "text-red-600"
-              }`}
-            >
-              {spotsRemaining > 0
-                ? `${spotsRemaining} open`
-                : "Full"}
-            </span>
+        {/* RSVP Summary Tiles */}
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+          {/* Invited */}
+          <div className="rounded-lg bg-gray-50 px-3 py-3 text-center">
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Invited</p>
+            <p className="mt-1 text-2xl font-bold text-gray-700">{allRsvps.length}</p>
           </div>
-          <div className="mt-2 h-3 w-full overflow-hidden rounded-full bg-gray-200">
-            <div
-              className={`h-full rounded-full transition-all ${
-                inCount >= capacity ? "bg-red-500" : "bg-teal-500"
-              }`}
-              style={{
-                width: `${Math.min((inCount / capacity) * 100, 100)}%`,
-              }}
-            />
-          </div>
-        </div>
 
-        {/* Stats — 3+2 grid on mobile, 5 across on desktop */}
-        <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-5 sm:gap-3">
-          <div className="rounded-lg border border-teal-200 bg-navy-50 p-3 text-center">
-            <p className="text-2xl font-bold text-teal-600">{inCount}</p>
-            <p className="text-xs text-teal-500">Confirmed</p>
-          </div>
-          <div className="rounded-lg border border-orange-200 bg-orange-50 p-3 text-center">
-            <p className="text-2xl font-bold text-orange-700">
-              {waitlistCount}
+          {/* In */}
+          <div className="rounded-lg bg-teal-50 px-3 py-3 text-center">
+            <p className="text-xs font-semibold uppercase tracking-wide text-teal-600">In</p>
+            <p className="mt-1">
+              <span className="text-2xl font-bold text-teal-700">{inCount}</span>
+              <span className="text-base text-teal-400">/{capacity}</span>
             </p>
-            <p className="text-xs text-orange-600">Waitlisted</p>
-          </div>
-          <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-center">
-            <p className="text-2xl font-bold text-yellow-700">
-              {notSureCount}
+            <p className="mt-1 text-xs leading-snug text-teal-500">
+              {spotsRemaining > 0 ? `${spotsRemaining} open` : "Full"}
             </p>
-            <p className="text-xs text-yellow-600">Not Sure</p>
           </div>
-          <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-center">
-            <p className="text-2xl font-bold text-gray-600">
-              {noResponseCount}
-            </p>
-            <p className="text-xs text-gray-500">No Response</p>
+
+          {/* Out */}
+          <div className="rounded-lg bg-gray-50 px-3 py-3 text-center">
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Out</p>
+            <p className="mt-1 text-2xl font-bold text-gray-700">{outCount}</p>
           </div>
-          <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-center">
-            <p className="text-2xl font-bold text-red-700">{outCount}</p>
-            <p className="text-xs text-red-600">Out</p>
+
+          {/* Not Sure */}
+          <div className="rounded-lg bg-amber-50 px-3 py-3 text-center">
+            <p className="text-xs font-semibold uppercase tracking-wide text-amber-600">Not Sure</p>
+            <p className="mt-1 text-2xl font-bold text-amber-600">{notSureCount}</p>
+          </div>
+
+          {/* No Reply */}
+          <div className="rounded-lg bg-gray-50 px-3 py-3 text-center">
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">No Reply</p>
+            <p className="mt-1 text-2xl font-bold text-gray-400">{noResponseCount}</p>
+          </div>
+
+          {/* Waitlist */}
+          <div className={`rounded-lg px-3 py-3 text-center ${waitlistCount > 0 ? "bg-orange-50" : "bg-gray-50"}`}>
+            <p className={`text-xs font-semibold uppercase tracking-wide ${waitlistCount > 0 ? "text-orange-600" : "text-gray-400"}`}>Waitlist</p>
+            <p className={`mt-1 text-2xl font-bold ${waitlistCount > 0 ? "text-orange-600" : "text-gray-400"}`}>{waitlistCount}</p>
           </div>
         </div>
 
