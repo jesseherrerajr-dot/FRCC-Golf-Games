@@ -98,6 +98,7 @@ export default async function AdminRsvpPage({
     const key = es.email_type.startsWith("reminder") ? "reminder" :
       es.email_type === "confirmation_golfer" ? "golfer_confirmation" :
       es.email_type === "confirmation_proshop" ? "pro_shop" :
+      es.email_type === "pro_shop_detail" ? "pro_shop" :
       es.email_type;
     emailScheduleMap[key] = formatScheduledTime(
       es.send_day_offset,
