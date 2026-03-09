@@ -357,49 +357,59 @@ export default async function EventDashboardPage({
                       </svg>
                     </div>
 
-                    {/* Summary */}
+                    {/* Summary table */}
                     {!isCancelled && (
                       <div className="px-4 pb-3">
-                        {/* Invite status banner */}
-                        <div className="py-2.5 text-xs text-gray-500">
-                          {game.inviteSent ? (
-                            <>
-                              <span className="font-medium text-gray-700">{game.inviteRecipientCount} invited</span>
-                              {" \u00b7 "}Sent {formatDateTime(game.inviteSentAt)}
-                            </>
-                          ) : (
-                            game.scheduledInviteDisplay
+                        {/* 6-column RSVP table: headers on top, counts below */}
+                        <table className="mt-2 w-full">
+                          <thead>
+                            <tr className="text-xs text-gray-500">
+                              <th className="pb-1 text-center font-medium">Invited</th>
+                              <th className="pb-1 text-center font-medium">In</th>
+                              <th className="pb-1 text-center font-medium">Out</th>
+                              <th className="pb-1 text-center font-medium">Not Sure</th>
+                              <th className="pb-1 text-center font-medium">No Reply</th>
+                              <th className="pb-1 text-center font-medium">Waitlist</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr>
+                              <td className="pt-1 text-center">
+                                <span className="text-xl font-bold text-gray-700">
+                                  {game.inviteSent ? game.inviteRecipientCount : "—"}
+                                </span>
+                              </td>
+                              <td className="pt-1 text-center">
+                                <span className="text-xl font-bold text-teal-700">{game.inCount}</span>
+                                <span className="text-sm text-gray-400">/{game.capacity}</span>
+                              </td>
+                              <td className="pt-1 text-center">
+                                <span className="text-xl font-bold text-gray-700">{game.outCount}</span>
+                              </td>
+                              <td className="pt-1 text-center">
+                                <span className="text-xl font-bold text-amber-600">{game.notSureCount}</span>
+                              </td>
+                              <td className="pt-1 text-center">
+                                <span className="text-xl font-bold text-gray-400">{game.noResponseCount}</span>
+                              </td>
+                              <td className="pt-1 text-center">
+                                <span className={`text-xl font-bold ${game.waitlistCount > 0 ? "text-orange-600" : "text-gray-400"}`}>
+                                  {game.waitlistCount}
+                                </span>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+
+                        {/* Invite date/time detail */}
+                        <p className="mt-2 text-center text-xs text-gray-400">
+                          {game.inviteSent
+                            ? <>Sent {formatDateTime(game.inviteSentAt)}</>
+                            : game.scheduledInviteDisplay
                               ? <>Invite scheduled {game.scheduledInviteDisplay}</>
                               : <>Invite not scheduled</>
-                          )}
-                        </div>
-
-                        {/* 2x3 RSVP grid */}
-                        <div className="grid grid-cols-3 gap-2">
-                          <div className="rounded-lg bg-teal-50 px-3 py-2.5 text-center">
-                            <p className="text-lg font-bold text-teal-700">
-                              {game.inCount}<span className="text-sm font-normal text-teal-400">/{game.capacity}</span>
-                            </p>
-                            <p className="text-xs text-teal-600">I&apos;m In</p>
-                          </div>
-                          <div className="rounded-lg bg-gray-50 px-3 py-2.5 text-center">
-                            <p className="text-lg font-bold text-gray-700">{game.outCount}</p>
-                            <p className="text-xs text-gray-500">I&apos;m Out</p>
-                          </div>
-                          <div className="rounded-lg bg-amber-50 px-3 py-2.5 text-center">
-                            <p className="text-lg font-bold text-amber-600">{game.notSureCount}</p>
-                            <p className="text-xs text-amber-500">Not Sure</p>
-                          </div>
-                          <div className="rounded-lg bg-gray-50 px-3 py-2.5 text-center">
-                            <p className="text-lg font-bold text-gray-400">{game.noResponseCount}</p>
-                            <p className="text-xs text-gray-400">No Response</p>
-                          </div>
-                          <div className={`rounded-lg px-3 py-2.5 text-center ${game.waitlistCount > 0 ? "bg-orange-50" : "bg-gray-50"}`}>
-                            <p className={`text-lg font-bold ${game.waitlistCount > 0 ? "text-orange-600" : "text-gray-400"}`}>{game.waitlistCount}</p>
-                            <p className={`text-xs ${game.waitlistCount > 0 ? "text-orange-500" : "text-gray-400"}`}>Waitlist</p>
-                          </div>
-                          <div></div>
-                        </div>
+                          }
+                        </p>
 
                         {/* Capacity bar */}
                         <div className="mt-3">
