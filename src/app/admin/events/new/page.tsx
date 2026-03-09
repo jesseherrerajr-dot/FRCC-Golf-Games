@@ -25,7 +25,7 @@ export default async function CreateEventPage() {
             { label: "Create Event" },
           ]}
         />
-        <h1 className="text-2xl font-bold text-navy-900">
+        <h1 className="text-2xl font-serif uppercase tracking-wide font-bold text-navy-900">
           Create New Event
         </h1>
         <p className="mt-1 text-sm text-gray-500">

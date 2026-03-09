@@ -59,6 +59,11 @@ Every page (except the landing page and login) **must** have a `<Breadcrumbs>` c
 | Admin → Add Golfer (global) | `Admin > Golfers > Add Golfer` |
 | Admin → Add Golfer (event) | `Admin > [Event Name] > Golfers > Add Golfer` |
 
+### Typography Standards
+- **Page titles (h1)**: All page titles must use `text-2xl font-serif uppercase tracking-wide font-bold text-navy-900`. Landing and login pages use larger sizes (`text-3xl` or `text-4xl`) but always include `font-serif uppercase tracking-wide`.
+- **Section headers (h2)**: Use `text-lg font-semibold text-gray-900` for content section headers within pages. These are intentionally less prominent than page titles.
+- **Subtitle/description text**: Use `text-sm text-gray-500` for descriptions below headings.
+
 ### General Mobile-First Principles
 - **Avoid wide tables on mobile.** If a table has more than 3-4 columns, hide less critical columns on mobile with `hidden sm:table-cell` or switch to a card/tile layout.
 - **Tap targets should be at least 44px.** Buttons, links, and interactive elements need generous padding for thumb-friendly interaction.
@@ -106,8 +111,8 @@ Every page (except the landing page and login) **must** have a `<Breadcrumbs>` c
 - `events/[eventId]/rsvp/[scheduleId]/actions.ts` — RSVP management server actions
 - `events/[eventId]/rsvp/[scheduleId]/guest-actions.ts` — Guest approval server actions
 - `events/new/` — Create new event page
-- `events/[eventId]/settings/` — Event settings (name, capacity, admins, pro shop contacts, feature flags)
-- `events/[eventId]/schedule/` — 4-week rolling schedule (Game On/No Game toggle, capacity override)
+- `events/[eventId]/settings/` — Event settings (Event Details, Automated Email Settings, Admin Alerts, Pro Shop Contacts, Event Admins, Feature Flags, Danger Zone)
+- `events/[eventId]/schedule/` — 8-week rolling schedule (Game On/No Game toggle, capacity override)
 - `events/[eventId]/email/compose/` — Custom email composer with templates
 
 ### API Routes (src/app/api/)
@@ -234,7 +239,7 @@ The first event is **"FRCC Saturday Morning Group"**. The platform is designed f
 - Feature flags (guest requests, tee time preferences, playing partner preferences)
 
 ### Schedule Management
-- Admin dashboard has a rolling 4-week schedule view (schedules are still generated 8 weeks ahead as a buffer).
+- Schedule management page shows a rolling 8-week view.
 - Each week defaults to "Game On."
 - Admins can toggle any week to "No Game" (e.g., club tournament). A confirmation modal requires the admin to confirm the cancellation and optionally provide a reason.
 - When a game is cancelled, the system immediately sends a cancellation email to all active golfers subscribed to the event. The email includes the cancelled date, the admin-provided reason (if any), and the next scheduled game date.
@@ -288,7 +293,7 @@ All email types, days, and times below are **configurable per event** via the `e
 ### RSVP Visibility (Evite-Style)
 - Golfers who are "In" can see the list of other "In" golfers (first initial + last name only, e.g., "J. Herrera"). No email addresses, phone numbers, or full distribution list visible.
 - Golfers who are "Out," "Not Sure," or haven't responded cannot see the "In" list until they opt in.
-- Super admins and event admins can see ALL categories at all times: In, Out, Not Sure, No Response, Waitlisted.
+- Super admins and event admins can see ALL categories at all times: In, Out, Not Sure, No Reply, Waitlist.
 
 ---
 
@@ -360,12 +365,12 @@ The main `/admin` dashboard displays event summary cards. This allows admins to 
 Admin → Events → [Event] shows event-specific dashboard with:
 - Event summary metrics (next game date, capacity/RSVPs, action item count)
 - Quick action items needing attention (pending registrations, open spots, guest requests)
-- Upcoming games overview (4-week rolling view)
+- Upcoming game overview with RSVP summary tiles
 - Quick links to golfers, schedule, RSVP management, settings, email composer
 
 ### RSVP Management (per event)
 Admin → Events → [Event] → RSVP → [Week] shows:
-- Full RSVP breakdown: In, Out, Not Sure, No Response, Waitlisted.
+- Full RSVP breakdown: In, Out, Not Sure, No Reply, Waitlist.
 - Count of confirmed vs. capacity.
 - Waitlist with ranked order.
 - Pending guest requests.
@@ -373,18 +378,20 @@ Admin → Events → [Event] → RSVP → [Week] shows:
 - Guest approval/denial controls.
 
 ### Golfer Directory (Global and Event-Scoped)
+Golfer directories use a **card-based list layout** (not a table). Each golfer is displayed as a full-width tappable row showing name, email (subtitle), and status badge. Tapping the row navigates to the golfer detail page. Inline action buttons (Approve/Deny, Deactivate, Reactivate) appear alongside the row for quick actions. Sort options: Name and Status.
+
 - **Global** (Super Admin only): Admin → Golfers shows all registered golfers across all events with event filter.
   - Search and filter by name, email, event, or status.
-  - Approve/deny pending registrations.
+  - Approve/deny pending registrations inline.
   - Deactivate, reactivate, or remove golfers.
-  - Manage subscriptions to all events for each golfer.
+  - Manage subscriptions to all events via the golfer detail page.
 - **Event-Scoped**: Admin → Events → [Event] → Golfers shows golfers for that specific event only.
-  - Manage subscriptions to just that event.
+  - Manage subscriptions to just that event via the golfer detail page.
   - Event admins can only see and manage golfers for their assigned event(s).
 
 ### Schedule Management (per event)
 Admin → Events → [Event] → Schedule shows:
-- Rolling 4-week calendar.
+- Rolling 8-week calendar.
 - Toggle Game On / No Game per week.
 - Override capacity per week.
 - Confirmation modal on "No Game" toggle with optional reason entry.
@@ -645,7 +652,7 @@ Admin-facing RSVP status labels **must** be consistent across all surfaces — s
 - [ ] Golf Genius CSV export
 
 ### Phase 4 — Admin Tools & Communication (MVP for Beta Launch)
-- [x] Schedule management (4-week rolling view; 8 weeks generated as buffer)
+- [x] Schedule management (8-week rolling view)
 - [x] Custom email composer with templates
 - [x] Automatic game cancellation emails (triggered on "No Game" toggle, with confirmation modal and optional reason)
 - [x] Action items / task summary (displayed on event dashboard)

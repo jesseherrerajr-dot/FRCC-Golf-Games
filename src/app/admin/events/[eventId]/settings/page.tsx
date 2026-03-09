@@ -76,7 +76,7 @@ export default async function EventSettingsPage({
               { label: "Settings" },
             ]}
           />
-          <h1 className="text-2xl font-bold text-navy-900">
+          <h1 className="text-2xl font-serif uppercase tracking-wide font-bold text-navy-900">
             Event Settings
           </h1>
         </div>
@@ -91,7 +91,7 @@ export default async function EventSettingsPage({
           </div>
         </section>
 
-        {/* Email Schedule */}
+        {/* Automated Email Settings */}
         <section className="mt-8">
           <h2 className="text-lg font-semibold text-gray-900">
             Automated Email Settings

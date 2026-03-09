@@ -265,9 +265,9 @@ export default async function HelpPage() {
                     <strong>Pro Shop Confirmation</strong> — sent to pro shop contacts
                     with full player details (names, phones, GHIN) and suggested
                     foursome groupings. You can customize the send day and time for
-                    each email in <strong>Event Settings → Email Schedule</strong>.
+                    each email in <strong>Event Settings → Automated Email Settings</strong>.
                     If a cron job is delayed or you need to trigger an email
-                    manually, use the <strong>Email Controls</strong> section on the
+                    manually, use the <strong>Emails &amp; Communications</strong> section on the
                     RSVP management page — it has Send Now buttons for each email
                     type.
                   </p>
@@ -290,18 +290,19 @@ export default async function HelpPage() {
                     After the RSVP cutoff, go to the RSVP management page for that
                     week (tap any upcoming game on the Admin Dashboard). You&apos;ll
                     see a status dropdown next to each golfer — you can change anyone&apos;s
-                    status (In, Out, Waitlisted, etc.) and promote golfers from the
-                    waitlist using the <strong>Promote</strong> button. You can also
-                    expand the <strong>Email Controls</strong> section to manually
-                    send or resend any of the four weekly emails (invite, reminder,
-                    golfer confirmation, pro shop detail).
+                    status (In, Out, Waitlist, etc.) and promote golfers from the
+                    waitlist using the <strong>Promote</strong> button. The{" "}
+                    <strong>Emails &amp; Communications</strong> section shows the
+                    scheduled send time for each automated email, plus Send Now
+                    buttons to manually trigger any of the four weekly emails
+                    (invite, reminder, golfer confirmation, pro shop detail).
                   </p>
                 </FAQ>
 
                 <FAQ question='How do I cancel a game or mark "No Game"?'>
                   <p>
-                    Go to <strong>Event Settings → Schedule</strong> to see the
-                    rolling 4-week calendar. Tap <strong>Cancel</strong> next to any
+                    Go to <strong>Schedule</strong> (from the event dashboard) to see the
+                    rolling 8-week calendar. Tap <strong>Cancel</strong> next to any
                     week. You&apos;ll be asked to confirm and can optionally provide a
                     reason (e.g., &quot;Club tournament this week&quot;). Once confirmed,
                     a cancellation email is automatically sent to all active subscribers
@@ -363,9 +364,9 @@ export default async function HelpPage() {
 
                 <FAQ question="How do I manage golfer subscriptions?">
                   <p>
-                    From the <strong>Golfer Directory</strong>, tap{" "}
-                    <strong>Manage</strong> next to any golfer to see their detail
-                    page. There you can toggle which events they&apos;re subscribed to.
+                    From the <strong>Golfer Directory</strong>, tap any golfer&apos;s
+                    row to see their detail page. There you can toggle which events
+                    they&apos;re subscribed to.
                     You can also deactivate a golfer (stops all invites, preserves
                     history) or reactivate them later.
                   </p>

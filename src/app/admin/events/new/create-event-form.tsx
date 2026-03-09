@@ -204,7 +204,7 @@ export function CreateEventForm({
       {/* Email Schedule */}
       <section className="space-y-4">
         <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-500">
-          Email Schedule
+          Automated Email Settings
         </h3>
 
         <DayTimeInput label="Send Invite" dayName="invite_day" timeName="invite_time" dayDefault={1} timeDefault="10:00" />

@@ -48,7 +48,7 @@ export default async function EmailComposerPage({
               { label: "Send Email" },
             ]}
           />
-          <h1 className="text-2xl font-bold text-navy-900">
+          <h1 className="text-2xl font-serif uppercase tracking-wide font-bold text-navy-900">
             Send Email
           </h1>
         </div>

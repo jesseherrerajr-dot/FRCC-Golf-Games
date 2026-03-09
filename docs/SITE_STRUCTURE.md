@@ -1,6 +1,6 @@
 # FRCC Golf Games — Site Structure & Navigation
 
-> **Last updated:** March 7, 2026
+> **Last updated:** March 8, 2026
 > This document describes the current page hierarchy, navigation, and URL routes.
 > Keep this file in sync with any structural changes to the app.
 
@@ -62,28 +62,30 @@
 - **Super admins** see: global section (All Golfers link, + Create Event) + event summary cards for all events
 - **Event admins** see: event summary cards for assigned events only
 
-Each event card shows: event name, next game date, confirmed/capacity, pending approvals count, pending guest requests count, action-needed badge, and a "Manage →" button.
+Each event card shows: event name, next game date, confirmed/capacity, pending approvals count, pending guest requests count, and action-needed badge.
 
 ### Global Golfer Directory (`/admin/golfers`) — Super Admin Only
-- All golfers across all events
-- Search, filter by status + event, sort
+- Card-based list: each golfer row shows name, email, status badge
+- Tapping a row navigates to golfer detail page
+- Inline action buttons: Approve/Deny (pending), Deactivate (active), Reactivate (deactivated)
+- Search, filter by status + event, sort by Name or Status
 - `+ Add Golfer` with multi-event subscription picker
-- Manage → `/admin/golfers/[golferId]` (global detail with all-event subscriptions)
 
 ### Event Dashboard (`/admin/events/[eventId]`)
 - Breadcrumb: Admin > [Event Name]
 - Event context bar with event switcher dropdown
 - Summary metrics: Active Golfers, This Week (confirmed/capacity), Pending Approvals, Pending Guests
 - Action Required: pending registrations (approve/deny), pending guest requests
-- Upcoming Games: next 4 weeks with capacity bars, links to RSVP management
+- Upcoming Game: next game with RSVP summary tiles, links to RSVP management
 - Quick Links: Golfer Directory, Event Settings, Manage Schedule, Send Email
 
 ### Event Golfer Directory (`/admin/events/[eventId]/golfers`)
 - Breadcrumb: Admin > [Event Name] > Golfer Directory
-- Golfers subscribed to this event only
-- Search, filter (All/Active/Pending/Deactivated), sort
+- Card-based list: each golfer row shows name, email, status badge
+- Tapping a row navigates to event-scoped golfer detail page
+- Inline action buttons: Approve/Deny (pending), Deactivate (active), Reactivate (deactivated)
+- Search, filter (All/Active/Pending/Deactivated), sort by Name or Status
 - `+ Add Golfer` → auto-subscribes to this event
-- Manage → event-scoped golfer detail
 
 ### Event Golfer Detail (`/admin/events/[eventId]/golfers/[golferId]`)
 - Breadcrumb: Admin > [Event Name] > Golfer Directory > [Name]
@@ -92,19 +94,23 @@ Each event card shows: event name, next game date, confirmed/capacity, pending a
 - Approve/deny/deactivate/reactivate as appropriate
 
 ### RSVP Management (`/admin/events/[eventId]/rsvp/[scheduleId]`)
-- Full RSVP breakdown: In, Out, Not Sure, No Response, Waitlisted
+- Summary tiles: Invited, In, Out, Not Sure, No Reply, Waitlist (responsive 2/3/6 column grid)
+- Collapsible RSVP detail sections for each status category
 - Admin override controls (post-cutoff changes)
 - Guest approval/denial controls
+- Emails & Communications: shows scheduled/sent timing, Send Now buttons
 
 ### Event Settings (`/admin/events/[eventId]/settings`)
-- Event name, description, slug, capacity, frequency
-- Admin assignments (primary/secondary)
-- Pro shop contacts
-- Email schedule configuration
-- Feature flags (guests, tee time prefs, partner prefs)
+- Event Details: name, description, slug, capacity, frequency
+- Automated Email Settings: send day/time configuration per email type
+- Admin Alerts: notification toggles
+- Pro Shop Contacts
+- Event Admins (super admin only): primary/secondary admin assignments
+- Feature Flags (super admin only): guests, tee time prefs, partner prefs
+- Danger Zone: deactivate/delete event
 
 ### Schedule Management (`/admin/events/[eventId]/schedule`)
-- 4-week rolling view
+- 8-week rolling view
 - Game On / No Game toggle per week
 - Per-week capacity override
 

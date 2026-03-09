@@ -86,7 +86,7 @@ export default async function ScheduleManagementPage({
               { label: "Schedule" },
             ]}
           />
-          <h1 className="text-2xl font-bold text-navy-900">
+          <h1 className="text-2xl font-serif uppercase tracking-wide font-bold text-navy-900">
             Schedule Management
           </h1>
         </div>
