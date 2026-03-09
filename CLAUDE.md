@@ -16,6 +16,26 @@ An automated golf participation tracker for recurring games at Fairbanks Ranch C
 - App Router (Next.js) with Server Actions
 - Role-Based Access: Super Admin, Event Admin, Golfer
 
+## UI/UX Design Standards (READ BEFORE BUILDING UI)
+
+80%+ of all interactions are from mobile phones. Every UI decision should prioritize the mobile experience first.
+
+### Responsive Tile Pattern (Preferred for Data Summaries)
+When displaying a set of related metrics or status counts (e.g., RSVP breakdown, dashboard stats), use **responsive tile grids** instead of tables or horizontal stat bars. Each tile should be a self-contained card with a label and value, using Tailwind's responsive grid:
+- `grid-cols-2` — small phones (default)
+- `sm:grid-cols-3` — larger phones / small tablets
+- `lg:grid-cols-6` — desktop / wide screens
+
+Tiles should have subtle colored backgrounds to differentiate categories (e.g., `bg-teal-50` for positive, `bg-amber-50` for warning, `bg-gray-50` for neutral). This pattern ensures content reflows naturally across screen sizes without horizontal scrolling or cramped layouts.
+
+### General Mobile-First Principles
+- **Avoid wide tables on mobile.** If a table has more than 3-4 columns, hide less critical columns on mobile with `hidden sm:table-cell` or switch to a card/tile layout.
+- **Tap targets should be at least 44px.** Buttons, links, and interactive elements need generous padding for thumb-friendly interaction.
+- **Use cards with full-width tap areas** for navigation items (e.g., the Manage Golfers section uses full-row tappable links, not small text links).
+- **Question-based UX copy** for admin workflows — guide admins with intuitive prompts like "Already know the golfer's info?" rather than feature-labeled buttons.
+- **Minimize redundancy** — avoid showing the same information in multiple places (e.g., don't repeat event names in breadcrumbs, headings, and context bars).
+- **Keep sections visually grouped** — use white cards with borders (`rounded-lg border border-gray-200 bg-white shadow-sm`) to clearly associate related content under section headers.
+
 ---
 
 ## File Map
