@@ -249,7 +249,7 @@ export default async function AdminRsvpPage({
         <CollapsibleSection
           title="In"
           count={inCount}
-          defaultOpen={true}
+          defaultOpen={false}
           headerColor="text-teal-800"
           emptyMessage="No golfers confirmed yet."
         >
@@ -758,50 +758,52 @@ export default async function AdminRsvpPage({
           </div>
         </CollapsibleSection>
 
-        {/* Emails & Communications */}
-        <CollapsibleSection
-          title="Emails & Communications"
-          defaultOpen={false}
-          headerColor="text-gray-700"
-          badge={{
-            label: `${[schedule.invite_sent, schedule.reminder_sent, schedule.golfer_confirmation_sent, schedule.pro_shop_sent].filter(Boolean).length}/4 sent`,
-            className: [schedule.invite_sent, schedule.reminder_sent, schedule.golfer_confirmation_sent, schedule.pro_shop_sent].every(Boolean)
-              ? "bg-teal-100 text-teal-700"
-              : "bg-gray-100 text-gray-600",
-          }}
-        >
-          <EmailStatusPanel
-            scheduleId={scheduleId}
-            status={{
-              inviteSent: schedule.invite_sent,
-              reminderSent: schedule.reminder_sent,
-              golferConfirmationSent: schedule.golfer_confirmation_sent,
-              proShopSent: schedule.pro_shop_sent,
-            }}
-            emailLog={emailLogMap}
-            confirmedCount={inCount}
-            pendingCount={notSureCount + noResponseCount}
-            totalSubscribers={allRsvps.length}
-          />
+        {/* Emails & Communications — always visible */}
+        <section className="mt-8">
+          <h2 className="text-lg font-semibold text-gray-700">
+            Emails & Communications
+            <span className={`ml-2 inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${
+              [schedule.invite_sent, schedule.reminder_sent, schedule.golfer_confirmation_sent, schedule.pro_shop_sent].every(Boolean)
+                ? "bg-teal-100 text-teal-700"
+                : "bg-gray-100 text-gray-600"
+            }`}>
+              {[schedule.invite_sent, schedule.reminder_sent, schedule.golfer_confirmation_sent, schedule.pro_shop_sent].filter(Boolean).length}/4 sent
+            </span>
+          </h2>
+          <div className="mt-3">
+            <EmailStatusPanel
+              scheduleId={scheduleId}
+              status={{
+                inviteSent: schedule.invite_sent,
+                reminderSent: schedule.reminder_sent,
+                golferConfirmationSent: schedule.golfer_confirmation_sent,
+                proShopSent: schedule.pro_shop_sent,
+              }}
+              emailLog={emailLogMap}
+              confirmedCount={inCount}
+              pendingCount={notSureCount + noResponseCount}
+              totalSubscribers={allRsvps.length}
+            />
 
-          {/* Compose custom email — contextual to this week */}
-          <div className="mt-4 border-t border-gray-200 pt-4">
-            <Link
-              href={`/admin/events/${event?.id}/email/compose`}
-              className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4 shadow-sm hover:border-teal-300 hover:shadow-md transition"
-            >
-              <div>
-                <h3 className="font-semibold text-gray-900">Message Golfers</h3>
-                <p className="text-xs text-gray-500 mt-1">
-                  Send a custom message — cancellations, weather updates, extra spots, and more
-                </p>
-              </div>
-              <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-              </svg>
-            </Link>
+            {/* Compose custom email — contextual to this week */}
+            <div className="mt-4 border-t border-gray-200 pt-4">
+              <Link
+                href={`/admin/events/${event?.id}/email/compose`}
+                className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4 shadow-sm hover:border-teal-300 hover:shadow-md transition"
+              >
+                <div>
+                  <h3 className="font-semibold text-gray-900">Message Golfers</h3>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Send a custom message — cancellations, weather updates, extra spots, and more
+                  </p>
+                </div>
+                <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                </svg>
+              </Link>
+            </div>
           </div>
-        </CollapsibleSection>
+        </section>
       </div>
     </main>
   );
