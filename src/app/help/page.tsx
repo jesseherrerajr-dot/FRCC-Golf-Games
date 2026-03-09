@@ -266,36 +266,35 @@ export default async function HelpPage() {
                     with full player details (names, phones, GHIN) and suggested
                     foursome groupings. You can customize the send day and time for
                     each email in <strong>Event Settings → Automated Email Settings</strong>.
-                    If a cron job is delayed or you need to trigger an email
-                    manually, use the <strong>Emails &amp; Communications</strong> section on the
-                    RSVP management page — it has Send Now buttons for each email
-                    type.
+                    To see the status of each email, use the{" "}
+                    <strong>Emails &amp; Comms</strong> button on your event card
+                    on the Admin Dashboard, or tap the Emails row on the event card.
+                    From there you can also manually trigger any email using the
+                    Send Now buttons.
                   </p>
                 </FAQ>
 
                 <FAQ question="How do I approve new golfer registrations?">
                   <p>
                     When someone registers through a join link, they appear as
-                    &quot;Pending Approval&quot; on the Admin Dashboard and in the{" "}
-                    <strong>Golfer Directory</strong>. Tap <strong>Approve</strong> to
-                    activate their account and subscribe them to the event, or{" "}
-                    <strong>Deny</strong> to reject. You can also add golfers directly
-                    via <strong>+ Add Golfer</strong> — this bypasses the approval
-                    step.
+                    &quot;Pending Approval&quot; in the <strong>Action Required</strong>{" "}
+                    section of your event card on the Admin Dashboard. Tap the pending
+                    registration link to go directly to the Golfer Directory where you
+                    can <strong>Approve</strong> or <strong>Deny</strong> each request.
+                    You can also add golfers directly via the{" "}
+                    <strong>+ Add Golfer</strong> button on the event card — this
+                    bypasses the approval step entirely.
                   </p>
                 </FAQ>
 
                 <FAQ question="How do I manage RSVPs after the cutoff?">
                   <p>
-                    After the RSVP cutoff, go to the RSVP management page for that
-                    week (tap any upcoming game on the Admin Dashboard). You&apos;ll
-                    see a status dropdown next to each golfer — you can change anyone&apos;s
-                    status (In, Out, Waitlist, etc.) and promote golfers from the
-                    waitlist using the <strong>Promote</strong> button. The{" "}
-                    <strong>Emails &amp; Communications</strong> section shows the
-                    scheduled send time for each automated email, plus Send Now
-                    buttons to manually trigger any of the four weekly emails
-                    (invite, reminder, golfer confirmation, pro shop detail).
+                    After the RSVP cutoff, tap the RSVPs row on your event card
+                    (on the Admin Dashboard) to go directly to the RSVP management
+                    page for that week. You&apos;ll see a status dropdown next to
+                    each golfer — you can change anyone&apos;s status (In, Out,
+                    Waitlist, etc.) and promote golfers from the waitlist using the{" "}
+                    <strong>Promote</strong> button.
                   </p>
                 </FAQ>
 
@@ -333,11 +332,13 @@ export default async function HelpPage() {
 
                 <FAQ question="How do I share the event join link with new golfers?">
                   <p>
-                    Go to <strong>Event Settings</strong> and look for the{" "}
-                    <strong>Join Link</strong> section. You&apos;ll see the event-specific
-                    URL with a copy button. Share this link with anyone you want to
+                    The easiest way is to tap <strong>+ Add Golfer</strong> on your
+                    event card (Admin Dashboard). On the Golfers page, you&apos;ll see
+                    the join link with a copy button under &quot;Don&apos;t know the
+                    golfer&apos;s info?&quot; Share this link with anyone you want to
                     invite — they&apos;ll fill out a short registration form and
-                    you&apos;ll approve them from the Golfer Directory.
+                    you&apos;ll approve them from the Golfer Directory. The join link
+                    is also available in <strong>Event Settings</strong>.
                   </p>
                 </FAQ>
 
@@ -354,11 +355,13 @@ export default async function HelpPage() {
 
                 <FAQ question="How do I send a custom email to golfers?">
                   <p>
-                    Go to your event&apos;s page and tap <strong>Send Email</strong>.
-                    You can choose a template (Game Cancelled, Extra Spots, Weather
-                    Advisory, Course Update) or write a custom message. Select the
-                    recipients by RSVP status (all confirmed, all not sure, everyone,
-                    etc.) and send.
+                    From your event card on the Admin Dashboard, tap{" "}
+                    <strong>Emails &amp; Comms</strong> to see the email status page.
+                    From there, tap <strong>Message Golfers</strong> to compose a
+                    custom email. You can choose a template (Game Cancelled, Extra
+                    Spots, Weather Advisory, Course Update) or write a custom message.
+                    Select the recipients by RSVP status (all confirmed, all not sure,
+                    everyone, etc.) and send.
                   </p>
                 </FAQ>
 
