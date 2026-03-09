@@ -10,7 +10,7 @@ import {
 } from "./rsvp-controls";
 import { GuestApprovalButton, GuestDenialButton } from "./guest-controls";
 import { formatPhoneDisplay, formatGameDate, formatDateTime, formatInitialLastName } from "@/lib/format";
-import { isPastCutoffPacific } from "@/lib/timezone";
+import { isPastCutoffPacific, calculateSendDateString } from "@/lib/timezone";
 import { EmailStatusPanel } from "./email-controls";
 import { RSVP_ADMIN_LABELS as statusLabels, RSVP_ADMIN_COLORS as statusBadgeColors, type RsvpStatus } from "@/lib/rsvp-status";
 
@@ -70,6 +70,40 @@ export default async function AdminRsvpPage({
         recipientCount: log.recipient_count || 0,
       };
     }
+  }
+
+  // Fetch email schedules for this event (to compute scheduled send times)
+  const { data: emailSchedules } = await supabase
+    .from("email_schedules")
+    .select("email_type, send_day_offset, send_time, is_enabled")
+    .eq("event_id", event?.id)
+    .eq("is_enabled", true);
+
+  // Compute scheduled send display for each email type
+  function formatScheduledTime(dayOffset: number, sendTime: string, gameDateStr: string): string {
+    const sendDate = calculateSendDateString(gameDateStr, dayOffset);
+    const [h, m] = sendTime.split(":").map(Number);
+    const hour12 = h % 12 || 12;
+    const ampm = h < 12 ? "AM" : "PM";
+    const timeStr = m === 0 ? `${hour12} ${ampm}` : `${hour12}:${String(m).padStart(2, "0")} ${ampm}`;
+    const [year, month, day] = sendDate.split("-").map(Number);
+    const dateObj = new Date(year, month - 1, day);
+    const dayName = dateObj.toLocaleDateString("en-US", { weekday: "short" });
+    const monthName = dateObj.toLocaleDateString("en-US", { month: "short" });
+    return `${dayName}, ${monthName} ${day} at ${timeStr}`;
+  }
+
+  const emailScheduleMap: Record<string, string> = {};
+  for (const es of emailSchedules || []) {
+    const key = es.email_type.startsWith("reminder") ? "reminder" :
+      es.email_type === "confirmation_golfer" ? "golfer_confirmation" :
+      es.email_type === "confirmation_proshop" ? "pro_shop" :
+      es.email_type;
+    emailScheduleMap[key] = formatScheduledTime(
+      es.send_day_offset,
+      es.send_time,
+      schedule.game_date
+    );
   }
 
   // Fetch guest requests for this schedule
@@ -780,6 +814,7 @@ export default async function AdminRsvpPage({
                 proShopSent: schedule.pro_shop_sent,
               }}
               emailLog={emailLogMap}
+              emailSchedule={emailScheduleMap}
               confirmedCount={inCount}
               pendingCount={notSureCount + noResponseCount}
               totalSubscribers={allRsvps.length}

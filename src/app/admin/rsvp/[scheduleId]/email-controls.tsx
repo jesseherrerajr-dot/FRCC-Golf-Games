@@ -27,6 +27,7 @@ type EmailControlsProps = {
   scheduleId: string;
   status: EmailStatus;
   emailLog?: Record<string, EmailLogEntry>;
+  emailSchedule?: Record<string, string>;
   confirmedCount: number;
   pendingCount: number;
   totalSubscribers: number;
@@ -63,7 +64,7 @@ const emailLogKeys: Record<EmailType, string> = {
 };
 
 export function EmailStatusPanel(props: EmailControlsProps) {
-  const { scheduleId, status, emailLog } = props;
+  const { scheduleId, status, emailLog, emailSchedule } = props;
 
   const emails: { type: EmailType; sent: boolean }[] = [
     { type: "invite", sent: status.inviteSent },
@@ -81,6 +82,7 @@ export function EmailStatusPanel(props: EmailControlsProps) {
             type={type}
             sent={sent}
             logEntry={emailLog?.[emailLogKeys[type]]}
+            scheduledDisplay={emailSchedule?.[emailLogKeys[type]]}
             scheduleId={scheduleId}
             controlsProps={props}
           />
@@ -94,12 +96,14 @@ function EmailRow({
   type,
   sent,
   logEntry,
+  scheduledDisplay,
   scheduleId,
   controlsProps,
 }: {
   type: EmailType;
   sent: boolean;
   logEntry?: EmailLogEntry;
+  scheduledDisplay?: string;
   scheduleId: string;
   controlsProps: EmailControlsProps;
 }) {
@@ -181,7 +185,9 @@ function EmailRow({
               </span>
             ) : (
               <span className="text-xs text-gray-400">
-                {emailRecipientLabels[type]}
+                {scheduledDisplay
+                  ? `Scheduled ${scheduledDisplay}`
+                  : emailRecipientLabels[type]}
               </span>
             )}
           </div>
