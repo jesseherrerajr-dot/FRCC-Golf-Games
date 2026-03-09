@@ -1,6 +1,5 @@
 import { requireAdmin, hasEventAccess } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { generateSchedulesForEvent } from "@/lib/schedule-gen";
 import { getTodayPacific } from "@/lib/timezone";
@@ -46,7 +45,7 @@ export default async function ScheduleManagementPage({
     .eq("event_id", eventId)
     .gte("game_date", today)
     .order("game_date", { ascending: true })
-    .limit(4);
+    .limit(8);
 
   // Get RSVP counts for each schedule
   const schedulesWithCounts = await Promise.all(
@@ -79,29 +78,21 @@ export default async function ScheduleManagementPage({
     <main className="min-h-screen px-4 py-8">
       <div className="mx-auto max-w-4xl">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <Breadcrumbs
-              items={[
-                { label: "Admin", href: "/admin" },
-                { label: event.name, href: `/admin/events/${eventId}` },
-                { label: "Schedule" },
-              ]}
-            />
-            <h1 className="text-2xl font-bold text-navy-900">
-              Schedule Management
-            </h1>
-          </div>
-          <Link
-            href="/admin"
-            className="text-sm text-teal-600 hover:text-teal-500"
-          >
-            Dashboard
-          </Link>
+        <div>
+          <Breadcrumbs
+            items={[
+              { label: "Admin", href: "/admin" },
+              { label: event.name, href: `/admin/events/${eventId}` },
+              { label: "Schedule" },
+            ]}
+          />
+          <h1 className="text-2xl font-bold text-navy-900">
+            Schedule Management
+          </h1>
         </div>
 
         <p className="mt-4 text-sm text-gray-600">
-          Manage the next 4 weeks. Toggle any week to &quot;No Game&quot; before the invite
+          Manage the next 8 weeks. Toggle any week to &quot;No Game&quot; before the invite
           is sent — golfers will get a cancellation notice instead. You can also adjust
           capacity per week and add notes that appear in emails.
         </p>
