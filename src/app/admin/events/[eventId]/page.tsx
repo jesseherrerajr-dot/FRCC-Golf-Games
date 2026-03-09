@@ -439,26 +439,7 @@ export default async function EventDashboardPage({
             )}
           </section>
 
-          {/* Section 3: Send Message */}
-          <section className="mb-8">
-            <h2 className="mb-4 text-lg font-semibold text-gray-900">Send Message</h2>
-            <Link
-              href={`/admin/events/${eventId}/email/compose`}
-              className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4 shadow-sm hover:border-teal-300 hover:shadow-md transition"
-            >
-              <div>
-                <h3 className="font-semibold text-gray-900">Compose Email</h3>
-                <p className="text-xs text-gray-500 mt-1">
-                  Send a custom message to golfers — cancellations, weather updates, extra spots, and more
-                </p>
-              </div>
-              <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-              </svg>
-            </Link>
-          </section>
-
-          {/* Section 4: Manage Golfers */}
+          {/* Section 3: Manage Golfers */}
           <section className="mb-8">
             <h2 className="mb-4 text-lg font-semibold text-gray-900">Manage Golfers</h2>
 

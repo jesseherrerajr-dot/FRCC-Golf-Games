@@ -279,6 +279,24 @@ export default async function AdminRsvpPage({
             pendingCount={notSureCount + noResponseCount}
             totalSubscribers={allRsvps.length}
           />
+
+          {/* Compose custom email — contextual to this week */}
+          <div className="mt-4 border-t border-gray-200 pt-4">
+            <Link
+              href={`/admin/events/${event?.id}/email/compose`}
+              className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4 shadow-sm hover:border-teal-300 hover:shadow-md transition"
+            >
+              <div>
+                <h3 className="font-semibold text-gray-900">Message Golfers</h3>
+                <p className="text-xs text-gray-500 mt-1">
+                  Send a custom message — cancellations, weather updates, extra spots, and more
+                </p>
+              </div>
+              <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+              </svg>
+            </Link>
+          </div>
         </CollapsibleSection>
 
         {/* Confirmed Players — always expanded */}
