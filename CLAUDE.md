@@ -55,6 +55,7 @@ Every page (except the landing page and login) **must** have a `<Breadcrumbs>` c
 | Admin → Event Golfers | `Admin > [Event Name] > Golfers` |
 | Admin → Event Golfer Detail | `Admin > [Event Name] > Golfers > [Golfer Name]` |
 | Admin → RSVP Management | `Admin > [Event Name] > RSVP Management` |
+| Admin → Emails & Comms | `Admin > [Event Name] > Emails & Communications` |
 | Admin → Send Email | `Admin > [Event Name] > Send Email` |
 | Admin → Add Golfer (global) | `Admin > Golfers > Add Golfer` |
 | Admin → Add Golfer (event) | `Admin > [Event Name] > Golfers > Add Golfer` |
@@ -101,7 +102,7 @@ Every page (except the landing page and login) **must** have a `<Breadcrumbs>` c
 - `golfers/[golferId]/page.tsx` — Global golfer detail page (status, subscriptions to all events)
 - `golfers/add/` — Add golfer globally with multi-event subscription picker
 - `events/[eventId]/page.tsx` — Event dashboard. Shows event summary metrics, action items, upcoming games, quick links.
-- `events/[eventId]/golfers/page.tsx` — Event-scoped golfer directory
+- `events/[eventId]/golfers/page.tsx` — Event-scoped golfer directory (includes "Add New Golfer" section at top)
 - `events/[eventId]/golfers/golfer-search.tsx` — Event-scoped golfer search
 - `events/[eventId]/golfers/add/` — Add golfer to specific event (auto-subscribes)
 - `events/[eventId]/golfers/[golferId]/page.tsx` — Event-scoped golfer detail (status, subscriptions for this event only)
@@ -113,6 +114,7 @@ Every page (except the landing page and login) **must** have a `<Breadcrumbs>` c
 - `events/new/` — Create new event page
 - `events/[eventId]/settings/` — Event settings (Event Details, Automated Email Settings, Admin Alerts, Pro Shop Contacts, Event Admins, Feature Flags, Danger Zone)
 - `events/[eventId]/schedule/` — 8-week rolling schedule (Game On/No Game toggle, capacity override)
+- `events/[eventId]/emails/page.tsx` — Emails & Communications page (email status panel with send/resend, link to custom compose)
 - `events/[eventId]/email/compose/` — Custom email composer with templates
 
 ### API Routes (src/app/api/)

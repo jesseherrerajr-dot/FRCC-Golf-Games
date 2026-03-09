@@ -9,6 +9,7 @@ import {
   ReactivateButton,
 } from "@/app/admin/admin-actions";
 import { EventGolferSearch } from "./golfer-search";
+import { JoinLinkSection } from "../settings/components";
 
 export default async function EventGolferDirectoryPage({
   params,
@@ -128,26 +129,57 @@ export default async function EventGolferDirectoryPage({
           </div>
 
           {/* Header */}
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-serif uppercase tracking-wide font-bold text-navy-900">
-                Golfer Directory
-              </h1>
-              <p className="text-sm text-gray-500">
-                {totalCount} golfers subscribed to {event.name} &mdash; approve
-                pending registrations or use &quot;+ Add Golfer&quot; to add
-                directly
-              </p>
+          <div>
+            <h1 className="text-2xl font-serif uppercase tracking-wide font-bold text-navy-900">
+              Golfers
+            </h1>
+            <p className="text-sm text-gray-500">
+              {totalCount} golfers subscribed to {event.name}
+            </p>
+          </div>
+
+          {/* Add New Golfer */}
+          <div className="mt-6 mb-6 rounded-lg border border-gray-200 bg-white shadow-sm">
+            <div className="border-b border-gray-100 px-4 py-3">
+              <h2 className="text-sm font-semibold text-gray-900">Add New Golfer</h2>
             </div>
-            <div className="flex items-center gap-3">
+
+            <div className="divide-y divide-gray-100">
+              {/* Option 1: Register on their behalf */}
               <Link
                 href={`/admin/events/${eventId}/golfers/add`}
-                className="rounded-md bg-teal-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-500"
+                className="flex items-center justify-between px-4 py-4 transition-colors hover:bg-gray-50"
               >
-                + Add Golfer
+                <div>
+                  <p className="text-sm font-medium text-gray-900">
+                    Already know the golfer&apos;s info?
+                  </p>
+                  <p className="mt-0.5 text-xs text-gray-500">
+                    Register on their behalf — they&apos;ll be automatically approved and subscribed.
+                  </p>
+                </div>
+                <svg className="ml-3 h-5 w-5 flex-shrink-0 text-gray-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                </svg>
               </Link>
+
+              {/* Option 2: Share join link */}
+              <div className="px-4 py-4">
+                <p className="text-sm font-medium text-gray-900">
+                  Don&apos;t know the golfer&apos;s info?
+                </p>
+                <p className="mt-0.5 text-xs text-gray-500">
+                  Share this link so they can self-register. You&apos;ll need to approve them before they become active and subscribed.
+                </p>
+                <div className="mt-3">
+                  <JoinLinkSection slug={event.slug} />
+                </div>
+              </div>
             </div>
           </div>
+
+          {/* Golfer Directory */}
+          <h2 className="text-sm font-semibold text-gray-900 mb-3">Golfer Directory</h2>
 
           {/* Search + Filters */}
           <EventGolferSearch

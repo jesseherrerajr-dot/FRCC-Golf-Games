@@ -362,7 +362,7 @@ export default async function AdminDashboard() {
                           {/* Email Status — compact line */}
                           {nextGame && !isCancelled && (
                             <Link
-                              href={`/admin/events/${event.id}/rsvp/${nextGame.id}`}
+                              href={`/admin/events/${event.id}/emails`}
                               className="flex items-center justify-between px-4 py-3 transition-colors hover:bg-gray-50"
                             >
                               <div className="min-w-0">
@@ -394,13 +394,13 @@ export default async function AdminDashboard() {
                           {/* Quick Actions */}
                           <div className="flex items-center gap-2 px-4 py-3">
                             <Link
-                              href={`/admin/events/${event.id}/golfers/add`}
+                              href={`/admin/events/${event.id}/golfers`}
                               className="rounded-full border border-teal-200 bg-teal-50 px-3 py-1.5 text-xs font-semibold text-teal-700 transition-colors hover:bg-teal-100"
                             >
                               + Add Golfer
                             </Link>
                             <Link
-                              href={`/admin/events/${event.id}/email/compose`}
+                              href={`/admin/events/${event.id}/emails`}
                               className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-100"
                             >
                               Emails & Comms
