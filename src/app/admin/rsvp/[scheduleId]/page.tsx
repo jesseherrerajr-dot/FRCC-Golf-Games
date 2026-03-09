@@ -238,7 +238,17 @@ export default async function AdminRsvpPage({
           {/* Invited */}
           <div className="rounded-lg bg-gray-50 px-3 py-3 text-center">
             <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Invited</p>
-            <p className="mt-1 text-2xl font-bold text-gray-700">{allRsvps.length}</p>
+            <p className="mt-1 text-2xl font-bold text-gray-700">
+              {emailLogMap.invite ? emailLogMap.invite.recipientCount : "—"}
+            </p>
+            <p className="mt-1 text-xs leading-snug text-gray-400">
+              {emailLogMap.invite
+                ? <>Sent {formatDateTime(emailLogMap.invite.sentAt)}</>
+                : emailScheduleMap.invite
+                  ? <>{emailScheduleMap.invite}</>
+                  : <>Not scheduled</>
+              }
+            </p>
           </div>
 
           {/* In */}
