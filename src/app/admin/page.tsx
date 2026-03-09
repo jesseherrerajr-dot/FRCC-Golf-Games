@@ -1,7 +1,7 @@
-import { requireAdmin, hasEventAccess } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import Link from "next/link";
 import { formatGameDate } from "@/lib/format";
-import { getTodayPacific } from "@/lib/timezone";
+import { getTodayPacific, calculateSendDateString } from "@/lib/timezone";
 
 export default async function AdminDashboard() {
   const { supabase, profile, adminEvents } = await requireAdmin();
@@ -36,15 +36,52 @@ export default async function AdminDashboard() {
         .limit(1)
         .single();
 
-      // Get confirmed count for next game
+      // Get all RSVP status counts for next game
       let inCount = 0;
+      let outCount = 0;
+      let notSureCount = 0;
+      let noResponseCount = 0;
+      let waitlistCount = 0;
+
       if (nextGame) {
-        const { count } = await supabase
-          .from("rsvps")
-          .select("*", { count: "exact", head: true })
-          .eq("schedule_id", nextGame.id)
-          .eq("status", "in");
-        inCount = count || 0;
+        const [
+          { count: inC },
+          { count: outC },
+          { count: notSureC },
+          { count: noResponseC },
+          { count: waitlistC },
+        ] = await Promise.all([
+          supabase
+            .from("rsvps")
+            .select("*", { count: "exact", head: true })
+            .eq("schedule_id", nextGame.id)
+            .eq("status", "in"),
+          supabase
+            .from("rsvps")
+            .select("*", { count: "exact", head: true })
+            .eq("schedule_id", nextGame.id)
+            .eq("status", "out"),
+          supabase
+            .from("rsvps")
+            .select("*", { count: "exact", head: true })
+            .eq("schedule_id", nextGame.id)
+            .eq("status", "not_sure"),
+          supabase
+            .from("rsvps")
+            .select("*", { count: "exact", head: true })
+            .eq("schedule_id", nextGame.id)
+            .eq("status", "no_response"),
+          supabase
+            .from("rsvps")
+            .select("*", { count: "exact", head: true })
+            .eq("schedule_id", nextGame.id)
+            .eq("status", "waitlisted"),
+        ]);
+        inCount = inC || 0;
+        outCount = outC || 0;
+        notSureCount = notSureC || 0;
+        noResponseCount = noResponseC || 0;
+        waitlistCount = waitlistC || 0;
       }
 
       // Get pending registrations for this event
@@ -68,29 +105,98 @@ export default async function AdminDashboard() {
         (req: any) => req.schedule?.event?.id === event.id
       );
 
+      // Get email status for next game
+      let emailsSent = 0;
+      let inviteSentAt: string | null = null;
+      let nextEmailDisplay: string | null = null;
+
+      if (nextGame) {
+        // Fetch email log for this schedule
+        const { data: emailLogs } = await supabase
+          .from("email_log")
+          .select("email_type, sent_at")
+          .eq("schedule_id", nextGame.id)
+          .order("sent_at", { ascending: false });
+
+        const sentTypes = new Set<string>();
+        for (const log of emailLogs || []) {
+          const key = log.email_type.startsWith("reminder") ? "reminder" :
+            log.email_type === "confirmation_golfer" ? "golfer_confirmation" :
+            log.email_type === "confirmation_proshop" ? "pro_shop" :
+            log.email_type === "pro_shop_detail" ? "pro_shop" :
+            log.email_type;
+          if (!sentTypes.has(key)) {
+            sentTypes.add(key);
+            if (key === "invite") {
+              inviteSentAt = log.sent_at;
+            }
+          }
+        }
+        emailsSent = sentTypes.size;
+
+        // Fetch email schedules to find next unsent email
+        if (emailsSent < 4) {
+          const { data: emailSchedules } = await supabase
+            .from("email_schedules")
+            .select("email_type, send_day_offset, send_time, is_enabled")
+            .eq("event_id", event.id)
+            .eq("is_enabled", true);
+
+          const emailOrder = ["invite", "reminder", "golfer_confirmation", "pro_shop"];
+          const emailLabels: Record<string, string> = {
+            invite: "Invite",
+            reminder: "Reminder",
+            golfer_confirmation: "Confirmation",
+            pro_shop: "Pro Shop",
+          };
+
+          for (const type of emailOrder) {
+            if (sentTypes.has(type)) continue;
+            // Find matching schedule
+            const sched = (emailSchedules || []).find((es) => {
+              const key = es.email_type.startsWith("reminder") ? "reminder" :
+                es.email_type === "confirmation_golfer" ? "golfer_confirmation" :
+                es.email_type === "confirmation_proshop" ? "pro_shop" :
+                es.email_type === "pro_shop_detail" ? "pro_shop" :
+                es.email_type;
+              return key === type;
+            });
+            if (sched) {
+              const sendDate = calculateSendDateString(nextGame.game_date, sched.send_day_offset);
+              const [h, m] = (sched.send_time as string).split(":").map(Number);
+              const hour12 = h % 12 || 12;
+              const ampm = h < 12 ? "AM" : "PM";
+              const timeStr = m === 0 ? `${hour12} ${ampm}` : `${hour12}:${String(m).padStart(2, "0")} ${ampm}`;
+              const [year, month, day] = sendDate.split("-").map(Number);
+              const dateObj = new Date(year, month - 1, day);
+              const dayName = dateObj.toLocaleDateString("en-US", { weekday: "short" });
+              const monthName = dateObj.toLocaleDateString("en-US", { month: "short" });
+              nextEmailDisplay = `${emailLabels[type]} ${dayName}, ${monthName} ${day} at ${timeStr}`;
+              break;
+            }
+          }
+        }
+      }
+
       const capacity = nextGame?.capacity || event.default_capacity || 16;
 
       return {
         event,
         nextGame,
         inCount,
+        outCount,
+        notSureCount,
+        noResponseCount,
+        waitlistCount,
         capacity,
         pendingRegistrations: pendingForEvent?.length || 0,
         pendingGuests: pendingGuestsFiltered.length,
+        emailsSent,
+        inviteSentAt,
+        nextEmailDisplay,
       };
     })
   );
-
-  // Calculate global stats
-  const totalPendingRegistrations = eventCards.reduce(
-    (sum, card) => sum + card.pendingRegistrations,
-    0
-  );
-  const totalPendingGuests = eventCards.reduce(
-    (sum, card) => sum + card.pendingGuests,
-    0
-  );
-  const hasActionItems = totalPendingRegistrations > 0 || totalPendingGuests > 0;
 
   return (
     <main className="min-h-screen px-4 py-8">
@@ -106,28 +212,7 @@ export default async function AdminDashboard() {
             </p>
           </div>
 
-          {/* Action Alert (Global) */}
-          {hasActionItems && (
-            <div className="mb-8 rounded-lg border border-yellow-200 bg-yellow-50 p-4">
-              <h2 className="font-semibold text-yellow-800">Action Required</h2>
-              <div className="mt-2 space-y-1 text-sm text-yellow-700">
-                {totalPendingRegistrations > 0 && (
-                  <p>
-                    • {totalPendingRegistrations} registration
-                    {totalPendingRegistrations !== 1 ? "s" : ""} awaiting approval
-                  </p>
-                )}
-                {totalPendingGuests > 0 && (
-                  <p>
-                    • {totalPendingGuests} guest request
-                    {totalPendingGuests !== 1 ? "s" : ""} awaiting review
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Event Summary Cards (first — most used section) */}
+          {/* Event Summary Cards */}
           <section>
             <h2 className="mb-4 text-lg font-semibold text-gray-900">
               {profile.is_super_admin ? "Events" : "Your Events"}
@@ -142,94 +227,193 @@ export default async function AdminDashboard() {
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                 {eventCards.map(
                   ({
                     event,
                     nextGame,
                     inCount,
+                    outCount,
+                    notSureCount,
+                    noResponseCount,
+                    waitlistCount,
                     capacity,
                     pendingRegistrations,
                     pendingGuests,
+                    emailsSent,
+                    nextEmailDisplay,
                   }) => {
                     const hasActionNeeded =
                       pendingRegistrations > 0 || pendingGuests > 0;
+                    const isCancelled = nextGame?.status === "cancelled";
                     const nextGameDate = nextGame
                       ? formatGameDate(nextGame.game_date)
-                      : "No upcoming games";
+                      : null;
 
                     return (
-                      <Link
+                      <div
                         key={event.id}
-                        href={`/admin/events/${event.id}`}
-                        className={`relative block rounded-lg border shadow-sm transition hover:shadow-md ${
-                          hasActionNeeded
-                            ? "border-yellow-200 bg-yellow-50"
-                            : "border-gray-200 bg-white hover:border-teal-300"
-                        }`}
+                        className="rounded-lg border border-gray-200 bg-white shadow-sm"
                       >
-                        {/* Action badge */}
-                        {hasActionNeeded && (
-                          <div className="absolute -right-2 -top-2">
-                            <span className="inline-flex rounded-full bg-yellow-500 px-2.5 py-1 text-xs font-medium text-white">
-                              Action
-                            </span>
+                        {/* Header — event name + next game date */}
+                        <Link
+                          href={`/admin/events/${event.id}`}
+                          className="flex items-center justify-between border-b border-gray-100 px-4 py-3 transition-colors hover:bg-gray-50"
+                        >
+                          <div>
+                            <h3 className="text-base font-semibold text-gray-900">
+                              {event.name}
+                            </h3>
+                            <p className="mt-0.5 text-sm text-gray-500">
+                              {nextGameDate ? (
+                                <>
+                                  Next game: {nextGameDate}
+                                  {isCancelled && (
+                                    <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
+                                      Cancelled
+                                    </span>
+                                  )}
+                                </>
+                              ) : (
+                                "No upcoming games"
+                              )}
+                            </p>
                           </div>
-                        )}
+                          <svg className="h-5 w-5 flex-shrink-0 text-gray-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                          </svg>
+                        </Link>
 
-                        <div className="p-4">
-                          {/* Event name and next game date */}
-                          <div className="flex items-center justify-between">
-                            <div className="mb-4">
-                              <h3 className="text-base font-semibold text-gray-900">
-                                {event.name}
-                              </h3>
-                              <p className="mt-0.5 text-sm text-gray-500">
-                                Next game: {nextGameDate}
+                        {/* Card body */}
+                        <div className="divide-y divide-gray-100">
+                          {/* Action Required */}
+                          {hasActionNeeded ? (
+                            <div className="bg-yellow-50 px-4 py-3">
+                              <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-yellow-800">
+                                Action Required
                               </p>
+                              <div className="space-y-1">
+                                {pendingRegistrations > 0 && (
+                                  <Link
+                                    href={`/admin/events/${event.id}/golfers`}
+                                    className="flex items-center justify-between rounded px-2 py-1.5 text-sm text-yellow-800 transition-colors hover:bg-yellow-100"
+                                  >
+                                    <span>
+                                      {pendingRegistrations} pending registration{pendingRegistrations !== 1 ? "s" : ""}
+                                    </span>
+                                    <svg className="h-4 w-4 text-yellow-600" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                                    </svg>
+                                  </Link>
+                                )}
+                                {pendingGuests > 0 && nextGame && (
+                                  <Link
+                                    href={`/admin/events/${event.id}/rsvp/${nextGame.id}`}
+                                    className="flex items-center justify-between rounded px-2 py-1.5 text-sm text-yellow-800 transition-colors hover:bg-yellow-100"
+                                  >
+                                    <span>
+                                      {pendingGuests} guest request{pendingGuests !== 1 ? "s" : ""} awaiting review
+                                    </span>
+                                    <svg className="h-4 w-4 text-yellow-600" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                                    </svg>
+                                  </Link>
+                                )}
+                              </div>
                             </div>
-                            <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                            </svg>
-                          </div>
+                          ) : (
+                            <div className="px-4 py-2.5">
+                              <p className="text-xs text-gray-400">No action needed</p>
+                            </div>
+                          )}
 
-                          {/* Key metrics */}
-                          <div className="grid grid-cols-2 gap-3">
-                            {nextGame && (
-                              <div className="rounded border border-gray-200 bg-white px-3 py-2">
-                                <p className="text-lg font-bold text-teal-700">
-                                  {inCount}/{capacity}
+                          {/* RSVP Summary — compact line */}
+                          {nextGame && !isCancelled && (
+                            <Link
+                              href={`/admin/events/${event.id}/rsvp/${nextGame.id}`}
+                              className="flex items-center justify-between px-4 py-3 transition-colors hover:bg-gray-50"
+                            >
+                              <div className="min-w-0">
+                                <p className="mb-0.5 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                                  RSVPs
                                 </p>
-                                <p className="text-xs text-gray-500">Confirmed</p>
-                              </div>
-                            )}
-
-                            {pendingRegistrations > 0 && (
-                              <div className="rounded border border-yellow-200 bg-yellow-50 px-3 py-2">
-                                <p className="text-lg font-bold text-yellow-700">
-                                  {pendingRegistrations}
-                                </p>
-                                <p className="text-xs text-yellow-600">
-                                  Pending{" "}
-                                  {pendingRegistrations === 1 ? "Approval" : "Approvals"}
-                                </p>
-                              </div>
-                            )}
-
-                            {pendingGuests > 0 && (
-                              <div className="rounded border border-orange-200 bg-orange-50 px-3 py-2">
-                                <p className="text-lg font-bold text-orange-700">
-                                  {pendingGuests}
-                                </p>
-                                <p className="text-xs text-orange-600">
-                                  Pending Guest
-                                  {pendingGuests === 1 ? "" : "s"}
+                                <p className="text-sm text-gray-700">
+                                  <span className="font-semibold text-teal-700">{inCount}/{capacity} In</span>
+                                  <span className="text-gray-400"> · </span>
+                                  <span>{outCount} Out</span>
+                                  <span className="text-gray-400"> · </span>
+                                  <span>{notSureCount} Not Sure</span>
+                                  <span className="text-gray-400"> · </span>
+                                  <span>{noResponseCount} No Reply</span>
+                                  {waitlistCount > 0 && (
+                                    <>
+                                      <span className="text-gray-400"> · </span>
+                                      <span className="text-orange-600">{waitlistCount} Waitlist</span>
+                                    </>
+                                  )}
                                 </p>
                               </div>
-                            )}
+                              <svg className="h-4 w-4 flex-shrink-0 text-gray-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                              </svg>
+                            </Link>
+                          )}
+
+                          {/* Email Status — compact line */}
+                          {nextGame && !isCancelled && (
+                            <Link
+                              href={`/admin/events/${event.id}/rsvp/${nextGame.id}`}
+                              className="flex items-center justify-between px-4 py-3 transition-colors hover:bg-gray-50"
+                            >
+                              <div className="min-w-0">
+                                <p className="mb-0.5 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                                  Emails
+                                </p>
+                                <p className="text-sm text-gray-700">
+                                  {emailsSent === 4 ? (
+                                    <span className="text-teal-700">4/4 sent ✓</span>
+                                  ) : (
+                                    <>
+                                      <span className="font-semibold">{emailsSent}/4 sent</span>
+                                      {nextEmailDisplay && (
+                                        <>
+                                          <span className="text-gray-400"> · </span>
+                                          <span className="text-gray-500">Next: {nextEmailDisplay}</span>
+                                        </>
+                                      )}
+                                    </>
+                                  )}
+                                </p>
+                              </div>
+                              <svg className="h-4 w-4 flex-shrink-0 text-gray-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                              </svg>
+                            </Link>
+                          )}
+
+                          {/* Quick Actions */}
+                          <div className="flex items-center gap-2 px-4 py-3">
+                            <Link
+                              href={`/admin/events/${event.id}/golfers/add`}
+                              className="rounded-full border border-teal-200 bg-teal-50 px-3 py-1.5 text-xs font-semibold text-teal-700 transition-colors hover:bg-teal-100"
+                            >
+                              + Add Golfer
+                            </Link>
+                            <Link
+                              href={`/admin/events/${event.id}/email/compose`}
+                              className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-100"
+                            >
+                              Emails & Comms
+                            </Link>
+                            <Link
+                              href={`/admin/events/${event.id}/settings`}
+                              className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-100"
+                            >
+                              Manage Event
+                            </Link>
                           </div>
                         </div>
-                      </Link>
+                      </div>
                     );
                   }
                 )}
