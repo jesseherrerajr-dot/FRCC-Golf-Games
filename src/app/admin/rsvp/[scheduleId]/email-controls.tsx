@@ -28,6 +28,7 @@ type EmailControlsProps = {
   status: EmailStatus;
   emailLog?: Record<string, EmailLogEntry>;
   emailSchedule?: Record<string, string>;
+  enabledTypes?: Record<string, boolean>;
   confirmedCount: number;
   pendingCount: number;
   totalSubscribers: number;
@@ -64,23 +65,24 @@ const emailLogKeys: Record<EmailType, string> = {
 };
 
 export function EmailStatusPanel(props: EmailControlsProps) {
-  const { scheduleId, status, emailLog, emailSchedule } = props;
+  const { scheduleId, status, emailLog, emailSchedule, enabledTypes } = props;
 
-  const emails: { type: EmailType; sent: boolean }[] = [
-    { type: "invite", sent: status.inviteSent },
-    { type: "reminder", sent: status.reminderSent },
-    { type: "golfer_confirmation", sent: status.golferConfirmationSent },
-    { type: "pro_shop", sent: status.proShopSent },
+  const emails: { type: EmailType; sent: boolean; enabled: boolean }[] = [
+    { type: "invite", sent: status.inviteSent, enabled: true }, // invite always enabled
+    { type: "reminder", sent: status.reminderSent, enabled: enabledTypes?.reminder !== false },
+    { type: "golfer_confirmation", sent: status.golferConfirmationSent, enabled: true }, // confirmation always enabled
+    { type: "pro_shop", sent: status.proShopSent, enabled: enabledTypes?.pro_shop !== false },
   ];
 
   return (
     <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
       <div className="divide-y divide-gray-200">
-        {emails.map(({ type, sent }) => (
+        {emails.map(({ type, sent, enabled }) => (
           <EmailRow
             key={type}
             type={type}
             sent={sent}
+            enabled={enabled}
             logEntry={emailLog?.[emailLogKeys[type]]}
             scheduledDisplay={emailSchedule?.[emailLogKeys[type]]}
             scheduleId={scheduleId}
@@ -95,6 +97,7 @@ export function EmailStatusPanel(props: EmailControlsProps) {
 function EmailRow({
   type,
   sent,
+  enabled,
   logEntry,
   scheduledDisplay,
   scheduleId,
@@ -102,6 +105,7 @@ function EmailRow({
 }: {
   type: EmailType;
   sent: boolean;
+  enabled: boolean;
   logEntry?: EmailLogEntry;
   scheduledDisplay?: string;
   scheduleId: string;
@@ -143,6 +147,32 @@ function EmailRow({
       }
     });
   };
+
+  // Disabled state — show muted row with no action button
+  if (!enabled) {
+    return (
+      <div className="flex items-center justify-between px-4 py-3 opacity-50">
+        <div className="flex items-center gap-2">
+          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-300">
+            <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+            </svg>
+          </span>
+          <div className="flex flex-col">
+            <span className="text-sm font-medium text-gray-400">
+              {label}
+            </span>
+            <span className="text-xs text-gray-400">
+              Disabled in event settings
+            </span>
+          </div>
+        </div>
+        <span className="shrink-0 rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-400">
+          Off
+        </span>
+      </div>
+    );
+  }
 
   // Build the sent detail line: "Sent Mar 6, 9:29 AM · 14 recipients · confirmed players"
   const sentDetails: string[] = [];

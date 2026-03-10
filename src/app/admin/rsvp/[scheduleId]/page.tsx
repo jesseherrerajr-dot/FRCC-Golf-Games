@@ -71,12 +71,11 @@ export default async function AdminRsvpPage({
     }
   }
 
-  // Fetch email schedules for this event (to compute scheduled send times)
+  // Fetch email schedules for this event (all, not just enabled — we need enabled state)
   const { data: emailSchedules } = await supabase
     .from("email_schedules")
     .select("email_type, send_day_offset, send_time, is_enabled")
-    .eq("event_id", event?.id)
-    .eq("is_enabled", true);
+    .eq("event_id", event?.id);
 
   // Compute scheduled send display for each email type
   function formatScheduledTime(dayOffset: number, sendTime: string, gameDateStr: string): string {
@@ -92,19 +91,30 @@ export default async function AdminRsvpPage({
     return `${dayName}, ${monthName} ${day} at ${timeStr}`;
   }
 
+  // Build schedule display map (only for enabled) and enabled state map
   const emailScheduleMap: Record<string, string> = {};
+  const enabledTypesMap: Record<string, boolean> = {
+    invite: true,
+    golfer_confirmation: true,
+    reminder: false,
+    pro_shop: false,
+  };
   for (const es of emailSchedules || []) {
     const key = es.email_type.startsWith("reminder") ? "reminder" :
       es.email_type === "confirmation_golfer" ? "golfer_confirmation" :
       es.email_type === "confirmation_proshop" ? "pro_shop" :
       es.email_type === "pro_shop_detail" ? "pro_shop" :
       es.email_type;
-    emailScheduleMap[key] = formatScheduledTime(
-      es.send_day_offset,
-      es.send_time,
-      schedule.game_date
-    );
+    if (es.is_enabled) {
+      enabledTypesMap[key] = true;
+      emailScheduleMap[key] = formatScheduledTime(
+        es.send_day_offset,
+        es.send_time,
+        schedule.game_date
+      );
+    }
   }
+  const enabledCount = Object.values(enabledTypesMap).filter(Boolean).length;
 
   // Fetch guest requests for this schedule
   const { data: guestRequests } = await supabase
@@ -780,11 +790,21 @@ export default async function AdminRsvpPage({
           <h2 className="text-lg font-semibold text-gray-700">
             Emails & Communications
             <span className={`ml-2 inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${
-              [schedule.invite_sent, schedule.reminder_sent, schedule.golfer_confirmation_sent, schedule.pro_shop_sent].every(Boolean)
+              [
+                enabledTypesMap.invite && schedule.invite_sent,
+                enabledTypesMap.reminder && schedule.reminder_sent,
+                enabledTypesMap.golfer_confirmation && schedule.golfer_confirmation_sent,
+                enabledTypesMap.pro_shop && schedule.pro_shop_sent,
+              ].filter(Boolean).length === enabledCount
                 ? "bg-teal-100 text-teal-700"
                 : "bg-gray-100 text-gray-600"
             }`}>
-              {[schedule.invite_sent, schedule.reminder_sent, schedule.golfer_confirmation_sent, schedule.pro_shop_sent].filter(Boolean).length}/4 sent
+              {[
+                enabledTypesMap.invite && schedule.invite_sent,
+                enabledTypesMap.reminder && schedule.reminder_sent,
+                enabledTypesMap.golfer_confirmation && schedule.golfer_confirmation_sent,
+                enabledTypesMap.pro_shop && schedule.pro_shop_sent,
+              ].filter(Boolean).length}/{enabledCount} sent
             </span>
           </h2>
           <div className="mt-3">
@@ -798,6 +818,7 @@ export default async function AdminRsvpPage({
               }}
               emailLog={emailLogMap}
               emailSchedule={emailScheduleMap}
+              enabledTypes={enabledTypesMap}
               confirmedCount={inCount}
               pendingCount={notSureCount + noResponseCount}
               totalSubscribers={allRsvps.length}

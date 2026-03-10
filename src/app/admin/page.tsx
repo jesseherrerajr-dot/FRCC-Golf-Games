@@ -107,6 +107,7 @@ export default async function AdminDashboard() {
 
       // Get email status for next game
       let emailsSent = 0;
+      let enabledEmailCount = 4; // default fallback
       let inviteSentAt: string | null = null;
       let nextEmailDisplay: string | null = null;
 
@@ -117,6 +118,29 @@ export default async function AdminDashboard() {
           .select("email_type, sent_at")
           .eq("schedule_id", nextGame.id)
           .order("sent_at", { ascending: false });
+
+        // Fetch ALL email schedules (not just enabled) to know which types are on/off
+        const { data: allEmailSchedules } = await supabase
+          .from("email_schedules")
+          .select("email_type, send_day_offset, send_time, is_enabled")
+          .eq("event_id", event.id);
+
+        // Build enabled map
+        const enabledMap: Record<string, boolean> = {
+          invite: true,
+          golfer_confirmation: true,
+          reminder: false,
+          pro_shop: false,
+        };
+        for (const es of allEmailSchedules || []) {
+          const key = es.email_type.startsWith("reminder") ? "reminder" :
+            es.email_type === "confirmation_golfer" ? "golfer_confirmation" :
+            es.email_type === "confirmation_proshop" ? "pro_shop" :
+            es.email_type === "pro_shop_detail" ? "pro_shop" :
+            es.email_type;
+          if (es.is_enabled) enabledMap[key] = true;
+        }
+        enabledEmailCount = Object.values(enabledMap).filter(Boolean).length;
 
         const sentTypes = new Set<string>();
         for (const log of emailLogs || []) {
@@ -132,15 +156,12 @@ export default async function AdminDashboard() {
             }
           }
         }
-        emailsSent = sentTypes.size;
+        // Only count sent types that are enabled
+        emailsSent = [...sentTypes].filter((t) => enabledMap[t]).length;
 
-        // Fetch email schedules to find next unsent email
-        if (emailsSent < 4) {
-          const { data: emailSchedules } = await supabase
-            .from("email_schedules")
-            .select("email_type, send_day_offset, send_time, is_enabled")
-            .eq("event_id", event.id)
-            .eq("is_enabled", true);
+        // Fetch next unsent enabled email
+        if (emailsSent < enabledEmailCount) {
+          const enabledSchedules = (allEmailSchedules || []).filter((es) => es.is_enabled);
 
           const emailOrder = ["invite", "reminder", "golfer_confirmation", "pro_shop"];
           const emailLabels: Record<string, string> = {
@@ -151,9 +172,10 @@ export default async function AdminDashboard() {
           };
 
           for (const type of emailOrder) {
+            if (!enabledMap[type]) continue; // skip disabled types
             if (sentTypes.has(type)) continue;
             // Find matching schedule
-            const sched = (emailSchedules || []).find((es) => {
+            const sched = enabledSchedules.find((es) => {
               const key = es.email_type.startsWith("reminder") ? "reminder" :
                 es.email_type === "confirmation_golfer" ? "golfer_confirmation" :
                 es.email_type === "confirmation_proshop" ? "pro_shop" :
@@ -192,6 +214,7 @@ export default async function AdminDashboard() {
         pendingRegistrations: pendingForEvent?.length || 0,
         pendingGuests: pendingGuestsFiltered.length,
         emailsSent,
+        enabledEmailCount,
         inviteSentAt,
         nextEmailDisplay,
       };
@@ -241,6 +264,7 @@ export default async function AdminDashboard() {
                     pendingRegistrations,
                     pendingGuests,
                     emailsSent,
+                    enabledEmailCount,
                     nextEmailDisplay,
                   }) => {
                     const hasActionNeeded =
@@ -370,11 +394,11 @@ export default async function AdminDashboard() {
                                   Emails
                                 </p>
                                 <p className="text-sm text-gray-700">
-                                  {emailsSent === 4 ? (
-                                    <span className="text-teal-700">4/4 sent ✓</span>
+                                  {emailsSent === enabledEmailCount ? (
+                                    <span className="text-teal-700">{enabledEmailCount}/{enabledEmailCount} sent ✓</span>
                                   ) : (
                                     <>
-                                      <span className="font-semibold">{emailsSent}/4 sent</span>
+                                      <span className="font-semibold">{emailsSent}/{enabledEmailCount} sent</span>
                                       {nextEmailDisplay && (
                                         <>
                                           <span className="text-gray-400"> · </span>

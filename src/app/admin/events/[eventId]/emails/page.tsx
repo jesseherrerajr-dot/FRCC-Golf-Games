@@ -114,12 +114,11 @@ export default async function EventEmailsPage({
     }
   }
 
-  // Fetch email schedules for this event
+  // Fetch email schedules for this event (all, not just enabled — we need enabled state)
   const { data: emailSchedules } = await supabase
     .from("email_schedules")
     .select("email_type, send_day_offset, send_time, is_enabled")
-    .eq("event_id", eventId)
-    .eq("is_enabled", true);
+    .eq("event_id", eventId);
 
   function formatScheduledTime(dayOffset: number, sendTime: string, gameDateStr: string): string {
     const sendDate = calculateSendDateString(gameDateStr, dayOffset);
@@ -134,25 +133,38 @@ export default async function EventEmailsPage({
     return `${dayName}, ${monthName} ${day} at ${timeStr}`;
   }
 
+  // Build schedule display map (only for enabled email types)
   const emailScheduleMap: Record<string, string> = {};
+  // Build enabled map for all email types
+  const enabledTypesMap: Record<string, boolean> = {
+    invite: true, // always enabled
+    golfer_confirmation: true, // always enabled
+    reminder: false,
+    pro_shop: false,
+  };
   for (const es of emailSchedules || []) {
     const key = es.email_type.startsWith("reminder") ? "reminder" :
       es.email_type === "confirmation_golfer" ? "golfer_confirmation" :
       es.email_type === "confirmation_proshop" ? "pro_shop" :
       es.email_type === "pro_shop_detail" ? "pro_shop" :
       es.email_type;
-    emailScheduleMap[key] = formatScheduledTime(
-      es.send_day_offset,
-      es.send_time,
-      schedule.game_date
-    );
+    if (es.is_enabled) {
+      enabledTypesMap[key] = true;
+      emailScheduleMap[key] = formatScheduledTime(
+        es.send_day_offset,
+        es.send_time,
+        schedule.game_date
+      );
+    }
   }
 
+  // Count only enabled email types for the denominator
+  const enabledCount = Object.values(enabledTypesMap).filter(Boolean).length;
   const emailsSentCount = [
-    schedule.invite_sent,
-    schedule.reminder_sent,
-    schedule.golfer_confirmation_sent,
-    schedule.pro_shop_sent,
+    enabledTypesMap.invite && schedule.invite_sent,
+    enabledTypesMap.reminder && schedule.reminder_sent,
+    enabledTypesMap.golfer_confirmation && schedule.golfer_confirmation_sent,
+    enabledTypesMap.pro_shop && schedule.pro_shop_sent,
   ].filter(Boolean).length;
 
   return (
@@ -186,11 +198,11 @@ export default async function EventEmailsPage({
               <h2 className="text-lg font-semibold text-gray-700">
                 Automated Emails
                 <span className={`ml-2 inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                  emailsSentCount === 4
+                  emailsSentCount === enabledCount
                     ? "bg-teal-100 text-teal-700"
                     : "bg-gray-100 text-gray-600"
                 }`}>
-                  {emailsSentCount}/4 sent
+                  {emailsSentCount}/{enabledCount} sent
                 </span>
               </h2>
               <div className="mt-3">
@@ -204,6 +216,7 @@ export default async function EventEmailsPage({
                   }}
                   emailLog={emailLogMap}
                   emailSchedule={emailScheduleMap}
+                  enabledTypes={enabledTypesMap}
                   confirmedCount={inCount || 0}
                   pendingCount={(notSureCount || 0) + (noResponseCount || 0)}
                   totalSubscribers={totalSubscribers || 0}
