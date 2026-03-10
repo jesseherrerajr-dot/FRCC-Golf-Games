@@ -4,6 +4,7 @@ import { useTransition, useState } from "react";
 import {
   updateEventBasicSettings,
   updateEmailScheduleSettings,
+  updateEmailTypeEnabled,
   updateAlertSetting,
   addProShopContact,
   removeProShopContact,
@@ -282,7 +283,13 @@ function DurationModeSection({ event }: { event: any }) {
 // Email Schedule Form
 // ============================================================
 
-export function EmailScheduleForm({ event }: { event: any }) {
+export function EmailScheduleForm({
+  event,
+  emailSchedules,
+}: {
+  event: any;
+  emailSchedules: { email_type: string; priority_order: number; is_enabled: boolean }[];
+}) {
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
   const [numReminders, setNumReminders] = useState(event.num_reminders || 1);
@@ -290,7 +297,25 @@ export function EmailScheduleForm({ event }: { event: any }) {
   // to force DayTimeRow components to remount with fresh values from the DB.
   const [saveCount, setSaveCount] = useState(0);
 
+  // Derive initial enabled states from email_schedules rows
+  const getIsEnabled = (emailType: string) => {
+    const row = emailSchedules.find((s) => s.email_type === emailType);
+    // Default to true for invite/golfer_confirmation (always on),
+    // false for pro_shop_detail (off by default), true for reminder if row exists
+    if (!row) {
+      if (emailType === "pro_shop_detail") return false;
+      return true;
+    }
+    return row.is_enabled;
+  };
+
+  const [reminderEnabled, setReminderEnabled] = useState(getIsEnabled("reminder"));
+  const [proShopEnabled, setProShopEnabled] = useState(getIsEnabled("pro_shop_detail"));
+
   const handleSubmit = (formData: FormData) => {
+    // Inject toggle states into form data so syncEmailSchedules can use them
+    formData.set("reminder_enabled", reminderEnabled ? "true" : "false");
+    formData.set("pro_shop_enabled", proShopEnabled ? "true" : "false");
     startTransition(async () => {
       const result = await updateEmailScheduleSettings(event.id, formData);
       if (result.error) {
@@ -300,6 +325,17 @@ export function EmailScheduleForm({ event }: { event: any }) {
         setSaveCount((c) => c + 1);
         setTimeout(() => setMessage(null), 3000);
       }
+    });
+  };
+
+  const handleToggle = (
+    emailType: "reminder" | "pro_shop_detail",
+    newValue: boolean,
+    setter: (v: boolean) => void
+  ) => {
+    setter(newValue);
+    startTransition(async () => {
+      await updateEmailTypeEnabled(event.id, emailType, newValue);
     });
   };
 
@@ -314,73 +350,135 @@ export function EmailScheduleForm({ event }: { event: any }) {
         timeDefault={event.invite_time?.slice(0, 5)}
       />
 
-      {/* Number of Reminders */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700">
-          Number of Reminders
-        </label>
-        <select
-          name="num_reminders"
-          value={numReminders}
-          onChange={(e) => setNumReminders(parseInt(e.target.value))}
-          className="mt-1 block w-20 rounded-md border border-gray-300 px-3 py-2 text-sm"
-        >
-          <option value="0">0</option>
-          <option value="1">1</option>
-          <option value="2">2</option>
-          <option value="3">3</option>
-        </select>
+      {/* Reminder Section with Toggle */}
+      <div className="space-y-4 rounded-md border border-gray-200 p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-900">Send Reminder Emails</p>
+            <p className="text-xs text-gray-500">
+              Send reminders to golfers who haven&apos;t responded
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => handleToggle("reminder", !reminderEnabled, setReminderEnabled)}
+            disabled={isPending}
+            className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 ${
+              reminderEnabled ? "bg-teal-500" : "bg-gray-200"
+            } ${isPending ? "opacity-50" : ""}`}
+          >
+            <span
+              className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform duration-200 ${
+                reminderEnabled ? "translate-x-5" : "translate-x-0"
+              }`}
+            />
+          </button>
+        </div>
+
+        {reminderEnabled && (
+          <>
+            {/* Number of Reminders */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Number of Reminders
+              </label>
+              <select
+                name="num_reminders"
+                value={numReminders}
+                onChange={(e) => setNumReminders(parseInt(e.target.value))}
+                className="mt-1 block w-20 rounded-md border border-gray-300 px-3 py-2 text-sm"
+              >
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+              </select>
+            </div>
+
+            {/* Reminder 1 */}
+            {numReminders >= 1 && (
+              <DayTimeRow
+                label="Reminder 1"
+                dayName="reminder_day"
+                timeName="reminder_time"
+                dayDefault={event.reminder_day}
+                timeDefault={event.reminder_time?.slice(0, 5)}
+              />
+            )}
+
+            {/* Reminder 2 */}
+            {numReminders >= 2 && (
+              <DayTimeRow
+                label="Reminder 2"
+                dayName="reminder2_day"
+                timeName="reminder2_time"
+                dayDefault={event.reminder2_day ?? 4}
+                timeDefault={event.reminder2_time?.slice(0, 5) ?? "15:45"}
+              />
+            )}
+
+            {/* Reminder 3 */}
+            {numReminders >= 3 && (
+              <DayTimeRow
+                label="Reminder 3"
+                dayName="reminder3_day"
+                timeName="reminder3_time"
+                dayDefault={event.reminder3_day ?? 5}
+                timeDefault={event.reminder3_time?.slice(0, 5) ?? "07:45"}
+              />
+            )}
+          </>
+        )}
       </div>
 
-      {/* Reminder 1 */}
-      {numReminders >= 1 && (
-        <DayTimeRow
-          label="Reminder 1"
-          dayName="reminder_day"
-          timeName="reminder_time"
-          dayDefault={event.reminder_day}
-          timeDefault={event.reminder_time?.slice(0, 5)}
-        />
+      {/* Hidden field to preserve num_reminders when reminders are disabled */}
+      {!reminderEnabled && (
+        <input type="hidden" name="num_reminders" value="0" />
       )}
 
-      {/* Reminder 2 */}
-      {numReminders >= 2 && (
-        <DayTimeRow
-          label="Reminder 2"
-          dayName="reminder2_day"
-          timeName="reminder2_time"
-          dayDefault={event.reminder2_day ?? 4}
-          timeDefault={event.reminder2_time?.slice(0, 5) ?? "15:45"}
-        />
-      )}
-
-      {/* Reminder 3 */}
-      {numReminders >= 3 && (
-        <DayTimeRow
-          label="Reminder 3"
-          dayName="reminder3_day"
-          timeName="reminder3_time"
-          dayDefault={event.reminder3_day ?? 5}
-          timeDefault={event.reminder3_time?.slice(0, 5) ?? "07:45"}
-        />
-      )}
-
-      {/* Cutoff */}
+      {/* Cutoff / Golfer Confirmation */}
       <DayTimeRow
-        label="RSVP Cutoff"
+        label="RSVP Cutoff / Golfer Confirmation"
         dayName="cutoff_day"
         timeName="cutoff_time"
         dayDefault={event.cutoff_day}
         timeDefault={event.cutoff_time?.slice(0, 5)}
       />
-      {/* Pro Shop Detail Email */}
-      <DayTimeRow
-        label="Send Pro Shop Detail Email"
-        dayName="confirmation_day"
-        timeName="confirmation_time"
-        dayDefault={event.confirmation_day}
-        timeDefault={event.confirmation_time?.slice(0, 5)}
-      />
+
+      {/* Pro Shop Detail Email with Toggle */}
+      <div className="space-y-4 rounded-md border border-gray-200 p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-900">Send Pro Shop Detail Email</p>
+            <p className="text-xs text-gray-500">
+              Send player details and contact info to the pro shop
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => handleToggle("pro_shop_detail", !proShopEnabled, setProShopEnabled)}
+            disabled={isPending}
+            className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 ${
+              proShopEnabled ? "bg-teal-500" : "bg-gray-200"
+            } ${isPending ? "opacity-50" : ""}`}
+          >
+            <span
+              className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform duration-200 ${
+                proShopEnabled ? "translate-x-5" : "translate-x-0"
+              }`}
+            />
+          </button>
+        </div>
+
+        {proShopEnabled && (
+          <DayTimeRow
+            label="Send Time"
+            dayName="confirmation_day"
+            timeName="confirmation_time"
+            dayDefault={event.confirmation_day}
+            timeDefault={event.confirmation_time?.slice(0, 5)}
+          />
+        )}
+      </div>
 
       <p className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600">
         All times are Pacific Time. Emails are sent within approximately 15 minutes of the selected time.

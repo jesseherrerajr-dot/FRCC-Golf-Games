@@ -82,12 +82,14 @@ All times use day-of-week + time-of-day format (e.g., Monday at 10:00 AM PT).
 | Setting | Description | Default |
 |---------|-------------|---------|
 | **Invite Day/Time** | When weekly invite emails are sent | Monday 10:00 AM PT |
-| **Number of Reminders** | How many reminder emails to send (0–3) | 1 |
+| **Send Reminder Emails** | Toggle on/off. When enabled, configure 1–3 reminders | ON |
+| **Number of Reminders** | How many reminder emails to send (1–3) | 1 |
 | **Reminder 1 Day/Time** | First reminder | Thursday 10:00 AM PT |
 | **Reminder 2 Day/Time** | Second reminder (if enabled) | — |
 | **Reminder 3 Day/Time** | Third reminder (if enabled) | — |
-| **RSVP Cutoff Day/Time** | When self-service RSVP locks | Friday 10:00 AM PT |
-| **Confirmation Day/Time** | When confirmation emails are sent | Friday 1:00 PM PT |
+| **RSVP Cutoff / Golfer Confirmation Day/Time** | When self-service RSVP locks and golfer confirmation email is sent | Friday 10:00 AM PT |
+| **Send Pro Shop Detail Email** | Toggle on/off. When enabled, sends player details to pro shop contacts | OFF |
+| **Pro Shop Detail Send Time** | When pro shop detail email is sent (if enabled) | Friday 1:00 PM PT |
 
 ### Feature Flags (per event, **super admin only**)
 

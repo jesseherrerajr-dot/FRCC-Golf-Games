@@ -218,8 +218,11 @@ async function syncEmailSchedules(
       );
   }
 
-  // Upsert reminders
-  const numReminders = parseInt(formData.get("num_reminders") as string) || 0;
+  // Upsert reminders (respecting enabled/disabled toggle)
+  const reminderEnabled = formData.get("reminder_enabled") !== "false";
+  const numReminders = reminderEnabled
+    ? parseInt(formData.get("num_reminders") as string) || 0
+    : 0;
 
   for (let i = 1; i <= 3; i++) {
     if (i <= numReminders) {
@@ -237,7 +240,7 @@ async function syncEmailSchedules(
               priority_order: i,
               send_day_offset: calcOffset(rDay),
               send_time: rTime,
-              is_enabled: true,
+              is_enabled: reminderEnabled,
             },
             { onConflict: "event_id,email_type,priority_order" }
           );
@@ -278,6 +281,7 @@ async function syncEmailSchedules(
   }
 
   // Upsert pro shop detail email at the admin-configured confirmation time
+  const proShopEnabled = formData.get("pro_shop_enabled") !== "false";
   const confirmDay = parseInt(formData.get("confirmation_day") as string);
   const confirmTime = formData.get("confirmation_time") as string;
   if (!isNaN(confirmDay) && confirmTime) {
@@ -291,10 +295,49 @@ async function syncEmailSchedules(
           priority_order: 1,
           send_day_offset: offset,
           send_time: confirmTime,
-          is_enabled: true,
+          is_enabled: proShopEnabled,
         },
         { onConflict: "event_id,email_type,priority_order" }
       );
+  } else if (!proShopEnabled) {
+    // If pro shop is disabled and no day/time provided, still update the enabled state
+    await supabase
+      .from("email_schedules")
+      .update({ is_enabled: false })
+      .eq("event_id", eventId)
+      .eq("email_type", "pro_shop_detail");
+  }
+}
+
+// ============================================================
+// Email Type Toggle (enable/disable specific email types)
+// ============================================================
+
+export async function updateEmailTypeEnabled(
+  eventId: string,
+  emailType: "reminder" | "pro_shop_detail",
+  isEnabled: boolean
+) {
+  const { profile, adminEvents, supabase } = await requireAdmin();
+  if (!hasEventAccess(profile, adminEvents, eventId)) {
+    return { error: "Not authorized for this event" };
+  }
+
+  try {
+    // Update all rows for this email type in email_schedules
+    const { error } = await supabase
+      .from("email_schedules")
+      .update({ is_enabled: isEnabled })
+      .eq("event_id", eventId)
+      .eq("email_type", emailType);
+
+    if (error) throw error;
+
+    revalidatePath(`/admin/events/${eventId}/settings`);
+    return { success: true };
+  } catch (error) {
+    console.error("Update email type enabled error:", error);
+    return { error: "Failed to update email type setting" };
   }
 }
 

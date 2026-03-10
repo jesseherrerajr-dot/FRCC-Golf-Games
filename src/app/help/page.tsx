@@ -102,12 +102,13 @@ export default async function HelpPage() {
                   Each event follows its own email cycle configured by the admin:{" "}
                   <strong>Invite</strong> — sent to all subscribed golfers.{" "}
                   <strong>Reminder</strong> — sent to anyone who hasn&apos;t responded
-                  or said &quot;Not Sure.&quot;{" "}
-                  <strong>Cutoff</strong> — RSVP deadline. After cutoff, only admins
-                  can change responses.{" "}
-                  <strong>Confirmation</strong> — sent to all confirmed players and
-                  the pro shop. Check your invite email for the specific cutoff time
-                  for your event.
+                  or said &quot;Not Sure&quot; (if enabled by the admin).{" "}
+                  <strong>RSVP Cutoff / Golfer Confirmation</strong> — RSVP deadline
+                  and confirmation email sent to all confirmed players. After cutoff,
+                  only admins can change responses.{" "}
+                  <strong>Pro Shop Detail</strong> — optional email with player details
+                  sent to the pro shop (if enabled by the admin). Check your invite
+                  email for the specific cutoff time for your event.
                 </p>
               </FAQ>
 
@@ -256,16 +257,19 @@ export default async function HelpPage() {
               <div className="space-y-2">
                 <FAQ question="How does the email cycle work?">
                   <p>
-                    Each event has four automated emails per cycle:{" "}
+                    Each event has up to four automated emails per cycle:{" "}
                     <strong>Invite</strong> — sent to all subscribed golfers.{" "}
                     <strong>Reminder</strong> — sent only to &quot;Not Sure&quot; and
-                    &quot;No Response&quot; golfers.{" "}
-                    <strong>Golfer Confirmation</strong> — sent to all confirmed
-                    players with the player list.{" "}
-                    <strong>Pro Shop Confirmation</strong> — sent to pro shop contacts
+                    &quot;No Response&quot; golfers. Reminders can be toggled on or off
+                    per event.{" "}
+                    <strong>RSVP Cutoff / Golfer Confirmation</strong> — sent to all
+                    confirmed players with the player list.{" "}
+                    <strong>Pro Shop Detail</strong> — sent to pro shop contacts
                     with full player details (names, phones, GHIN) and suggested
-                    foursome groupings. You can customize the send day and time for
-                    each email in <strong>Event Settings → Automated Email Settings</strong>.
+                    foursome groupings. This email can be toggled on or off per event
+                    (off by default). You can customize the send day, time, and
+                    on/off toggles for each email in{" "}
+                    <strong>Event Settings → Automated Email Settings</strong>.
                     To see the status of each email, use the{" "}
                     <strong>Emails &amp; Comms</strong> button on your event card
                     on the Admin Dashboard, or tap the Emails row on the event card.

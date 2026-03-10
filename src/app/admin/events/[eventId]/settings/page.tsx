@@ -54,6 +54,12 @@ export default async function EventSettingsPage({
     .eq("event_id", eventId)
     .order("role");
 
+  // Fetch email schedules (for enabled/disabled toggle state)
+  const { data: emailSchedules } = await supabase
+    .from("email_schedules")
+    .select("email_type, priority_order, is_enabled")
+    .eq("event_id", eventId);
+
   // Fetch active golfers for admin assignment dropdown
   const { data: activeGolfers } = await supabase
     .from("profiles")
@@ -100,7 +106,7 @@ export default async function EventSettingsPage({
             Configure when automated emails are sent each week. All times are Pacific Time.
           </p>
           <div className="mt-3 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-            <EmailScheduleForm event={event} />
+            <EmailScheduleForm event={event} emailSchedules={emailSchedules || []} />
           </div>
         </section>
 

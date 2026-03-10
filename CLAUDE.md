@@ -112,7 +112,7 @@ Every page (except the landing page and login) **must** have a `<Breadcrumbs>` c
 - `events/[eventId]/rsvp/[scheduleId]/actions.ts` — RSVP management server actions
 - `events/[eventId]/rsvp/[scheduleId]/guest-actions.ts` — Guest approval server actions
 - `events/new/` — Create new event page
-- `events/[eventId]/settings/` — Event settings (Event Details, Automated Email Settings, Admin Alerts, Pro Shop Contacts, Event Admins, Feature Flags, Danger Zone)
+- `events/[eventId]/settings/` — Event settings (Event Details, Automated Email Settings with on/off toggles for Reminder and Pro Shop Detail emails, Admin Alerts, Pro Shop Contacts, Event Admins, Feature Flags, Danger Zone)
 - `events/[eventId]/schedule/` — 8-week rolling schedule (Game On/No Game toggle, capacity override)
 - `events/[eventId]/emails/page.tsx` — Emails & Communications page (email status panel with send/resend, link to custom compose)
 - `events/[eventId]/email/compose/` — Custom email composer with templates
@@ -233,9 +233,9 @@ The first event is **"FRCC Saturday Morning Group"**. The platform is designed f
 - Default weekly capacity (e.g., 16 = 4 foursomes)
 - Timezone: America/Los_Angeles (Pacific Time)
 - Invite send time (configurable via admin settings)
-- Reminder send time (configurable via admin settings)
-- RSVP cutoff time (configurable via admin settings)
-- Confirmation email time (configurable via admin settings)
+- Reminder emails (configurable via admin settings; can be toggled on/off per event)
+- RSVP cutoff / golfer confirmation time (configurable via admin settings)
+- Pro shop detail email (configurable via admin settings; can be toggled on/off per event, default OFF)
 - Pro shop contacts (multiple email addresses)
 - Primary and secondary event admins
 - Feature flags (guest requests, tee time preferences, playing partner preferences)
@@ -268,12 +268,14 @@ All email types, days, and times below are **configurable per event** via the `e
 - Golfers who are "In" can request to bring guests (provide guest name, email, GHIN). Guest requests go to a pending state.
 
 ### Step 3 — Reminder Email(s)
-- Automated reminder sent ONLY to golfers who haven't responded OR who responded "Not Sure Yet."
+- Reminder emails can be toggled on or off per event via the Automated Email Settings toggle.
+- When enabled, automated reminder sent ONLY to golfers who haven't responded OR who responded "Not Sure Yet."
 - Golfers who already responded "In" or "Out" do NOT receive the reminder.
-- Events support 0–3 reminder emails, each independently configurable.
+- Events support 1–3 reminder emails, each independently configurable.
 
-### Step 4 — RSVP Cutoff
+### Step 4 — RSVP Cutoff / Golfer Confirmation
 - Self-service RSVP locks. Golfers can no longer change their response.
+- Golfer confirmation email is sent at the configured cutoff time.
 - After cutoff, only event admins and super admins can modify RSVP status.
 - Admins review the waitlist and guest requests. Admins manually select who to pull from the waitlist (not auto-promoted — admin discretion for factors beyond arrival order).
 - Guest requests are approved or denied by admins. Guests only fill spots that members haven't claimed.
@@ -286,11 +288,12 @@ All email types, days, and times below are **configurable per event** via the `e
 - Body: Event name, date, list of confirmed player names (first initial + last name). Guests shown with their sponsoring member.
 - Purpose: Anyone can "Reply All" to share game details, tee times, course conditions, etc. "Reply" goes to primary event admin.
 
-**Email 2 — Pro Shop Detail:**
+**Email 2 — Pro Shop Detail (optional, toggled on/off per event, default OFF):**
 - TO: Pro shop contacts
 - CC: Super admin, event admins
 - Body: Golfer full names, contact info (email, phone), and GHIN numbers. Includes guest info.
 - Purpose: Pro shop uses this for Golf Genius setup and contacting players if needed.
+- Can be enabled/disabled via the toggle switch in Automated Email Settings on the event settings page.
 
 ### RSVP Visibility (Evite-Style)
 - Golfers who are "In" can see the list of other "In" golfers (first initial + last name only, e.g., "J. Herrera"). No email addresses, phone numbers, or full distribution list visible.

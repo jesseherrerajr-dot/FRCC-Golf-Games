@@ -236,7 +236,7 @@ export function CreateEventForm({
           <DayTimeInput label="Reminder 3" dayName="reminder3_day" timeName="reminder3_time" dayDefault={5} timeDefault="08:00" />
         )}
 
-        <DayTimeInput label="RSVP Cutoff" dayName="cutoff_day" timeName="cutoff_time" dayDefault={5} timeDefault="10:00" />
+        <DayTimeInput label="RSVP Cutoff / Golfer Confirmation" dayName="cutoff_day" timeName="cutoff_time" dayDefault={5} timeDefault="10:00" />
         <DayTimeInput label="Send Confirmation" dayName="confirmation_day" timeName="confirmation_time" dayDefault={5} timeDefault="13:00" />
       </section>
 
