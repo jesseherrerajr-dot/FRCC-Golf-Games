@@ -1,6 +1,6 @@
 # FRCC Golf Games — Site Structure & Navigation
 
-> **Last updated:** March 8, 2026
+> **Last updated:** March 12, 2026
 > This document describes the current page hierarchy, navigation, and URL routes.
 > Keep this file in sync with any structural changes to the app.
 
@@ -102,12 +102,12 @@ Each event card shows: event name, next game date, confirmed/capacity, pending a
 
 ### Event Settings (`/admin/events/[eventId]/settings`)
 - Event Details: name, description, slug, capacity, frequency
-- Automated Email Settings: send day/time configuration per email type
+- Automated Email Settings: send day/time configuration per email type, on/off toggles for Reminder and Pro Shop Detail emails
 - Admin Alerts: notification toggles
 - Pro Shop Contacts
 - Event Admins (super admin only): primary/secondary admin assignments
 - Feature Flags (super admin only): guests, tee time prefs, partner prefs
-- Danger Zone: deactivate/delete event
+- Danger Zone (super admin only): deactivate/reactivate event
 
 ### Schedule Management (`/admin/events/[eventId]/schedule`)
 - 8-week rolling view
@@ -120,7 +120,10 @@ Each event card shows: event name, next game date, confirmed/capacity, pending a
 - Free-form custom message option
 
 ### Create Event (`/admin/events/new`) — Super Admin Only
-- New event creation form
+- New event creation form with full email schedule configuration
+- Reminder toggle (on/off, default ON) with configurable send day/time
+- Pro Shop Detail toggle (on/off, default OFF) with configurable send day/time
+- Email settings UI matches Event Settings page layout
 
 ---
 
@@ -197,6 +200,6 @@ Appears on all `/admin/events/[eventId]/*` pages. Shows:
 
 | Role | Can See | Can Manage |
 |---|---|---|
-| **Super Admin** | All events, global golfer directory, create event | Everything |
-| **Event Admin** | Assigned events only | Golfers, RSVPs, schedule, emails for assigned events |
+| **Super Admin** | All events, global golfer directory, create event | Everything incl. Event Admins, Feature Flags, Danger Zone |
+| **Event Admin** | Assigned events only | Golfers, RSVPs, schedule, emails, Event Details, Email Settings, Alerts, Pro Shop Contacts |
 | **Golfer** | Home, Profile, Help, RSVP pages | Own profile, own preferences, own RSVP responses |

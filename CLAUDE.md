@@ -111,8 +111,8 @@ Every page (except the landing page and login) **must** have a `<Breadcrumbs>` c
 - `events/[eventId]/rsvp/[scheduleId]/guest-controls.tsx` — Guest request approve/deny controls
 - `events/[eventId]/rsvp/[scheduleId]/actions.ts` — RSVP management server actions
 - `events/[eventId]/rsvp/[scheduleId]/guest-actions.ts` — Guest approval server actions
-- `events/new/` — Create new event page
-- `events/[eventId]/settings/` — Event settings (Event Details, Automated Email Settings with on/off toggles for Reminder and Pro Shop Detail emails, Admin Alerts, Pro Shop Contacts, Event Admins, Feature Flags, Danger Zone)
+- `events/new/` — Create new event page (email settings with Reminder and Pro Shop Detail toggles, matching Event Settings UI)
+- `events/[eventId]/settings/` — Event settings (Event Details, Automated Email Settings with on/off toggles for Reminder and Pro Shop Detail emails, Admin Alerts, Pro Shop Contacts, Event Admins [super admin only], Feature Flags [super admin only], Danger Zone [super admin only])
 - `events/[eventId]/schedule/` — 8-week rolling schedule (Game On/No Game toggle, capacity override)
 - `events/[eventId]/emails/page.tsx` — Emails & Communications page (email status panel with send/resend, link to custom compose)
 - `events/[eventId]/email/compose/` — Custom email composer with templates
@@ -151,7 +151,7 @@ Every page (except the landing page and login) **must** have a `<Breadcrumbs>` c
 - `src/components/collapsible-section.tsx` — Shared collapsible section component (expand/collapse with chevron, count badge, optional "View All" link)
 - `scripts/import-golfers.ts` — Batch import golfers from Excel
 - `scripts/delete-user.ts` — Delete a user script
-- `supabase/migrations/` — Database schema migrations (001–010)
+- `supabase/migrations/` — Database schema migrations (001–016)
 - `vercel.json` — Vercel config (cron schedules)
 
 ---
@@ -173,8 +173,8 @@ Super admins and event admins are also golfers. They register, subscribe to even
 When an admin logs in, they see their golfer dashboard (upcoming RSVPs, profile, preferences) PLUS admin tools (golfer management, schedule, RSVP overview, action items).
 
 ### Permission Hierarchy
-- **Super Admin**: All permissions. Manage events (create/edit/delete). Add/remove other admins. Add/remove golfers. Access all event settings. View all data across all events.
-- **Event Admin**: Scoped to assigned events only. Approve/deny registrations. Manage weekly RSVPs (override after cutoff). Toggle schedule on/off. Send custom emails. View full RSVP breakdown. Manage waitlist and guest approvals.
+- **Super Admin**: All permissions. Manage events (create/edit/delete/deactivate/reactivate). Add/remove other admins. Add/remove golfers. Access all event settings. View all data across all events. Super-admin-only settings sections: Event Admins, Feature Flags, Danger Zone (deactivate/reactivate events).
+- **Event Admin**: Scoped to assigned events only. Approve/deny registrations. Manage weekly RSVPs (override after cutoff). Toggle schedule on/off. Send custom emails. View full RSVP breakdown. Manage waitlist and guest approvals. Can manage Event Details, Automated Email Settings, Admin Alerts, and Pro Shop Contacts.
 - **Golfer**: Self-service only. RSVP for subscribed events. Edit own profile. Set playing partner preferences. View "In" list (only when opted in). Request guests. Subscribe/unsubscribe from events.
 
 ---
@@ -452,6 +452,11 @@ Notable columns added post-initial schema:
 - `profiles.registration_event_id` — tracks which event a golfer self-registered through. NULL = generic registration or batch import (subscribes to all events on approval).
 - `profiles.ghin_number` — now optional (was originally required).
 
+Security hardening (migrations 015–016):
+- `push_subscriptions` table has RLS enabled with policies scoped to `profile_id = auth.uid()`.
+- All database functions have `search_path` pinned to `public` to prevent schema-shadowing attacks.
+- `email_log` INSERT policy restricted to admin users only (was previously `WITH CHECK (true)`).
+
 ### Authentication: Supabase Auth
 - Magic link (OTP) for passwordless login.
 - Tokenized RSVP links for one-tap weekly responses (no login required).
@@ -465,12 +470,12 @@ Notable columns added post-initial schema:
 ### Hosting: Vercel
 - Next.js App Router with Server Actions.
 - Cron jobs: 6 daily crons synced 1:1 with admin-configurable email time slots:
-  - 16:00 UTC → 8:00 AM PST (fires for 7:45 AM setting)
-  - 17:00 UTC → 9:00 AM PST (fires for 8:45 AM setting)
-  - 18:00 UTC → 10:00 AM PST (fires for 9:45 AM setting)
+  - 13:00 UTC → 5:00 AM PST (fires for 4:45 AM setting)
+  - 14:00 UTC → 6:00 AM PST (fires for 5:45 AM setting)
   - 19:00 UTC → 11:00 AM PST (fires for 10:45 AM setting)
   - 20:00 UTC → 12:00 PM PST (fires for 11:45 AM setting)
   - 01:00 UTC → 5:00 PM PST (fires for 4:45 PM setting)
+  - 02:00 UTC → 6:00 PM PST (fires for 5:45 PM setting)
 - Each cron calls `/api/cron/email-scheduler` which checks all events for emails due within a 3-hour forward window.
 - Note: During PDT (Mar–Nov), crons fire 1 hour later in Pacific Time.
 - Free tier (Hobby plan — limited to daily cron frequency, max 6 cron entries).
@@ -484,7 +489,7 @@ This project runs entirely on free-tier services. The following constraints are 
 ### Vercel Hobby Plan
 - **Cron frequency: once per day only.** Vercel Hobby does not support hourly, sub-hourly, or any frequency more granular than daily. Attempting to deploy a `vercel.json` with a non-daily cron schedule (e.g., `*/15 * * * *` or `0 * * * *`) will cause a silent deployment failure — the deploy won't appear in the Vercel dashboard and GitHub receives no useful error message.
 - **Max cron entries: 6.** The current `vercel.json` uses all 6 slots. Adding a 7th cron entry requires upgrading to Vercel Pro or removing an existing entry. Do NOT add new cron entries without removing one first.
-- **Current cron architecture:** All 6 cron entries hit the same `/api/cron/email-scheduler` endpoint at different UTC hours (16:00, 17:00, 18:00, 19:00, 20:00, 01:00). The scheduler checks a time window and fires any emails that are due. This staggered single-endpoint design is the workaround for the daily-only frequency limit.
+- **Current cron architecture:** All 6 cron entries hit the same `/api/cron/email-scheduler` endpoint at different UTC hours (13:00, 14:00, 19:00, 20:00, 01:00, 02:00). The scheduler checks a time window and fires any emails that are due. This staggered single-endpoint design is the workaround for the daily-only frequency limit.
 - **Function duration: max 60 seconds.** All email batches and processing must complete within this window. Long-running operations need to be broken up or optimized to fit.
 - **No overages.** When you hit a Hobby limit, it's a hard wall — there is no pay-as-you-go overflow. The only path past a limit is upgrading to Pro.
 
