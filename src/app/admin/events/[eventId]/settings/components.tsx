@@ -29,24 +29,26 @@ const DAY_NAMES = [
 // Time options at :45 past each hour, each with a dedicated cron job that
 // fires 15 minutes later on the hour. Six daily cron entries (vercel.json)
 // are 1:1 with these options so emails send promptly after the configured time.
+// Clustered in pairs (early morning, midday, evening) so that staggered
+// emails (e.g., golfer confirmation + pro shop detail) stay in close proximity.
 //
 // Dropdown → Cron (PST) → UTC
-//   7:45 AM →  8:00 AM  → 0 16 * * *
-//   8:45 AM →  9:00 AM  → 0 17 * * *
-//   9:45 AM → 10:00 AM  → 0 18 * * *
+//   4:45 AM →  5:00 AM  → 0 13 * * *
+//   5:45 AM →  6:00 AM  → 0 14 * * *
 //  10:45 AM → 11:00 AM  → 0 19 * * *
 //  11:45 AM → 12:00 PM  → 0 20 * * *
 //   4:45 PM →  5:00 PM  → 0  1 * * *
+//   5:45 PM →  6:00 PM  → 0  2 * * *
 //
 // Note: During PDT (Mar–Nov), crons fire 1 hour later in Pacific Time.
 // The 3-hour send window in isWithinSendWindow() still catches every slot.
 const TIME_OPTIONS = [
-  { value: "07:45", label: "7:45 AM" },
-  { value: "08:45", label: "8:45 AM" },
-  { value: "09:45", label: "9:45 AM" },
+  { value: "04:45", label: "4:45 AM" },
+  { value: "05:45", label: "5:45 AM" },
   { value: "10:45", label: "10:45 AM" },
   { value: "11:45", label: "11:45 AM" },
   { value: "16:45", label: "4:45 PM" },
+  { value: "17:45", label: "5:45 PM" },
 ];
 
 /**
@@ -54,7 +56,7 @@ const TIME_OPTIONS = [
  * Used to migrate existing free-form times to the constrained dropdown.
  */
 function snapToNearest45(time: string | undefined | null): string {
-  if (!time) return "09:45"; // default
+  if (!time) return "10:45"; // default
   const [h, m] = time.slice(0, 5).split(":").map(Number);
   // If already :45 and in our options, use as-is
   if (m === 45) {

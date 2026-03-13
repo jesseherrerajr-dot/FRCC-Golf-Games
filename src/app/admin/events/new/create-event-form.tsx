@@ -16,12 +16,12 @@ const DAY_NAMES = [
 // Must match the cron slots in vercel.json — emails fire ~15 min after these times.
 // See components.tsx in event settings for the full mapping.
 const TIME_OPTIONS = [
-  { value: "07:45", label: "7:45 AM" },
-  { value: "08:45", label: "8:45 AM" },
-  { value: "09:45", label: "9:45 AM" },
+  { value: "04:45", label: "4:45 AM" },
+  { value: "05:45", label: "5:45 AM" },
   { value: "10:45", label: "10:45 AM" },
   { value: "11:45", label: "11:45 AM" },
   { value: "16:45", label: "4:45 PM" },
+  { value: "17:45", label: "5:45 PM" },
 ];
 
 export function CreateEventForm({

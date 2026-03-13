@@ -37,12 +37,12 @@ import { formatGameDate, formatSponsorName, getSiteUrl } from "@/lib/format";
  *   - Vercel Hobby plan limits crons to once-per-day frequency.
  *   - 6 daily crons, each firing 15 min after its paired dropdown option:
  *       Dropdown    Cron (PST)   UTC
- *        7:45 AM →  8:00 AM  → 0 16 * * *
- *        8:45 AM →  9:00 AM  → 0 17 * * *
- *        9:45 AM → 10:00 AM  → 0 18 * * *
+ *        4:45 AM →  5:00 AM  → 0 13 * * *
+ *        5:45 AM →  6:00 AM  → 0 14 * * *
  *       10:45 AM → 11:00 AM  → 0 19 * * *
  *       11:45 AM → 12:00 PM  → 0 20 * * *
  *        4:45 PM →  5:00 PM  → 0  1 * * *
+ *        5:45 PM →  6:00 PM  → 0  2 * * *
  *   - During PDT (Mar–Nov), crons fire 1 hour later in Pacific Time.
  *     The 3-hour send window in isWithinSendWindow() still catches every slot.
  *   - Duplicate sends are prevented by "already sent" flags on each schedule
