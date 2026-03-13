@@ -33,6 +33,8 @@ export function CreateEventForm({
   const [error, setError] = useState<string | null>(null);
   const [durationMode, setDurationMode] = useState("indefinite");
   const [numReminders, setNumReminders] = useState(1);
+  const [reminderEnabled, setReminderEnabled] = useState(true);
+  const [proShopEnabled, setProShopEnabled] = useState(false);
 
   const handleSubmit = (formData: FormData) => {
     setError(null);
@@ -218,40 +220,105 @@ export function CreateEventForm({
           Automated Email Settings
         </h3>
 
+        {/* Invite */}
         <DayTimeInput label="Send Invite" dayName="invite_day" timeName="invite_time" dayDefault={1} timeDefault="10:45" />
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700">
-            Number of Reminders
-          </label>
-          <select
-            name="num_reminders"
-            value={numReminders}
-            onChange={(e) => setNumReminders(parseInt(e.target.value))}
-            className="mt-1 block w-20 rounded-md border border-gray-300 px-3 py-2 text-sm"
-          >
-            <option value="0">0</option>
-            <option value="1">1</option>
-            <option value="2">2</option>
-            <option value="3">3</option>
-          </select>
+        {/* Reminder Section with Toggle */}
+        <div className="space-y-4 rounded-md border border-gray-200 p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-900">Send Reminder Emails</p>
+              <p className="text-xs text-gray-500">
+                Send reminders to golfers who haven&apos;t responded
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setReminderEnabled(!reminderEnabled)}
+              className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 ${
+                reminderEnabled ? "bg-teal-500" : "bg-gray-200"
+              }`}
+            >
+              <span
+                className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform duration-200 ${
+                  reminderEnabled ? "translate-x-5" : "translate-x-0"
+                }`}
+              />
+            </button>
+          </div>
+
+          {reminderEnabled && (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Number of Reminders
+                </label>
+                <select
+                  name="num_reminders"
+                  value={numReminders}
+                  onChange={(e) => setNumReminders(parseInt(e.target.value))}
+                  className="mt-1 block w-20 rounded-md border border-gray-300 px-3 py-2 text-sm"
+                >
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                  <option value="3">3</option>
+                </select>
+              </div>
+
+              {numReminders >= 1 && (
+                <DayTimeInput label="Reminder 1" dayName="reminder_day" timeName="reminder_time" dayDefault={4} timeDefault="05:45" />
+              )}
+              {numReminders >= 2 && (
+                <DayTimeInput label="Reminder 2" dayName="reminder2_day" timeName="reminder2_time" dayDefault={4} timeDefault="16:45" />
+              )}
+              {numReminders >= 3 && (
+                <DayTimeInput label="Reminder 3" dayName="reminder3_day" timeName="reminder3_time" dayDefault={5} timeDefault="04:45" />
+              )}
+            </>
+          )}
         </div>
 
-        {numReminders >= 1 && (
-          <DayTimeInput label="Reminder 1" dayName="reminder_day" timeName="reminder_time" dayDefault={4} timeDefault="08:45" />
+        {/* Hidden field to preserve num_reminders when reminders are disabled */}
+        {!reminderEnabled && (
+          <input type="hidden" name="num_reminders" value="0" />
         )}
-        {numReminders >= 2 && (
-          <DayTimeInput label="Reminder 2" dayName="reminder2_day" timeName="reminder2_time" dayDefault={4} timeDefault="16:45" />
-        )}
-        {numReminders >= 3 && (
-          <DayTimeInput label="Reminder 3" dayName="reminder3_day" timeName="reminder3_time" dayDefault={5} timeDefault="07:45" />
-        )}
+        <input type="hidden" name="reminder_enabled" value={reminderEnabled ? "true" : "false"} />
 
-        <DayTimeInput label="RSVP Cutoff / Golfer Confirmation" dayName="cutoff_day" timeName="cutoff_time" dayDefault={5} timeDefault="09:45" />
-        <DayTimeInput label="Send Confirmation" dayName="confirmation_day" timeName="confirmation_time" dayDefault={5} timeDefault="11:45" />
+        {/* Cutoff / Golfer Confirmation */}
+        <DayTimeInput label="RSVP Cutoff / Golfer Confirmation" dayName="cutoff_day" timeName="cutoff_time" dayDefault={5} timeDefault="04:45" />
 
-        <p className="text-xs text-gray-500">
-          All times are Pacific Time. Emails are sent within approximately 15 minutes of the configured time.
+        {/* Pro Shop Detail Email with Toggle */}
+        <div className="space-y-4 rounded-md border border-gray-200 p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-900">Send Pro Shop Detail Email</p>
+              <p className="text-xs text-gray-500">
+                Send player details and contact info to the pro shop
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setProShopEnabled(!proShopEnabled)}
+              className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 ${
+                proShopEnabled ? "bg-teal-500" : "bg-gray-200"
+              }`}
+            >
+              <span
+                className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform duration-200 ${
+                  proShopEnabled ? "translate-x-5" : "translate-x-0"
+                }`}
+              />
+            </button>
+          </div>
+
+          {proShopEnabled && (
+            <DayTimeInput label="Send Time" dayName="confirmation_day" timeName="confirmation_time" dayDefault={5} timeDefault="05:45" />
+          )}
+        </div>
+        <input type="hidden" name="pro_shop_enabled" value={proShopEnabled ? "true" : "false"} />
+
+        <p className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600">
+          All times are Pacific Time. Emails are sent within approximately 15 minutes of the selected time.
         </p>
       </section>
 

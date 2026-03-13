@@ -100,6 +100,10 @@ export async function createEvent(formData: FormData) {
     };
 
     // 2. Create email_schedules rows
+    const reminderEnabled = formData.get("reminder_enabled") !== "false";
+    const proShopEnabled = formData.get("pro_shop_enabled") === "true";
+
+    // Golfer confirmation fires at cutoff time (same time slot)
     const emailSchedules = [
       {
         event_id: eventId,
@@ -107,49 +111,69 @@ export async function createEvent(formData: FormData) {
         send_day_offset: calcOffset(event.invite_day),
         send_time: event.invite_time,
         priority_order: 1,
+        is_enabled: true,
       },
       {
         event_id: eventId,
         email_type: "golfer_confirmation",
-        send_day_offset: calcOffset(event.confirmation_day),
-        send_time: event.confirmation_time,
+        send_day_offset: calcOffset(event.cutoff_day),
+        send_time: event.cutoff_time,
         priority_order: 1,
+        is_enabled: true,
       },
-      {
+    ];
+
+    // Pro shop detail — uses confirmation_day/time, default OFF
+    if (event.confirmation_day != null && event.confirmation_time) {
+      emailSchedules.push({
         event_id: eventId,
         email_type: "pro_shop_detail",
         send_day_offset: calcOffset(event.confirmation_day),
         send_time: event.confirmation_time,
         priority_order: 1,
-      },
-    ];
+        is_enabled: proShopEnabled,
+      });
+    } else {
+      // No pro shop time configured — create disabled row at cutoff time
+      emailSchedules.push({
+        event_id: eventId,
+        email_type: "pro_shop_detail",
+        send_day_offset: calcOffset(event.cutoff_day),
+        send_time: event.cutoff_time,
+        priority_order: 1,
+        is_enabled: false,
+      });
+    }
 
     // Add reminder rows
-    if (numReminders >= 1) {
+    if (reminderEnabled && numReminders >= 1) {
       emailSchedules.push({
         event_id: eventId,
         email_type: "reminder",
         send_day_offset: calcOffset(event.reminder_day),
         send_time: event.reminder_time,
         priority_order: 1,
+        is_enabled: true,
       });
     }
-    if (numReminders >= 2 && event.reminder2_day != null) {
+    if (reminderEnabled && numReminders >= 2 && event.reminder2_day != null) {
       emailSchedules.push({
         event_id: eventId,
         email_type: "reminder",
         send_day_offset: calcOffset(event.reminder2_day),
         send_time: event.reminder2_time,
         priority_order: 2,
+        is_enabled: true,
       });
     }
-    if (numReminders >= 3 && event.reminder3_day != null) {
+    if (reminderEnabled && numReminders >= 3 && event.reminder3_day != null) {
       emailSchedules.push({
         event_id: eventId,
         email_type: "reminder",
         send_day_offset: calcOffset(event.reminder3_day),
         send_time: event.reminder3_time,
         priority_order: 3,
+        is_enabled: true,
       });
     }
 
