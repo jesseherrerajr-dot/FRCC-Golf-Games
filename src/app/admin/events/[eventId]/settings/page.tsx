@@ -184,13 +184,20 @@ export default async function EventSettingsPage({
           </section>
         )}
 
-        {/* Danger Zone */}
-        <section className="mt-8 mb-12">
-          <h2 className="text-lg font-semibold text-red-700">Danger Zone</h2>
-          <div className="mt-3 rounded-lg border border-red-200 bg-white p-6 shadow-sm">
-            <DangerZone eventId={eventId} isActive={event.is_active} />
-          </div>
-        </section>
+        {/* Danger Zone — Super Admin Only */}
+        {isSuperAdmin && (
+          <section className="mt-8 mb-12">
+            <h2 className="text-lg font-semibold text-red-700">
+              Danger Zone
+              <span className="ml-2 inline-flex rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-700">
+                Super Admin
+              </span>
+            </h2>
+            <div className="mt-3 rounded-lg border border-red-200 bg-white p-6 shadow-sm">
+              <DangerZone eventId={eventId} isActive={event.is_active} />
+            </div>
+          </section>
+        )}
       </div>
     </main>
   );

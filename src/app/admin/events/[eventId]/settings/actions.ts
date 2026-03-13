@@ -517,10 +517,8 @@ export async function updateFeatureFlags(
 // ============================================================
 
 export async function deactivateEvent(eventId: string) {
-  const { profile, adminEvents, supabase } = await requireAdmin();
-  if (!hasEventAccess(profile, adminEvents, eventId)) {
-    return { error: "Not authorized for this event" };
-  }
+  await requireSuperAdmin();
+  const { supabase } = await requireAdmin();
 
   try {
     const { error } = await supabase
