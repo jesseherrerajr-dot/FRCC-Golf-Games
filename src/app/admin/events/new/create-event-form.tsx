@@ -13,6 +13,17 @@ const DAY_NAMES = [
   "Saturday",
 ];
 
+// Must match the cron slots in vercel.json — emails fire ~15 min after these times.
+// See components.tsx in event settings for the full mapping.
+const TIME_OPTIONS = [
+  { value: "07:45", label: "7:45 AM" },
+  { value: "08:45", label: "8:45 AM" },
+  { value: "09:45", label: "9:45 AM" },
+  { value: "10:45", label: "10:45 AM" },
+  { value: "11:45", label: "11:45 AM" },
+  { value: "16:45", label: "4:45 PM" },
+];
+
 export function CreateEventForm({
   activeGolfers,
 }: {
@@ -207,7 +218,7 @@ export function CreateEventForm({
           Automated Email Settings
         </h3>
 
-        <DayTimeInput label="Send Invite" dayName="invite_day" timeName="invite_time" dayDefault={1} timeDefault="10:00" />
+        <DayTimeInput label="Send Invite" dayName="invite_day" timeName="invite_time" dayDefault={1} timeDefault="10:45" />
 
         <div>
           <label className="block text-sm font-medium text-gray-700">
@@ -227,17 +238,21 @@ export function CreateEventForm({
         </div>
 
         {numReminders >= 1 && (
-          <DayTimeInput label="Reminder 1" dayName="reminder_day" timeName="reminder_time" dayDefault={4} timeDefault="10:00" />
+          <DayTimeInput label="Reminder 1" dayName="reminder_day" timeName="reminder_time" dayDefault={4} timeDefault="08:45" />
         )}
         {numReminders >= 2 && (
-          <DayTimeInput label="Reminder 2" dayName="reminder2_day" timeName="reminder2_time" dayDefault={4} timeDefault="16:00" />
+          <DayTimeInput label="Reminder 2" dayName="reminder2_day" timeName="reminder2_time" dayDefault={4} timeDefault="16:45" />
         )}
         {numReminders >= 3 && (
-          <DayTimeInput label="Reminder 3" dayName="reminder3_day" timeName="reminder3_time" dayDefault={5} timeDefault="08:00" />
+          <DayTimeInput label="Reminder 3" dayName="reminder3_day" timeName="reminder3_time" dayDefault={5} timeDefault="07:45" />
         )}
 
-        <DayTimeInput label="RSVP Cutoff / Golfer Confirmation" dayName="cutoff_day" timeName="cutoff_time" dayDefault={5} timeDefault="10:00" />
-        <DayTimeInput label="Send Confirmation" dayName="confirmation_day" timeName="confirmation_time" dayDefault={5} timeDefault="13:00" />
+        <DayTimeInput label="RSVP Cutoff / Golfer Confirmation" dayName="cutoff_day" timeName="cutoff_time" dayDefault={5} timeDefault="09:45" />
+        <DayTimeInput label="Send Confirmation" dayName="confirmation_day" timeName="confirmation_time" dayDefault={5} timeDefault="11:45" />
+
+        <p className="text-xs text-gray-500">
+          All times are Pacific Time. Emails are sent within approximately 15 minutes of the configured time.
+        </p>
       </section>
 
       {/* Primary Admin */}
@@ -309,12 +324,17 @@ function DayTimeInput({
       </div>
       <div>
         <label className="block text-sm font-medium text-gray-700">at</label>
-        <input
+        <select
           name={timeName}
-          type="time"
           defaultValue={timeDefault}
           className="mt-1 block rounded-md border border-gray-300 px-3 py-2 text-sm"
-        />
+        >
+          {TIME_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
       </div>
     </div>
   );
