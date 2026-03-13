@@ -27,19 +27,33 @@ export async function createEvent(formData: FormData) {
     // Email schedule
     invite_day: parseInt(formData.get("invite_day") as string),
     invite_time: formData.get("invite_time") as string,
-    num_reminders: parseInt(formData.get("num_reminders") as string) || 1,
-    reminder_day: parseInt(formData.get("reminder_day") as string),
-    reminder_time: formData.get("reminder_time") as string,
+    num_reminders: parseInt(formData.get("num_reminders") as string) || 0,
     cutoff_day: parseInt(formData.get("cutoff_day") as string),
     cutoff_time: formData.get("cutoff_time") as string,
-    confirmation_day: parseInt(formData.get("confirmation_day") as string),
-    confirmation_time: formData.get("confirmation_time") as string,
 
     // Feature flags — all OFF for MVP
     allow_guest_requests: false,
     allow_tee_time_preferences: false,
     allow_playing_partner_preferences: false,
   };
+
+  // Conditional email fields — only set when their toggles are on
+  const reminderEnabled = formData.get("reminder_enabled") !== "false";
+  const proShopEnabled = formData.get("pro_shop_enabled") === "true";
+
+  if (reminderEnabled && eventData.num_reminders as number >= 1) {
+    eventData.reminder_day = parseInt(formData.get("reminder_day") as string);
+    eventData.reminder_time = formData.get("reminder_time") as string;
+  }
+
+  if (proShopEnabled) {
+    const confDay = formData.get("confirmation_day");
+    const confTime = formData.get("confirmation_time");
+    if (confDay != null && confTime != null) {
+      eventData.confirmation_day = parseInt(confDay as string);
+      eventData.confirmation_time = confTime as string;
+    }
+  }
 
   // Min players
   const minPlayers = formData.get("min_players") as string;
@@ -64,15 +78,15 @@ export async function createEvent(formData: FormData) {
     eventData.end_date = formData.get("end_date") || null;
   }
 
-  // Reminder 2/3
+  // Reminder 2/3 (only when reminders are enabled)
   const numReminders = eventData.num_reminders as number;
-  if (numReminders >= 2) {
+  if (reminderEnabled && numReminders >= 2) {
     eventData.reminder2_day = parseInt(
       formData.get("reminder2_day") as string
     );
     eventData.reminder2_time = formData.get("reminder2_time") as string;
   }
-  if (numReminders >= 3) {
+  if (reminderEnabled && numReminders >= 3) {
     eventData.reminder3_day = parseInt(
       formData.get("reminder3_day") as string
     );
@@ -100,9 +114,6 @@ export async function createEvent(formData: FormData) {
     };
 
     // 2. Create email_schedules rows
-    const reminderEnabled = formData.get("reminder_enabled") !== "false";
-    const proShopEnabled = formData.get("pro_shop_enabled") === "true";
-
     // Golfer confirmation fires at cutoff time (same time slot)
     const emailSchedules = [
       {
