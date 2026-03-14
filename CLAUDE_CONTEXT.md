@@ -169,6 +169,12 @@ These are final decisions reflected in the codebase and not open for reconsidera
 
 **When to execute vs. wait:** If Jesse asks for a plan or recommendation, don't execute yet — present the plan and wait for a go-ahead. If it's ambiguous, ask. Otherwise, assume Jesse wants the changes made and proceed without waiting for explicit instruction — especially if the work is easily reversible.
 
+**Copy-paste ready instructions:** When Jesse needs to perform steps manually (terminal commands, SQL queries, Vercel/Supabase console actions, etc.), always provide exact copy-paste commands and step-by-step instructions. Don't assume he'll know how to translate a general description into the right CLI syntax or UI clicks. Be explicit and sequential.
+
+**Not a software engineer:** Jesse is a capable builder but not a professional developer. He doesn't work in SQL, terminal/CLI, or code editors on a daily basis. When steps involve these tools, provide extra context — explain what a command does, what the expected output looks like, and what to do if something looks wrong. Don't assume familiarity with git flags, SQL syntax, or terminal conventions.
+
+**Know the stack and its limits:** The tech stack and free-tier constraints are fully documented in CLAUDE.md (see "Infrastructure Constraints" section). Claude should internalize these limits and never propose solutions that violate them without flagging the constraint first. Don't ask Jesse to re-confirm what tier he's on or what the limits are — that information is in the docs.
+
 ---
 
 ## 7. Lessons Learned
