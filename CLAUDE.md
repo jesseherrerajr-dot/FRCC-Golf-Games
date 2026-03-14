@@ -635,75 +635,34 @@ Admin-facing RSVP status labels **must** be consistent across all surfaces — s
 
 ---
 
-## Build Phases
-### Phase 1 — Foundation (Complete)
-- [x] Project scaffold (Next.js, Tailwind, Supabase, Resend)
-- [x] Join the Group registration page
-- [x] Supabase database schema
-- [x] Login page (magic link)
-- [x] Golfer dashboard (basic)
-- [x] Profile settings page
-- [x] Admin dashboard (basic)
-- [x] Registration approval workflow
+## What's Been Built (Complete)
 
-### Phase 2 — Weekly RSVP Cycle (Complete)
-- [x] RSVP page with tokenized links
-- [x] Automated invite email (configurable day/time per event)
-- [x] Automated reminder email (configurable day/time per event)
-- [x] Automated confirmation emails — golfer + pro shop (configurable day/time per event)
-- [x] RSVP visibility (evite-style "In" list)
-- [x] Capacity and waitlist management
-- [x] Admin RSVP override (post-cutoff)
+The following is fully implemented and running in production:
 
-### Phase 3 — Guest System & Preferences
-- [ ] Guest request workflow
-- [ ] Guest registration and approval
-- [x] Playing partner preferences (searchable dropdown, ranked 1–10 with up/down reordering)
-- [x] Tee time preferences (per-week on RSVP page; standing preferences table exists but ignored by engine)
-- [ ] Golf Genius CSV export
+- **Foundation:** Project scaffold (Next.js, Tailwind, Supabase, Resend), registration pages (global + event-specific /join/[slug]), magic link login, auth callbacks, golfer home page, admin dashboard, profile settings.
+- **Weekly RSVP Cycle:** Tokenized RSVP links, automated invite/reminder/confirmation/pro shop emails (configurable per event), evite-style "In" list visibility, capacity and waitlist management, admin RSVP override (post-cutoff).
+- **Preferences:** Playing partner preferences (ranked 1–10, per-event, searchable dropdown with reordering). Tee time preferences (per-week on RSVP page).
+- **Admin Tools:** Schedule management (8-week rolling view, Game On/No Game toggle with cancellation emails), custom email composer with templates, action items/task summary, golfer directory with search/filter (global + event-scoped), golfer detail pages with subscription management, admin "Add Golfer" (direct add), configurable email schedules (6 Vercel cron slots), admin notification emails (new_registration, capacity_reached, spot_opened, low_response), event-centric admin dashboard with summary cards, per-event admin scoping, help page with Golfer + Admin FAQ.
+- **Grouping Engine:** Greedy heuristic algorithm with weighted partner preferences, tee time constraints, shuffle randomization, guest-host pairing. 36 unit tests. DB layer, cron integration, pro shop email with grouped roster. See `docs/GROUPING_ENGINE_SPEC.md`.
 
-### Phase 4 — Admin Tools & Communication (MVP for Beta Launch)
-- [x] Schedule management (8-week rolling view)
-- [x] Custom email composer with templates
-- [x] Automatic game cancellation emails (triggered on "No Game" toggle, with confirmation modal and optional reason)
-- [x] Action items / task summary (displayed on event dashboard)
-- [x] Golfer directory with search/filter (global + event-scoped)
-- [x] Golfer detail page with subscription management (global + event-scoped)
-- [x] Admin "Add Golfer" page (direct add, no approval needed; global + event-scoped)
-- [x] Event-specific join links (/join/[slug]) with admin copy button
-- [x] Golfer dashboard "My Events" with self-service unsubscribe
-- [x] Configurable email schedule (6 time slots synced with Vercel crons)
-- [x] Admin notification emails (new_registration from all auth paths, capacity_reached, spot_opened with golfer name, low_response)
-- [x] Event-centric admin dashboard with summary cards and quick links
-- [x] Per-event admin pages scoped to assigned events only
-- [x] Help and support features
-  - Help page with expandable Golfer FAQ + Admin FAQ sections
-- [ ] UI/UX improvements and branding
-  - Align visual design with Fairbanks Ranch website (colors, fonts, imagery)
-  - Add Fairbanks Ranch logo
-  - Polish copy and messaging
-  - Ensure consistent look and feel across all pages
-  - Mobile-first responsive design refinements
+---
 
-### Phase 5 — Multi-Event & Future (Post-MVP Enhancements)
-- [ ] Add additional events (Thursday league, Friday afternoon, etc.)
-- [x] Per-event admin scoping
-- [ ] Participation history / reporting
-- [x] Recommended Foursome Algorithm — fully implemented (greedy heuristic with weighted partner preferences, tee time constraints, shuffle randomization, guest-host pairing). See `docs/GROUPING_ENGINE_SPEC.md`.
-  - [x] Grouping engine algorithm (`grouping-engine.ts`) with 36 unit tests, shuffle support, group order randomization within tee-time tiers
-  - [x] Database schema: `groupings` table, `rank` column on partner preferences, `allow_auto_grouping` feature flag
-  - [x] DB layer (`grouping-db.ts`) — fetch confirmed golfers, partner preferences, approved guests; store groupings; fetch stored groupings with tee time + partner preference annotations
-  - [x] Cron integration — engine runs via existing email-scheduler cron at golfer confirmation time (no separate cron entry needed)
-  - [x] Pro shop email integration — 6-column grouped roster (Name, Email, Phone, GHIN, Tee Time, Player Pref) with guest labels and preference checkmarks when `allow_auto_grouping` is enabled; flat alphabetical fallback when disabled
-  - [ ] Admin RSVP page — display suggested groupings (read-only)
-- [ ] Additional grouping methods (future):
-  - Random groupings
-  - Like-skill / like-handicap based groupings (using GHIN)
-  - Balanced skill / equitable groupings (mix skill levels)
-  - Playing partner preference based groupings
-  - Tee time preference based groupings
-  - Hybrid / combination approaches (e.g., honor preferences + balance skill)
-- [ ] Priority-based invite batching (100+/day)
-- [ ] SMS/text notifications
-- [ ] GHIN API integration
-- [ ] Custom email sending domain
+## Roadmap
+
+### 1. Grouping Engine Enhancements
+Enhance the foursome grouping algorithm to produce better, fairer results:
+- **Prevent repeat foursomes** — Use recent grouping history to penalize players who were grouped together in recent weeks. Promotes variety so golfers aren't always playing with the same people.
+- **Tee time preference limits** — Prevent golfers from gaming tee time preferences to guarantee grouping with preferred partners (e.g., friends all picking "early" every week). Design TBD — options include rotating/ignoring preferences, capping consecutive same-preference weeks, or making tee time a softer signal the engine can override.
+- **Admin partner avoidance** — Allow super admins and event admins to set "prefer not to be grouped with" preferences, providing some control over groupings beyond what golfers can see. Design TBD — scope, visibility, and UI to be determined when building.
+
+### 2. Admin Reports
+Build a set of useful reports for admins to understand usage and participation patterns. Specific reports TBD — brainstorming needed to identify what's most valuable. Potential areas: participation frequency, RSVP response patterns, no-show tracking, golfer engagement trends, event growth over time.
+
+### 3. Email Template Review
+Review all automated email templates (invite, reminder, golfer confirmation, pro shop detail, cancellation, admin alerts, registration notifications) to ensure copy, formatting, and links are all hitting the mark. May involve tweaks to tone, layout, or information included.
+
+### 4. Guest Workflow
+Complete the guest request system. Architecture and DB schema exist (feature-flagged OFF). Remaining work: guest request UI for golfers, admin approval/denial flow, guest confirmation emails, guest visibility in RSVP management. Guest requests table and types are already in place.
+
+### 5. Priority Email Batching
+When the distribution list approaches the Resend free-tier limit (100 emails/day), implement priority-based batching — send to the most active/likely-to-respond golfers first, remainder on the following day. Not urgent now but will be needed as events and membership grow.

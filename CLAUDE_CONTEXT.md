@@ -86,18 +86,20 @@ These are final decisions reflected in the codebase and not open for reconsidera
 
 ## 3. What's Still Open
 
-**Unresolved or deferred items visible in the codebase:**
+See the Roadmap section of CLAUDE.md for the current prioritized list. Key items:
 
-- **Guest system** — Architecture and DB schema exist, feature-flagged OFF. Guest request workflow, approval flow, and guest confirmation emails are not yet built. The `guest_requests` table and related types exist but the UI/flow is incomplete.
-- **Golf Genius CSV export** — Mentioned in CLAUDE.md as a Phase 3 item, not yet implemented. Format may need refinement based on Golf Genius import requirements.
-- **UI/UX branding** — No Fairbanks Ranch logo, colors, or imagery have been integrated yet. The current design uses a generic teal/navy palette. User needs to provide brand assets.
-- **Participation history / reporting** — Data is being collected (RSVP history, email log) but there's no reporting UI yet. This is Phase 5.
-- **Admin RSVP page grouping display** — The grouping engine stores results, but the admin RSVP management page doesn't yet display suggested groupings (read-only view). Noted as incomplete in CLAUDE.md.
+1. **Grouping engine enhancements** — Prevent repeat foursomes (use history to penalize recent pairings), limit tee time preference gaming, admin partner avoidance lists. Design details TBD for each.
+2. **Admin reports** — Build useful reports for admins. Specific reports TBD — brainstorming needed.
+3. **Email template review** — Audit all automated emails for copy, formatting, and links.
+4. **Guest workflow** — Complete the guest request system (architecture exists, feature-flagged OFF).
+5. **Priority email batching** — For when distribution approaches the 100/day Resend limit.
+
+**Technical debt visible in the codebase (not on the active roadmap but worth noting):**
+
 - **The `tee_time_preferences` table** — Standing preferences table exists but is ignored by the grouping engine. Only per-week RSVP tee time preferences are used. This table may be vestigial.
 - **Email scheduler complexity** — The structural audit identified `email-scheduler/route.ts` (CC ~50) as the top refactoring priority. Splitting into per-type handlers would improve maintainability.
 - **Test coverage** — Only the grouping engine has unit tests (36 tests). No integration or end-to-end tests exist.
-- **Install page domain reference** — Previously referenced `frccgolfgames.vercel.app`, now updated to `frccgolfgames.com`. Verify custom domain is properly configured in Vercel.
-- **Push notification adoption** — Bell icon is the only discovery mechanism. Recently improved with Install page guidance, Help FAQ, and onboarding checklist item. Effectiveness is unknown — may need a contextual prompt (e.g., banner after first RSVP) if adoption is low.
+- **Push notification adoption** — Recently improved with Install page guidance, Help FAQ, and onboarding checklist item. Effectiveness is unknown — may need a contextual prompt if adoption is low.
 
 ---
 
