@@ -64,7 +64,7 @@ export function InstallContent() {
             <span>
               Open{" "}
               <strong className="text-gray-900">
-                frccgolfgames.vercel.app
+                frccgolfgames.com
               </strong>{" "}
               in <strong className="text-gray-900">Safari</strong> (this
               won&apos;t work in Chrome or other browsers on iOS).
@@ -150,7 +150,7 @@ export function InstallContent() {
             <span>
               Open{" "}
               <strong className="text-gray-900">
-                frccgolfgames.vercel.app
+                frccgolfgames.com
               </strong>{" "}
               in <strong className="text-gray-900">Chrome</strong>.
             </span>
