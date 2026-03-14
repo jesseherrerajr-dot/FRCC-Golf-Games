@@ -34,7 +34,7 @@ Every page (except the landing page and login) **must** have a `<Breadcrumbs>` c
 **Rules:**
 - The last item in the breadcrumb trail is the current page (no `href` — renders as plain text).
 - All preceding items are clickable links to their respective pages.
-- **Golfer pages** start with `Home` (links to `/dashboard`): e.g., `Home > Profile`, `Home > Help`.
+- **Golfer pages** start with `Home` (links to `/home`): e.g., `Home > Profile`, `Home > Help`.
 - **Admin pages** start with `Admin` (links to `/admin`): e.g., `Admin > Create Event`.
 - **Event-scoped admin pages** include the event name linking to the event dashboard (`/admin/events/[eventId]`): e.g., `Admin > FRCC Saturday Morning Group > Schedule`, `Admin > FRCC Saturday Morning Group > Settings`.
 - **Do NOT** use "← Back to X" links. All backward navigation is handled by breadcrumbs.
@@ -87,7 +87,8 @@ Every page (except the landing page and login) **must** have a `<Breadcrumbs>` c
 - `auth/confirm/` — Email OTP confirmation page
 - `auth/signout/` — Sign-out route
 - `auth/link-error/` — Expired/invalid magic link error page
-- `dashboard/` — Golfer dashboard (upcoming RSVPs, My Events, unsubscribe). Nav label: "Home"
+- `home/` — Golfer home page (upcoming RSVPs, My Events, unsubscribe). Nav label: "Home"
+- `dashboard/` — Redirect to `/home` (legacy URL preserved for backward compatibility)
 - `profile/` — Golfer profile settings (name, email, phone, GHIN) with per-event playing partner preferences
 - `preferences/` — Redirects to `/profile` (playing partner preferences now scoped per-event on profile page)
 - `help/` — Help documentation with expandable Golfer FAQ + Admin FAQ sections
@@ -217,7 +218,7 @@ The original `/join` page still exists for golfers who aren't referred to a spec
 ### Subscription Management
 - Super admins can manage a golfer's subscriptions to all events via the global golfer detail page (Admin → Golfers → [Golfer]).
 - Event admins can manage a golfer's subscription to their specific event via the event-scoped golfer detail page (Admin → Events → [Event] → Golfers → [Golfer]).
-- Golfers can unsubscribe themselves from events via the "My Events" section on their dashboard.
+- Golfers can unsubscribe themselves from events via the "My Events" section on their Home page.
 - Unsubscribed golfers stop receiving invites for that event but retain their account and history.
 
 ---
@@ -517,7 +518,7 @@ This project runs entirely on free-tier services. The following constraints are 
 ## Navigation Structure
 
 The main navigation includes:
-- **Home** — Golfer dashboard (upcoming RSVPs, My Events, unsubscribe)
+- **Home** (`/home`) — Golfer home page (upcoming RSVPs, My Events, unsubscribe)
 - **Admin** (for admins only) — Main admin dashboard showing event summary cards
   - **Events** (submenu) — Links to each event's dashboard
     - **[Event Name]** — Event-specific dashboard, schedule, golfers, RSVP management, settings, emails

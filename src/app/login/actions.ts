@@ -68,5 +68,5 @@ export async function verifyLoginOtp(
     return { error: "Invalid or expired code. Please try again or request a new one.", step: "otp", email };
   }
 
-  redirect("/dashboard");
+  redirect("/home");
 }

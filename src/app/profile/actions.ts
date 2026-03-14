@@ -113,6 +113,6 @@ export async function updateProfile(
   });
 
   revalidatePath("/profile");
-  revalidatePath("/dashboard");
+  revalidatePath("/home");
   return { success: true };
 }

@@ -147,7 +147,7 @@ export async function sendTargetedEmail(
           </div>
 
           <p style="color: #9ca3af; font-size: 12px; text-align: center;">
-            <a href="${siteUrl}/dashboard" style="color: #3d7676;">Go to Dashboard</a>
+            <a href="${siteUrl}/home" style="color: #3d7676;">Go to FRCC Golf Games</a>
           </p>
         </div>
       `;

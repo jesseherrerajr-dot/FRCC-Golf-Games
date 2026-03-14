@@ -137,7 +137,7 @@ export default function ProfilePage() {
           <div className="mb-6">
             <Breadcrumbs
               items={[
-                { label: "Home", href: "/dashboard" },
+                { label: "Home", href: "/home" },
                 { label: "Profile" },
               ]}
             />

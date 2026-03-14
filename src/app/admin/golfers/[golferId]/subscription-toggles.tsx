@@ -57,7 +57,7 @@ export function AdminUnsubscribeButton({
       <ConfirmModal
         open={showConfirm}
         title="Unsubscribe from Event"
-        message="This golfer will stop receiving weekly invites for this event. They can re-subscribe anytime from their dashboard."
+        message="This golfer will stop receiving weekly invites for this event. They can re-subscribe anytime from their Home page."
         confirmLabel="Unsubscribe"
         variant="danger"
         loading={isPending}

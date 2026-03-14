@@ -69,7 +69,7 @@ export default async function HelpPage() {
             {user && (
               <Breadcrumbs
                 items={[
-                  { label: "Home", href: "/dashboard" },
+                  { label: "Home", href: "/home" },
                   { label: "Help" },
                 ]}
               />
@@ -93,7 +93,7 @@ export default async function HelpPage() {
                   Before each game, you&apos;ll receive an invite email with a one-tap link.
                   Tap <strong>I&apos;m In</strong>, <strong>I&apos;m Out</strong>, or{" "}
                   <strong>Not Sure Yet</strong> — no login required. You can also RSVP
-                  from your Dashboard after signing in.
+                  from your Home page after signing in.
                 </p>
               </FAQ>
 
@@ -134,7 +134,7 @@ export default async function HelpPage() {
               <FAQ question="Can I change my RSVP after responding?">
                 <p>
                   Yes — you can change your response anytime before the RSVP cutoff
-                  using the link in your confirmation email or from your Dashboard.
+                  using the link in your confirmation email or from your Home page.
                   After cutoff, only an admin can update your status.
                 </p>
               </FAQ>
@@ -155,7 +155,7 @@ export default async function HelpPage() {
                 <p>
                   You can rank up to 10 preferred playing partners from the{" "}
                   <strong>Playing Partner Preferences</strong> page (accessible from
-                  your Dashboard). These rankings help the system build suggested
+                  your Home page). These rankings help the system build suggested
                   foursomes. Higher-ranked partners are weighted more heavily. These are
                   suggestions — they don&apos;t guarantee you&apos;ll be paired
                   together.
@@ -184,7 +184,7 @@ export default async function HelpPage() {
 
               <FAQ question="How do I unsubscribe from an event?">
                 <p>
-                  On your Dashboard, scroll to the <strong>My Events</strong> section
+                  On your Home page, scroll to the <strong>My Events</strong> section
                   and tap <strong>Unsubscribe</strong> next to the event. You&apos;ll
                   stop receiving invites but keep your account. To rejoin later, log in
                   and re-subscribe.

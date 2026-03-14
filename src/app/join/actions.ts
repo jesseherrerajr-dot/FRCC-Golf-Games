@@ -134,5 +134,5 @@ export async function verifyJoinOtp(
     console.error("Alert check error:", alertErr);
   }
 
-  redirect("/dashboard");
+  redirect("/home");
 }

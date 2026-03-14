@@ -6,7 +6,7 @@ export default function manifest(): MetadataRoute.Manifest {
     short_name: "FRCC Golf",
     description:
       "Fairbanks Ranch Country Club golf event management — RSVPs, schedules, and more.",
-    start_url: "/dashboard",
+    start_url: "/home",
     display: "standalone",
     background_color: "#f0f3f7", // navy-50
     theme_color: "#1b2a4a", // navy-900

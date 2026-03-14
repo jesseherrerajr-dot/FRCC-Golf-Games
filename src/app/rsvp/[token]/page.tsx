@@ -280,10 +280,10 @@ export default async function RsvpPage({
         {/* Footer */}
         <div className="mt-8 flex items-center justify-center gap-4 text-sm">
           <Link
-            href="/dashboard"
+            href="/home"
             className="text-teal-700 hover:text-teal-600"
           >
-            Go to Dashboard
+            Go to Home
           </Link>
           <span className="text-gray-300">|</span>
           <Link

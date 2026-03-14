@@ -343,7 +343,7 @@ async function handleInviteEmails(
       await sendPushToUsers(supabase, profileIds, {
         title: event.name as string,
         body: `New game ${formattedDate}. Tap to RSVP now.`,
-        url: `${siteUrl}/dashboard`,
+        url: `${siteUrl}/home`,
         tag: `invite-${schedule.id}`,
       });
     } catch (pushErr) {
@@ -502,7 +502,7 @@ async function handleReminderEmails(
       await sendPushToUsers(supabase, profileIds, {
         title: event.name as string,
         body: `You haven't responded for ${formattedDate}. Tap to RSVP.`,
-        url: `${siteUrl}/dashboard`,
+        url: `${siteUrl}/home`,
         tag: `reminder-${schedule.id}`,
       });
     } catch (pushErr) {
@@ -717,7 +717,7 @@ async function handleGolferConfirmation(
         await sendPushToUsers(supabase, profileIds, {
           title: event.name as string,
           body: `You're confirmed for ${formattedDate}! ${allPlayers.length} golfers playing.`,
-          url: `${siteUrl}/dashboard`,
+          url: `${siteUrl}/home`,
           tag: `confirmation-${schedule.id}`,
         });
       } catch (pushErr) {

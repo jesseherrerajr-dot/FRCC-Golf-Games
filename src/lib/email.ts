@@ -103,7 +103,7 @@ export function generateInviteEmail({
       </div>
 
       <p style="color: #9ca3af; font-size: 12px;">Deadline: ${formatCutoffDayTime(cutoffDay, cutoffTime)}. After that, contact an event admin to change your RSVP.</p>
-      <p style="color: #9ca3af; font-size: 12px;"><a href="${siteUrl}/dashboard" style="color: #3d7676;">Go to Dashboard</a></p>
+      <p style="color: #9ca3af; font-size: 12px;"><a href="${siteUrl}/home" style="color: #3d7676;">Go to FRCC Golf Games</a></p>
     </div>
   `;
 }
@@ -156,7 +156,7 @@ export function generateReminderEmail({
         <a href="${rsvpBase}&action=out" style="display: block; background: white; color: #b91c1c; text-align: center; padding: 14px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px; border: 2px solid #fca5a5;">I'm Out</a>
       </div>
 
-      <p style="color: #9ca3af; font-size: 12px;"><a href="${siteUrl}/dashboard" style="color: #3d7676;">Go to Dashboard</a></p>
+      <p style="color: #9ca3af; font-size: 12px;"><a href="${siteUrl}/home" style="color: #3d7676;">Go to FRCC Golf Games</a></p>
     </div>
   `;
 }
@@ -203,7 +203,7 @@ export function generateConfirmationEmail({
 
       <p style="color: #374151; font-size: 14px;">Reply all to this email to share tee times, game format, course conditions, or other details with the group.</p>
 
-      ${siteUrl ? `<p style="color: #9ca3af; font-size: 12px;"><a href="${siteUrl}/dashboard" style="color: #3d7676;">View Dashboard</a> &middot; Need to change your RSVP? Contact a event admin.</p>` : `<p style="color: #9ca3af; font-size: 12px;">See you on the course!</p>`}
+      ${siteUrl ? `<p style="color: #9ca3af; font-size: 12px;"><a href="${siteUrl}/home" style="color: #3d7676;">Go to FRCC Golf Games</a> &middot; Need to change your RSVP? Contact a event admin.</p>` : `<p style="color: #9ca3af; font-size: 12px;">See you on the course!</p>`}
     </div>
   `;
 }
@@ -553,7 +553,7 @@ export function generateGameCancelledEmail({
 
       <p style="color: #374151;">We apologize for the inconvenience.</p>
 
-      <p style="color: #9ca3af; font-size: 12px; margin-top: 24px;"><a href="${siteUrl}/dashboard" style="color: #3d7676;">Go to Dashboard</a></p>
+      <p style="color: #9ca3af; font-size: 12px; margin-top: 24px;"><a href="${siteUrl}/home" style="color: #3d7676;">Go to FRCC Golf Games</a></p>
     </div>
   `;
 }

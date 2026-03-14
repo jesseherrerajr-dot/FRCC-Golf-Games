@@ -57,7 +57,7 @@ export async function requireAuth(): Promise<{
  * Get the current user and verify they have admin access.
  * Super admins have access to everything.
  * Event admins have access to their assigned events.
- * Redirects to /dashboard if not an admin.
+ * Redirects to /home if not an admin.
  */
 export async function requireAdmin(): Promise<{
   supabase: Awaited<ReturnType<typeof createClient>>;
@@ -84,14 +84,14 @@ export async function requireAdmin(): Promise<{
     .eq("profile_id", user.id);
 
   if (!adminEvents || adminEvents.length === 0) {
-    redirect("/dashboard");
+    redirect("/home");
   }
 
   return { supabase, user, profile, adminEvents };
 }
 
 /**
- * Require super admin access. Redirects to /dashboard if not a super admin.
+ * Require super admin access. Redirects to /home if not a super admin.
  * Used for event creation, admin assignments, feature flag toggles.
  */
 export async function requireSuperAdmin(): Promise<{
@@ -102,7 +102,7 @@ export async function requireSuperAdmin(): Promise<{
   const { supabase, user, profile } = await requireAuth();
 
   if (!profile.is_super_admin) {
-    redirect("/dashboard");
+    redirect("/home");
   }
 
   return { supabase, user, profile };

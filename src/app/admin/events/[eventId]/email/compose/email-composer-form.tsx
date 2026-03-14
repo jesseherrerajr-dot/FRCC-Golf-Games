@@ -29,7 +29,7 @@ const TEMPLATES: {
     key: "extra_spots",
     label: "Extra Spots Available",
     subject: "[EVENT] - Extra Spots Available for [DATE]!",
-    body: "Good news! We still have spots open for [DATE].\n\nIf you haven't RSVP'd yet or were on the fence, now is the time to jump in!\n\nPlease update your RSVP on the dashboard.",
+    body: "Good news! We still have spots open for [DATE].\n\nIf you haven't RSVP'd yet or were on the fence, now is the time to jump in!\n\nPlease update your RSVP at frccgolfgames.com",
   },
   {
     key: "weather_advisory",

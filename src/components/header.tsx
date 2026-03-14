@@ -34,7 +34,7 @@ export default async function Header() {
   return (
     <header className="border-b border-navy-200 bg-white">
       <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
-        <Link href={user ? "/dashboard" : "/"} className="flex items-center gap-3">
+        <Link href={user ? "/home" : "/"} className="flex items-center gap-3">
           <Image
             src="/logo.png"
             alt="Fairbanks Ranch Country Club"

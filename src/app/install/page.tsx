@@ -10,7 +10,7 @@ export default function InstallPage() {
           <div className="mb-8">
             <Breadcrumbs
               items={[
-                { label: "Home", href: "/dashboard" },
+                { label: "Home", href: "/home" },
                 { label: "Get the App" },
               ]}
             />

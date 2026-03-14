@@ -182,5 +182,5 @@ export async function verifyEventJoinOtp(
     console.error("Alert check error:", alertErr);
   }
 
-  redirect("/dashboard");
+  redirect("/home");
 }

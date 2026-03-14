@@ -390,7 +390,7 @@ export async function sendGolferConfirmationNow(scheduleId: string) {
       await sendPushToUsers(supabase, profileIds, {
         title: event.name,
         body: `You're confirmed for ${formattedDate}! ${allPlayers.length} golfers playing.`,
-        url: `${siteUrl}/dashboard`,
+        url: `${siteUrl}/home`,
         tag: `confirmation-${schedule.id}`,
       });
     } catch (pushErr) {
