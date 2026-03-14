@@ -231,13 +231,6 @@ export default async function RsvpPage({
           </div>
         </div>
 
-        {/* Weather forecast — below RSVP status and capacity */}
-        {weather && !isCancelled && (
-          <div className="mt-4">
-            <WeatherForecast forecast={weather} variant="full" />
-          </div>
-        )}
-
         {/* "In" list — collapsible, only visible if golfer is "in" or "waitlisted" */}
         {(currentStatus === "in" || currentStatus === "waitlisted") &&
           inList.length > 0 && (
@@ -294,6 +287,13 @@ export default async function RsvpPage({
             <p className="mt-1 text-sm text-blue-700">
               {schedule.admin_notes}
             </p>
+          </div>
+        )}
+
+        {/* Weather forecast — informational, below all actionable items */}
+        {weather && !isCancelled && (
+          <div className="mt-6">
+            <WeatherForecast forecast={weather} variant="full" />
           </div>
         )}
 
