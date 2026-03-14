@@ -10,6 +10,7 @@
 
 import type { GameType, HourlyForecast, GameWeatherForecast } from "@/types/events";
 import { createAdminClient } from "@/lib/supabase/server";
+import { formatGameDate } from "@/lib/format";
 
 // Fairbanks Ranch Country Club coordinates
 const FRCC_LATITUDE = 32.9881;
@@ -398,7 +399,7 @@ export function generateWeatherEmailHtml(
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
         <div>
           <p style="margin: 0; font-size: 12px; color: #6b7280; text-transform: uppercase; letter-spacing: 1px;">
-            ${weatherEmoji} ${confidenceLabel}
+            ${weatherEmoji} Forecast for ${formatGameDate(forecast.gameDate)}
           </p>
           <p style="margin: 4px 0 0 0; font-size: 18px; font-weight: bold; color: ${golfabilityColor};">
             ${summary.golfabilityLabel}
@@ -429,7 +430,7 @@ export function generateWeatherEmailHtml(
       ` : ""}
 
       <p style="margin: 8px 0 0 0; font-size: 11px; color: #9ca3af; text-align: center;">
-        Forecast for FRCC, Rancho Santa Fe${daysUntilGame > 3 ? " — forecast will update as game day approaches" : ""}
+        FRCC, Rancho Santa Fe &middot; ${confidenceLabel}${daysUntilGame > 3 ? " — updates as game day approaches" : ""}
       </p>
     </div>
   `;

@@ -10,6 +10,7 @@
  */
 
 import type { GameWeatherForecast } from "@/types/events";
+import { formatGameDate } from "@/lib/format";
 
 function getWeatherEmoji(condition: string): string {
   const lower = condition.toLowerCase();
@@ -56,7 +57,7 @@ export function WeatherForecast({
           <div className="flex items-center gap-2">
             <span className="text-lg">{getWeatherEmoji(summary.condition)}</span>
             <div>
-              <p className="text-xs font-medium text-gray-500">{confidenceLabel}</p>
+              <p className="text-xs font-medium text-gray-500">{formatGameDate(forecast.gameDate)}</p>
               <p className={`text-sm font-semibold ${summary.golfabilityScore >= 4 ? "text-teal-700" : summary.golfabilityScore >= 3 ? "text-amber-700" : "text-red-700"}`}>
                 {summary.golfabilityLabel}
               </p>
@@ -83,7 +84,7 @@ export function WeatherForecast({
         <div className="flex items-start justify-between">
           <div>
             <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
-              {getWeatherEmoji(summary.condition)} {confidenceLabel}
+              {getWeatherEmoji(summary.condition)} Forecast for {formatGameDate(forecast.gameDate)}
             </p>
             <p className={`mt-1 text-lg font-bold ${summary.golfabilityScore >= 4 ? "text-teal-700" : summary.golfabilityScore >= 3 ? "text-amber-700" : "text-red-700"}`}>
               {summary.golfabilityLabel}
@@ -137,7 +138,7 @@ export function WeatherForecast({
       {/* Footer */}
       <div className="border-t border-gray-200/50 bg-white/30 px-4 py-2">
         <p className="text-center text-[11px] text-gray-400">
-          Forecast for FRCC, Rancho Santa Fe
+          FRCC, Rancho Santa Fe &middot; {confidenceLabel}
           {daysUntilGame > 3 ? " — updates as game day approaches" : ""}
         </p>
       </div>
