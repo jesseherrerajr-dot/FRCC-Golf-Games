@@ -151,13 +151,6 @@ export default async function RsvpPage({
           </div>
         )}
 
-        {/* Weather forecast */}
-        {weather && !isCancelled && (
-          <div className="mt-4">
-            <WeatherForecast forecast={weather} variant="full" />
-          </div>
-        )}
-
         {/* Current status */}
         <div className="mt-6 text-center">
           <p className="text-sm text-gray-500">Your current response:</p>
@@ -237,6 +230,13 @@ export default async function RsvpPage({
             />
           </div>
         </div>
+
+        {/* Weather forecast — below RSVP status and capacity */}
+        {weather && !isCancelled && (
+          <div className="mt-4">
+            <WeatherForecast forecast={weather} variant="full" />
+          </div>
+        )}
 
         {/* "In" list — collapsible, only visible if golfer is "in" or "waitlisted" */}
         {(currentStatus === "in" || currentStatus === "waitlisted") &&
