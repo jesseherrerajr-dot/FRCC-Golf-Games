@@ -22,12 +22,12 @@ A companion to CLAUDE.md. Where CLAUDE.md is the technical specification and imp
 - PWA install flow with push notification support
 - Configurable email schedules per event (6 Vercel cron slots)
 
-**What's in progress or upcoming:**
-- Guest request workflow (Phase 3 — architecture exists, feature flagged OFF)
-- Golf Genius CSV export
-- UI/UX branding alignment with Fairbanks Ranch website
-- Participation history and reporting (Phase 5)
-- Additional events beyond the second one
+**What's on the roadmap (see CLAUDE.md Roadmap for details):**
+1. Grouping engine enhancements (repeat prevention, tee time limits, admin avoidance)
+2. Admin reports (TBD — brainstorming needed)
+3. Email template review
+4. Guest workflow (architecture exists, feature-flagged OFF)
+5. Priority email batching (for when Resend free-tier limit is approached)
 
 ---
 
@@ -206,10 +206,15 @@ See the Roadmap section of CLAUDE.md for the current prioritized list. Key items
 
 3. **Updated Install page URLs** — Changed `frccgolfgames.vercel.app` references to `frccgolfgames.com`.
 
-**Discussion points:**
-- Confirmed the app is in production (not beta) with 50+ users and a second event onboarding.
-- Analyzed that tokenized RSVP links are safe from the route rename (they use `/rsvp/[token]`, not `/dashboard`).
-- Discussed Supabase session handling — confirmed that linking to `/home` vs `/dashboard` vs `/` has identical auth behavior for returning users (middleware refreshes session on all routes). Landing page (`/`) is the only one that doesn't check auth, so email links should point to `/home` for the smoothest logged-in experience.
-- Identified that push notifications were essentially invisible to users — no mention in Help, Install page, onboarding, or welcome banner. Bell icon has no label and is hidden on unsupported browsers (most iOS Safari users).
+4. **Streamlined roadmap** — Replaced the old five-phase build checklist (mostly completed items) with a clean two-section structure: "What's Been Built" (summary of everything in production) and "Roadmap" (5 prioritized items). Removed completed phase checklists, Golf Genius CSV export, UI/UX branding, SMS notifications, GHIN API integration, and custom email domain from the active roadmap.
 
-**Created:** CLAUDE_CONTEXT.md (this file).
+5. **Created CLAUDE_CONTEXT.md** — This file. Companion to CLAUDE.md capturing project context, decisions, preferences, and working patterns.
+
+**Key discussion points and decisions:**
+- Confirmed the app is in production (not beta) with 50+ users and a second event onboarding.
+- **Route rename analysis:** Tokenized RSVP links are safe from the `/dashboard` → `/home` rename because they use `/rsvp/[token]`. Supabase session handling means all routes behave identically for auth — middleware refreshes the session on every request. The landing page (`/`) is the only route that doesn't check auth, so email links should always point to `/home` for the smoothest logged-in experience.
+- **Push notification gap:** Identified that push notifications were essentially invisible to users — no mention in Help, Install page, onboarding, or welcome banner. The bell icon has no label and is hidden on unsupported browsers (most iOS Safari users without PWA installed). Addressed with Install page step 5, Help FAQ entry, onboarding checklist item, and benefits section bullet.
+- **Notification bell deep-dive:** The bell uses Web Push APIs (service worker + PushManager). Works on Android Chrome and desktop browsers. On iOS, only works if user has installed the PWA to their home screen first (iOS 16.4+ requirement). Component gracefully hides when unsupported (`state === "unsupported"` returns null).
+- **Email link best practice:** For email footer links, `/home` is the right destination (not `/` which shows the landing page even for logged-in users). Display text should say "Go to FRCC Golf Games" rather than exposing the URL path.
+- **Roadmap consolidation:** Removed items Jesse doesn't currently care about. The five active roadmap items are: (1) grouping engine enhancements (repeat prevention, tee time limits, admin avoidance), (2) admin reports (TBD), (3) email template review, (4) guest workflow, (5) priority email batching. Design details for grouping items are intentionally left TBD — to be addressed when each is tackled.
+- **Working preferences captured:** Jesse is not a software engineer — needs copy-paste ready commands and extra context for terminal/SQL/CLI work. Prefers step-by-step guidance over long action plans. Opus is the preferred model (Sonnet caused rework). Claude should internalize the stack constraints from CLAUDE.md rather than re-asking.
