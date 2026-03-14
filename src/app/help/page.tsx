@@ -227,6 +227,31 @@ export default async function HelpPage() {
                 </p>
               </FAQ>
 
+              <FAQ question="How do I turn on push notifications?">
+                <p>
+                  Push notifications let you get alerts about game updates and
+                  reminders even when the app isn&apos;t open. To enable them,
+                  tap the{" "}
+                  <strong>bell icon</strong> in the top menu bar. You&apos;ll be
+                  asked to allow notifications — tap <strong>Allow</strong>.
+                  The bell will appear filled in when notifications are on.
+                </p>
+                <p className="mt-2">
+                  <strong>iPhone users:</strong> Push notifications only work
+                  if you&apos;ve added FRCC Golf Games to your home screen
+                  first (see below). This is an iOS requirement — notifications
+                  aren&apos;t available when using Safari directly.
+                </p>
+                <p className="mt-2">
+                  <strong>Android &amp; Desktop:</strong> Notifications work
+                  in Chrome and most modern browsers without any extra setup.
+                  Just tap the bell icon.
+                </p>
+                <p className="mt-2">
+                  To turn notifications off, tap the bell icon again.
+                </p>
+              </FAQ>
+
               <FAQ question="How do I add FRCC Golf Games to my home screen?">
                 <p>
                   You can install FRCC Golf Games as an app on your phone for

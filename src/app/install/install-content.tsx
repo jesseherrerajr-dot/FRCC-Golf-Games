@@ -107,6 +107,17 @@ export function InstallContent() {
               Golf Games icon will appear on your home screen.
             </span>
           </li>
+          <li className="flex gap-3">
+            <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-teal-600 text-xs font-bold text-white">
+              5
+            </span>
+            <span>
+              Open the app from your home screen, then tap the{" "}
+              <strong className="text-gray-900">bell icon</strong>{" "}
+              <span className="inline-block text-base leading-none" aria-label="bell icon">🔔</span>{" "}
+              in the top menu to <strong className="text-gray-900">enable push notifications</strong> for game updates and reminders.
+            </span>
+          </li>
         </ol>
       </section>
 
@@ -185,6 +196,17 @@ export function InstallContent() {
               app icon will appear on your home screen.
             </span>
           </li>
+          <li className="flex gap-3">
+            <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-teal-600 text-xs font-bold text-white">
+              5
+            </span>
+            <span>
+              Open the app from your home screen, then tap the{" "}
+              <strong className="text-gray-900">bell icon</strong>{" "}
+              <span className="inline-block text-base leading-none" aria-label="bell icon">🔔</span>{" "}
+              in the top menu to <strong className="text-gray-900">enable push notifications</strong> for game updates and reminders.
+            </span>
+          </li>
         </ol>
       </section>
 
@@ -205,6 +227,10 @@ export function InstallContent() {
           <div className="flex gap-3">
             <span className="flex-shrink-0 text-teal-600">✓</span>
             <span><strong className="text-gray-900">Loads fast</strong> — it&apos;s the same site, just easier to access</span>
+          </div>
+          <div className="flex gap-3">
+            <span className="flex-shrink-0 text-teal-600">✓</span>
+            <span><strong className="text-gray-900">Push notifications</strong> — get notified about game updates and reminders, even when the app isn&apos;t open</span>
           </div>
         </div>
       </section>

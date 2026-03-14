@@ -12,7 +12,7 @@ self.addEventListener("push", (event) => {
     payload = {
       title: "FRCC Golf Games",
       body: event.data.text(),
-      url: "/dashboard",
+      url: "/home",
     };
   }
 
@@ -24,7 +24,7 @@ self.addEventListener("push", (event) => {
     badge: "/icon-192x192.png",
     tag: tag || "frcc-default",
     renotify: true,
-    data: { url: url || "/dashboard" },
+    data: { url: url || "/home" },
   };
 
   event.waitUntil(self.registration.showNotification(title, options));
@@ -33,7 +33,7 @@ self.addEventListener("push", (event) => {
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
 
-  const url = event.notification.data?.url || "/dashboard";
+  const url = event.notification.data?.url || "/home";
 
   event.waitUntil(
     clients.matchAll({ type: "window", includeUncontrolled: true }).then((windowClients) => {

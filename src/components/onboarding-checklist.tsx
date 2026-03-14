@@ -24,14 +24,37 @@ export function OnboardingChecklist({
   hasPartnerPrefs,
 }: OnboardingChecklistProps) {
   const [dismissed, setDismissed] = useState(true); // default hidden until hydrated
+  const [pushState, setPushState] = useState<"loading" | "unsupported" | "on" | "off">("loading");
 
   useEffect(() => {
     if (typeof window !== "undefined") {
       setDismissed(localStorage.getItem(STORAGE_KEY) === "true");
     }
+
+    // Check push notification status
+    async function checkPush() {
+      if (
+        !("serviceWorker" in navigator) ||
+        !("PushManager" in window) ||
+        !process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
+      ) {
+        setPushState("unsupported");
+        return;
+      }
+
+      try {
+        const reg = await navigator.serviceWorker.ready;
+        const sub = await reg.pushManager.getSubscription();
+        setPushState(sub ? "on" : "off");
+      } catch {
+        setPushState("unsupported");
+      }
+    }
+
+    checkPush();
   }, []);
 
-  const items: ChecklistItem[] = [
+  const baseItems: ChecklistItem[] = [
     {
       label: "Add your phone number",
       complete: !!phone,
@@ -52,11 +75,35 @@ export function OnboardingChecklist({
     },
   ];
 
+  // Add push notification item if the browser supports it and it's not enabled yet
+  const items: ChecklistItem[] = [
+    ...baseItems,
+    ...(pushState === "off"
+      ? [
+          {
+            label: "Turn on push notifications",
+            complete: false,
+            href: "/install",
+            cta: "Learn how",
+          },
+        ]
+      : pushState === "on"
+        ? [
+            {
+              label: "Turn on push notifications",
+              complete: true,
+              href: "/install",
+              cta: "",
+            },
+          ]
+        : []),
+  ];
+
   const completedCount = items.filter((i) => i.complete).length;
   const allComplete = completedCount === items.length;
 
-  // Don't show if all complete or dismissed
-  if (allComplete || dismissed) return null;
+  // Don't show if all complete or dismissed, or still loading push state
+  if (allComplete || dismissed || pushState === "loading") return null;
 
   function handleDismiss() {
     localStorage.setItem(STORAGE_KEY, "true");
