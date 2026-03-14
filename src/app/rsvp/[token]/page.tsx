@@ -34,7 +34,7 @@ export default async function RsvpPage({
        profile:profiles(id, first_name, last_name),
        schedule:event_schedules(
          id, game_date, capacity, status, admin_notes,
-         event:events(id, name, default_capacity, cutoff_day, cutoff_time, timezone, allow_guest_requests, allow_tee_time_preferences, allow_playing_partner_preferences, game_type, first_tee_time)
+         event:events(*)
        )`
     )
     .eq("token", token)

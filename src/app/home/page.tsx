@@ -39,7 +39,7 @@ export default async function DashboardPage() {
 
   const { data: allEvents } = await supabase
     .from("events")
-    .select("id, name, day_of_week, frequency, game_type, first_tee_time")
+    .select("*")
     .eq("is_active", true);
 
   // Merge subscriptions with event data
