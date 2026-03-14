@@ -9,6 +9,9 @@ import { isPastCutoffPacific, formatCutoffDisplay } from "@/lib/timezone";
 import { formatGameDate, formatInitialLastName } from "@/lib/format";
 import { createAdminClient } from "@/lib/supabase/server";
 import { RSVP_GOLFER_LABELS as statusLabels, RSVP_GOLFER_COLORS as statusColors, type RsvpStatus } from "@/lib/rsvp-status";
+import { getGameWeather } from "@/lib/weather";
+import { WeatherForecast } from "@/components/weather-forecast";
+import type { GameType } from "@/types/events";
 
 
 export default async function RsvpPage({
@@ -31,7 +34,7 @@ export default async function RsvpPage({
        profile:profiles(id, first_name, last_name),
        schedule:event_schedules(
          id, game_date, capacity, status, admin_notes,
-         event:events(id, name, default_capacity, cutoff_day, cutoff_time, timezone, allow_guest_requests, allow_tee_time_preferences, allow_playing_partner_preferences)
+         event:events(id, name, default_capacity, cutoff_day, cutoff_time, timezone, allow_guest_requests, allow_tee_time_preferences, allow_playing_partner_preferences, game_type, first_tee_time)
        )`
     )
     .eq("token", token)
@@ -96,6 +99,16 @@ export default async function RsvpPage({
   const MAX_GUESTS = 3;
   const remainingSlots = MAX_GUESTS - guestRequests.length;
 
+  // Fetch weather forecast for the game
+  const weather = event && schedule
+    ? await getGameWeather(
+        event.id,
+        schedule.game_date,
+        event.first_tee_time || "07:30",
+        (event.game_type as GameType) || "18_holes"
+      )
+    : null;
+
   const baseUrl = `/api/rsvp?token=${token}`;
 
   return (
@@ -135,6 +148,13 @@ export default async function RsvpPage({
           <div className="mt-4 rounded-lg border border-yellow-200 bg-yellow-50 px-4 py-3 text-center text-sm text-yellow-800">
             The RSVP deadline has passed, please contact an event administrator
             directly to change your RSVP response.
+          </div>
+        )}
+
+        {/* Weather forecast */}
+        {weather && !isCancelled && (
+          <div className="mt-4">
+            <WeatherForecast forecast={weather} variant="full" />
           </div>
         )}
 

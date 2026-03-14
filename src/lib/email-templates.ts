@@ -4,6 +4,8 @@
  */
 
 import { formatPhoneDisplay, formatInitialLastName, formatFullName, formatGameDate } from "./format";
+import type { GameWeatherForecast } from "@/types/events";
+import { generateWeatherEmailHtml } from "./weather";
 
 export interface InviteEmailParams {
   golferName: string;
@@ -13,6 +15,7 @@ export interface InviteEmailParams {
   cutoffDay: number;
   cutoffTime: string;
   siteUrl: string;
+  weather?: GameWeatherForecast | null;
 }
 
 export interface ReminderEmailParams {
@@ -23,6 +26,7 @@ export interface ReminderEmailParams {
   cutoffDay: number;
   cutoffTime: string;
   siteUrl: string;
+  weather?: GameWeatherForecast | null;
 }
 
 export interface GolferConfirmationParams {
@@ -36,6 +40,7 @@ export interface GolferConfirmationParams {
     guest_name: string;
     requested_by: string;
   }>;
+  weather?: GameWeatherForecast | null;
 }
 
 export interface ProShopDetailParams {
@@ -71,6 +76,7 @@ export function generateInviteEmail(params: InviteEmailParams): string {
     cutoffDay,
     cutoffTime,
     siteUrl,
+    weather,
   } = params;
 
   const rsvpUrl = `${siteUrl}/rsvp/${rsvpToken}`;
@@ -109,6 +115,8 @@ export function generateInviteEmail(params: InviteEmailParams): string {
     </a>
   </div>
 
+  ${weather ? generateWeatherEmailHtml(weather, "invite") : ""}
+
   <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 16px; margin: 30px 0; border-radius: 4px;">
     <p style="margin: 0; font-size: 14px; color: #92400e;">
       <strong>⏰ Please RSVP by ${cutoffDayName} at ${cutoffTime}</strong>
@@ -143,6 +151,7 @@ export function generateReminderEmail(params: ReminderEmailParams): string {
     cutoffDay,
     cutoffTime,
     siteUrl,
+    weather,
   } = params;
 
   const rsvpUrl = `${siteUrl}/rsvp/${rsvpToken}`;
@@ -182,6 +191,8 @@ export function generateReminderEmail(params: ReminderEmailParams): string {
     </a>
   </div>
 
+  ${weather ? generateWeatherEmailHtml(weather, "reminder") : ""}
+
   <div style="background: #fef2f2; border-left: 4px solid #ef4444; padding: 16px; margin: 30px 0; border-radius: 4px;">
     <p style="margin: 0; font-size: 14px; color: #991b1b;">
       <strong>⏰ Cutoff: ${cutoffDayName} at ${cutoffTime}</strong>
@@ -210,7 +221,7 @@ export function generateReminderEmail(params: ReminderEmailParams): string {
 export function generateGolferConfirmationEmail(
   params: GolferConfirmationParams
 ): string {
-  const { eventName, gameDate, confirmedPlayers, guests } = params;
+  const { eventName, gameDate, confirmedPlayers, guests, weather } = params;
 
   const formattedDate = formatGameDate(gameDate);
 
@@ -271,6 +282,8 @@ export function generateGolferConfirmationEmail(
   </h2>
 
   ${playerListHtml}
+
+  ${weather ? generateWeatherEmailHtml(weather, "confirmation") : ""}
 
   <div style="background: #eff6ff; border-left: 4px solid #3b82f6; padding: 16px; margin: 30px 0; border-radius: 4px;">
     <p style="margin: 0; font-size: 14px; color: #1e40af;">

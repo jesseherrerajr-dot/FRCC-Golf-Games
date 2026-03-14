@@ -8,6 +8,9 @@ import { OnboardingChecklist } from "@/components/onboarding-checklist";
 import { UnsubscribeButton } from "./subscription-actions";
 import { getTodayPacific } from "@/lib/timezone";
 import { RSVP_GOLFER_LABELS as statusLabels, RSVP_GOLFER_COLORS as statusStyles, type RsvpStatus } from "@/lib/rsvp-status";
+import { getGameWeather } from "@/lib/weather";
+import { WeatherForecast } from "@/components/weather-forecast";
+import type { GameType, GameWeatherForecast } from "@/types/events";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -36,7 +39,7 @@ export default async function DashboardPage() {
 
   const { data: allEvents } = await supabase
     .from("events")
-    .select("id, name, day_of_week, frequency")
+    .select("id, name, day_of_week, frequency, game_type, first_tee_time")
     .eq("is_active", true);
 
   // Merge subscriptions with event data
@@ -76,6 +79,29 @@ export default async function DashboardPage() {
       const dateB = (b.schedule as { game_date: string })?.game_date || "";
       return dateA.localeCompare(dateB);
     });
+
+  // Fetch weather for each upcoming game (in parallel)
+  const weatherMap: Record<string, GameWeatherForecast | null> = {};
+  await Promise.all(
+    upcoming.map(async (rsvp: Record<string, unknown>) => {
+      const schedule = rsvp.schedule as {
+        game_date: string;
+        event: { id: string; game_type?: string; first_tee_time?: string } | null;
+      } | null;
+      if (!schedule?.event) return;
+      try {
+        const weather = await getGameWeather(
+          schedule.event.id,
+          schedule.game_date,
+          schedule.event.first_tee_time || "07:30",
+          (schedule.event.game_type as GameType) || "18_holes"
+        );
+        weatherMap[schedule.game_date + "_" + schedule.event.id] = weather;
+      } catch {
+        // Weather fetch failed — not critical, just skip
+      }
+    })
+  );
 
   return (
     <main className="min-h-screen px-4 py-8">
@@ -152,6 +178,8 @@ export default async function DashboardPage() {
                       name: string;
                       day_of_week: number | null;
                       frequency: string | null;
+                      game_type?: string;
+                      first_tee_time?: string;
                     } | null;
                     if (!event) return null;
 
@@ -199,6 +227,16 @@ export default async function DashboardPage() {
                             <UnsubscribeButton eventId={event.id} />
                           </div>
                         </div>
+
+                        {/* Weather forecast */}
+                        {nextSchedule && event && weatherMap[nextSchedule.game_date + "_" + event.id] && (
+                          <div className="border-t border-gray-200 px-3 py-2">
+                            <WeatherForecast
+                              forecast={weatherMap[nextSchedule.game_date + "_" + event.id]!}
+                              variant="compact"
+                            />
+                          </div>
+                        )}
 
                         {/* Next game row */}
                         {nextRsvp && nextSchedule && nextToken ? (

@@ -31,6 +31,10 @@ export async function createEvent(formData: FormData) {
     cutoff_day: parseInt(formData.get("cutoff_day") as string),
     cutoff_time: formData.get("cutoff_time") as string,
 
+    // Game time settings
+    game_type: (formData.get("game_type") as string) || "18_holes",
+    first_tee_time: (formData.get("first_tee_time") as string) || "07:30",
+
     // Feature flags — all OFF for MVP
     allow_guest_requests: false,
     allow_tee_time_preferences: false,

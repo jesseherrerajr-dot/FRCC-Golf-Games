@@ -143,6 +143,7 @@ Every page (except the landing page and login) **must** have a `<Breadcrumbs>` c
 - `grouping-engine.ts` — Core foursome grouping algorithm (pure function, no DB calls, shuffle/randomization support)
 - `grouping-engine.test.ts` — Unit tests for grouping algorithm (36 tests)
 - `grouping-db.ts` — DB queries: fetch confirmed golfers, partner preferences, approved guests; store groupings with guest placement; fetch stored groupings with tee time + partner preference annotations
+- `weather.ts` — Open-Meteo weather API integration, caching, golfability scoring, email HTML generation
 
 ### Other Key Files
 - `src/middleware.ts` — Next.js middleware (auth redirects, session refresh)
@@ -150,9 +151,10 @@ Every page (except the landing page and login) **must** have a `<Breadcrumbs>` c
 - `src/components/header.tsx` — Shared header/nav component
 - `src/components/event-context-bar.tsx` — Event context indicator + event switcher (shows on `/admin/events/[eventId]/*` pages)
 - `src/components/collapsible-section.tsx` — Shared collapsible section component (expand/collapse with chevron, count badge, optional "View All" link)
+- `src/components/weather-forecast.tsx` — Weather forecast display (full + compact variants)
 - `scripts/import-golfers.ts` — Batch import golfers from Excel
 - `scripts/delete-user.ts` — Delete a user script
-- `supabase/migrations/` — Database schema migrations (001–016)
+- `supabase/migrations/` — Database schema migrations (001–017)
 - `vercel.json` — Vercel config (cron schedules)
 
 ---
@@ -239,6 +241,8 @@ The first event is **"FRCC Saturday Morning Group"**. The platform is designed f
 - Pro shop detail email (configurable via admin settings; can be toggled on/off per event, default OFF)
 - Pro shop contacts (multiple email addresses)
 - Primary and secondary event admins
+- Game type: 9 holes or 18 holes (determines weather forecast window duration)
+- First tee time: HH:MM format (used for weather forecast scoping)
 - Feature flags (guest requests, tee time preferences, playing partner preferences)
 
 ### Schedule Management
@@ -446,12 +450,17 @@ Admin → Events → [Event] → Emails → Compose allows:
 ## Technical Architecture
 
 ### Database: Supabase (PostgreSQL)
-Key tables: profiles, events, event_admins, event_subscriptions, event_schedules, rsvps, guest_requests, playing_partner_preferences, pro_shop_contacts, email_templates, email_log, event_email_schedules, event_alert_settings, groupings.
+Key tables: profiles, events, event_admins, event_subscriptions, event_schedules, rsvps, guest_requests, playing_partner_preferences, pro_shop_contacts, email_templates, email_log, event_email_schedules, event_alert_settings, groupings, weather_cache.
 
 Notable columns added post-initial schema:
 - `events.slug` — URL-friendly identifier for join links (e.g., `saturday-morning`).
+- `events.game_type` — `9_holes` or `18_holes` (default `18_holes`). Determines weather forecast window duration.
+- `events.first_tee_time` — HH:MM format (default `07:30`). When the first group typically tees off. Used for weather forecast scoping.
 - `profiles.registration_event_id` — tracks which event a golfer self-registered through. NULL = generic registration or batch import (subscribes to all events on approval).
 - `profiles.ghin_number` — now optional (was originally required).
+
+Weather (migration 017):
+- `weather_cache` table: keyed by `(event_id, game_date)`, stores JSONB forecast data with `fetched_at` timestamp. RLS enabled — read by anyone, writes via service role only.
 
 Security hardening (migrations 015–016):
 - `push_subscriptions` table has RLS enabled with policies scoped to `profile_id = auth.uid()`.
@@ -666,3 +675,33 @@ Complete the guest request system. Architecture and DB schema exist (feature-fla
 
 ### 5. Priority Email Batching
 When the distribution list approaches the Resend free-tier limit (100 emails/day), implement priority-based batching — send to the most active/likely-to-respond golfers first, remainder on the following day. Not urgent now but will be needed as events and membership grow.
+
+### 6. Public "Who's Playing" View
+Create a publicly accessible (but unlisted) page showing the current week's "In" list for an event. Unlike the existing evite-style visibility (which requires opting "In" to see the list), this would let any golfer — even before responding or after responding "Out" — see who's already committed. Uses the same first-initial-last-name format (e.g., "J. Herrera") with no sensitive data exposed. Could be a shareable link golfers text to each other when coordinating. No login required.
+
+### 7. Weather Integration ✅ BUILT
+Hyper-localized weather forecasts for game time windows, displayed on RSVP pages, Home page, and in automated emails.
+
+**Implementation Details:**
+- **API:** Open-Meteo (free, no API key, no rate limits). Endpoint: `https://api.open-meteo.com/v1/forecast`
+- **Location:** FRCC exact coordinates — latitude 32.9881, longitude -117.1935 (15150 San Dieguito Rd, Rancho Santa Fe, CA 92067)
+- **Game Window:** Derived from event settings: `first_tee_time` minus 30 min buffer through `first_tee_time` + game duration + 30 min buffer. 18 holes = 4.5 hours, 9 holes = 2.5 hours.
+- **Event Settings Added:** `game_type` (enum: `9_holes` | `18_holes`, default `18_holes`) and `first_tee_time` (text, default `07:30`) on the events table.
+- **Golfability Score:** 1–5 scale based on temperature, wind speed, precipitation probability, and severe weather codes. Labels: "Perfect Golf Weather" (5), "Great Conditions" (4), "Fair — Playable" (3), "Challenging Conditions" (2), "Severe Weather" (1).
+- **Confidence Labels:** "Early Look" (5+ days out), "Updated Forecast" (3–4 days), "Game Day Forecast" (1–2 days), "Current Conditions" (game day).
+- **Caching:** `weather_cache` table keyed by (event_id, game_date). Stale after 3 hours → re-fetched from API. Cache checked first on every call.
+- **UI Variants:** "full" on RSVP page (golfability badge, summary stats, hourly timeline for ≤3 days out). "compact" on Home page event cards (single-row badge with temp/wind).
+- **Email Integration:** Weather HTML included in invite, reminder, and golfer confirmation emails. NOT included in pro shop detail email. Non-fatal — if Open-Meteo is down, emails send without weather.
+- **Key Files:** `src/lib/weather.ts` (service), `src/components/weather-forecast.tsx` (UI), `supabase/migrations/017_game_time_weather.sql` (schema), plus updates to RSVP page, Home page, email templates, cron scheduler, event settings, and create event form.
+
+### 8. Golfer Engagement & Gamification Stats
+Build a golfer-facing engagement system that incentivizes consistent RSVP responses and app usage. Ideas include: participation streaks ("You've played 8 of the last 12 weeks"), response rate scores (similar to an Uber-style rating — e.g., "Your response rate: 95%"), and badges or milestones. This data also serves an admin purpose: identifying disengaged golfers who haven't responded in X weeks so admins can reach out or eventually remove them from the distribution list. The engagement score could factor into future waitlist priority decisions.
+
+### 9. Waitlist End-to-End Testing & Refinement
+The waitlist system (capacity overflow, ranked by response time, admin manual promotion) has been built but has not been exercised in production yet. Before it sees real use, conduct a thorough end-to-end review: verify correct ordering, test admin pull-from-waitlist flow, confirm notification emails fire correctly, test edge cases (golfer switches from "In" to "Out" freeing a spot, capacity override changes mid-week, etc.). Address any gaps found.
+
+### 10. Invite-a-Friend / Referral Registration
+Allow golfers to share an event registration link that pre-identifies them as the referring golfer. When the referred person registers through this link, the admin approval screen shows who recommended them (e.g., "Referred by J. Herrera"), giving admins useful context for their approval decision. The referred golfer still goes through the standard registration and approval flow — this just adds a social trust signal. Could be as simple as appending a referral parameter to the existing `/join/[slug]` URL.
+
+### 11. SMS / Text Notifications
+Add opt-in SMS notifications alongside email for key moments in the RSVP cycle — particularly a cutoff-day text to non-responders ("RSVP closes in 2 hours — tap here to respond"). SMS has significantly higher open rates than email and could meaningfully improve response rates. Primary concern is cost. **Before building:** evaluate SMS provider pricing (Twilio, AWS SNS, etc.) for the expected volume (~30 golfers × 1-2 texts/week per event) to confirm it's manageable. If cost-effective, start with a single high-value SMS touchpoint (cutoff reminder) before expanding to other notifications.

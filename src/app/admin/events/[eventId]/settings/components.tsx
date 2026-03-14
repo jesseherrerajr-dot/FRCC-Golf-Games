@@ -183,6 +183,35 @@ export function BasicSettingsForm({ event }: { event: any }) {
             Triggers a low-response alert if not met by cutoff.
           </p>
         </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700">
+            Game Type
+          </label>
+          <select
+            name="game_type"
+            defaultValue={event.game_type || "18_holes"}
+            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
+          >
+            <option value="18_holes">18 Holes (~4.5 hours)</option>
+            <option value="9_holes">9 Holes (~2.5 hours)</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700">
+            First Tee Time
+          </label>
+          <input
+            name="first_tee_time"
+            type="time"
+            defaultValue={event.first_tee_time || "07:30"}
+            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
+          />
+          <p className="mt-1 text-xs text-gray-500">
+            When the first group typically tees off. Used for weather forecasts.
+          </p>
+        </div>
       </div>
 
       {/* Duration Mode */}

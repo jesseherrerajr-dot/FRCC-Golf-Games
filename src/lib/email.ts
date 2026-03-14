@@ -2,6 +2,8 @@ import { Resend } from "resend";
 import type { StoredGrouping, StoredGroupGolfer } from "./grouping-db";
 import { formatPhoneDisplay, formatInitialLastName, formatFullName, formatSponsorName, formatGameDate, getSiteUrl } from "./format";
 import { formatCutoffDayTime } from "./timezone";
+import { generateWeatherEmailHtml } from "./weather";
+import type { GameWeatherForecast } from "@/types/events";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -68,6 +70,7 @@ export function generateInviteEmail({
   adminNote,
   cutoffDay,
   cutoffTime,
+  weather,
 }: {
   golferName: string;
   eventName: string;
@@ -77,6 +80,7 @@ export function generateInviteEmail({
   adminNote?: string | null;
   cutoffDay?: number;
   cutoffTime?: string;
+  weather?: GameWeatherForecast | null;
 }) {
   const formattedDate = formatGameDate(gameDate);
   const rsvpBase = `${siteUrl}/api/rsvp?token=${rsvpToken}`;
@@ -102,6 +106,8 @@ export function generateInviteEmail({
         <a href="${rsvpBase}&action=not_sure" style="display: block; background: white; color: #a16207; text-align: center; padding: 14px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px; border: 2px solid #fcd34d;">Not Sure Yet (ask me again later)</a>
       </div>
 
+      ${weather ? generateWeatherEmailHtml(weather, "invite") : ""}
+
       <p style="color: #9ca3af; font-size: 12px;">Deadline: ${formatCutoffDayTime(cutoffDay, cutoffTime)}. After that, contact an event admin to change your RSVP.</p>
       <p style="color: #9ca3af; font-size: 12px;"><a href="${siteUrl}/home" style="color: #3d7676;">Go to FRCC Golf Games</a></p>
     </div>
@@ -121,6 +127,7 @@ export function generateReminderEmail({
   adminNote,
   cutoffDay,
   cutoffTime,
+  weather,
 }: {
   golferName: string;
   eventName: string;
@@ -131,6 +138,7 @@ export function generateReminderEmail({
   adminNote?: string | null;
   cutoffDay?: number;
   cutoffTime?: string;
+  weather?: GameWeatherForecast | null;
 }) {
   const formattedDate = formatGameDate(gameDate);
   const rsvpBase = `${siteUrl}/api/rsvp?token=${rsvpToken}`;
@@ -156,6 +164,8 @@ export function generateReminderEmail({
         <a href="${rsvpBase}&action=out" style="display: block; background: white; color: #b91c1c; text-align: center; padding: 14px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px; border: 2px solid #fca5a5;">I'm Out</a>
       </div>
 
+      ${weather ? generateWeatherEmailHtml(weather, "reminder") : ""}
+
       <p style="color: #9ca3af; font-size: 12px;"><a href="${siteUrl}/home" style="color: #3d7676;">Go to FRCC Golf Games</a></p>
     </div>
   `;
@@ -170,12 +180,14 @@ export function generateConfirmationEmail({
   confirmedPlayers,
   adminNote,
   siteUrl,
+  weather,
 }: {
   eventName: string;
   gameDate: string;
   confirmedPlayers: { first_name: string; last_name: string; is_guest?: boolean; sponsor_name?: string }[];
   adminNote?: string | null;
   siteUrl?: string;
+  weather?: GameWeatherForecast | null;
 }) {
   const formattedDate = formatGameDate(gameDate);
 
@@ -200,6 +212,8 @@ export function generateConfirmationEmail({
       <ol style="padding-left: 20px; margin: 16px 0;">
         ${playerListHtml}
       </ol>
+
+      ${weather ? generateWeatherEmailHtml(weather, "confirmation") : ""}
 
       <p style="color: #374151; font-size: 14px;">Reply all to this email to share tee times, game format, course conditions, or other details with the group.</p>
 

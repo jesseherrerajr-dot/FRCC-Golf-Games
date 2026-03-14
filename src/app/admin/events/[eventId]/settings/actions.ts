@@ -38,6 +38,13 @@ export async function updateEventBasicSettings(
   const minPlayers = formData.get("min_players") as string;
   updates.min_players = minPlayers ? parseInt(minPlayers) : null;
 
+  // Game time settings
+  const gameType = formData.get("game_type") as string;
+  if (gameType) updates.game_type = gameType;
+
+  const firstTeeTime = formData.get("first_tee_time") as string;
+  if (firstTeeTime) updates.first_tee_time = firstTeeTime;
+
   // Duration
   const durationMode = formData.get("duration_mode") as string;
   if (durationMode) {

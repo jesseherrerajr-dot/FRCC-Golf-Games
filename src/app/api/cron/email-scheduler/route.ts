@@ -25,6 +25,8 @@ import {
   fetchApprovedGuests,
 } from "@/lib/grouping-db";
 import { formatGameDate, formatSponsorName, getSiteUrl } from "@/lib/format";
+import { getGameWeather } from "@/lib/weather";
+import type { GameType } from "@/types/events";
 
 /**
  * Dynamic Email Scheduler Cron
@@ -274,6 +276,19 @@ async function handleInviteEmails(
     return { message: "No subscribers found", sent: 0 };
   }
 
+  // Fetch weather forecast for the game (non-fatal)
+  let weather = null;
+  try {
+    weather = await getGameWeather(
+      event.id as string,
+      gameDateString,
+      (event.first_tee_time as string) || "07:30",
+      ((event.game_type as string) || "18_holes") as GameType
+    );
+  } catch (err) {
+    console.error("Weather fetch failed (non-fatal):", err);
+  }
+
   let sent = 0;
   const errors: { email: string; error: string }[] = [];
 
@@ -295,6 +310,7 @@ async function handleInviteEmails(
         adminNote: schedule.admin_notes,
         cutoffDay: event.cutoff_day as number | undefined,
         cutoffTime: event.cutoff_time as string | undefined,
+        weather,
       });
 
       if (!isTest) {
@@ -432,6 +448,19 @@ async function handleReminderEmails(
     schedule.capacity || (event.default_capacity as number) || 16;
   const spotsRemaining = Math.max(0, capacity - (inCount || 0));
 
+  // Fetch weather forecast for the game (non-fatal)
+  let weather = null;
+  try {
+    weather = await getGameWeather(
+      event.id as string,
+      gameDateString,
+      (event.first_tee_time as string) || "07:30",
+      ((event.game_type as string) || "18_holes") as GameType
+    );
+  } catch (err) {
+    console.error("Weather fetch for reminder failed (non-fatal):", err);
+  }
+
   let sent = 0;
   const errors: { email: string; error: string }[] = [];
 
@@ -454,6 +483,7 @@ async function handleReminderEmails(
         adminNote: schedule.admin_notes,
         cutoffDay: event.cutoff_day as number | undefined,
         cutoffTime: event.cutoff_time as string | undefined,
+        weather,
       });
 
       if (!isTest) {
@@ -676,12 +706,26 @@ async function handleGolferConfirmation(
     .map((p) => p.email)
     .filter(Boolean);
 
+  // Fetch weather forecast for the confirmation email (non-fatal)
+  let weather = null;
+  try {
+    weather = await getGameWeather(
+      event.id as string,
+      gameDateString,
+      (event.first_tee_time as string) || "07:30",
+      ((event.game_type as string) || "18_holes") as GameType
+    );
+  } catch (err) {
+    console.error("Weather fetch for confirmation failed (non-fatal):", err);
+  }
+
   const confirmationHtml = generateConfirmationEmail({
     eventName: event.name as string,
     gameDate: gameDateString,
     confirmedPlayers: allPlayers,
     adminNote: schedule.admin_notes,
     siteUrl,
+    weather,
   });
 
   const formattedDate = formatGameDate(gameDateString);

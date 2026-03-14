@@ -147,6 +147,37 @@ export function CreateEventForm({
             Triggers alert if not met by cutoff.
           </p>
         </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Game Type
+            </label>
+            <select
+              name="game_type"
+              defaultValue="18_holes"
+              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+            >
+              <option value="18_holes">18 Holes (~4.5 hours)</option>
+              <option value="9_holes">9 Holes (~2.5 hours)</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              First Tee Time
+            </label>
+            <input
+              name="first_tee_time"
+              type="time"
+              defaultValue="07:30"
+              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              Used for weather forecasts.
+            </p>
+          </div>
+        </div>
       </section>
 
       {/* Duration */}

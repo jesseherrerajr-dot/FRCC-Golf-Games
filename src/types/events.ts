@@ -4,6 +4,7 @@
 
 export type DurationMode = "fixed_weeks" | "end_date" | "indefinite";
 export type Frequency = "weekly" | "biweekly" | "monthly";
+export type GameType = "9_holes" | "18_holes";
 export type AlertType =
   | "new_registration"
   | "capacity_reached"
@@ -46,6 +47,10 @@ export interface Event {
   cutoff_time: string;
   confirmation_day: number;
   confirmation_time: string;
+
+  // Game time settings (for weather forecast scoping)
+  game_type: GameType;
+  first_tee_time: string; // HH:MM — when first group tees off
 
   // Feature flags (super admin only, all default OFF for MVP)
   allow_guest_requests: boolean;
@@ -209,6 +214,45 @@ export interface Grouping {
   guest_request_id: string | null;
   harmony_score: number | null;
   created_at: string;
+}
+
+// ============================================================
+// Weather Forecast Types
+// ============================================================
+
+export interface HourlyForecast {
+  hour: number;         // 0-23 in Pacific Time
+  time: string;         // "7 AM", "8 AM", etc.
+  temperature: number;  // Fahrenheit
+  apparentTemperature: number; // "Feels like" in Fahrenheit
+  precipitationProbability: number; // 0-100
+  weatherCode: number;  // WMO weather code
+  weatherDescription: string; // "Sunny", "Partly Cloudy", etc.
+  windSpeed: number;    // mph
+  windDirection: string; // "N", "NE", "E", etc.
+  uvIndex: number;
+  isDay: boolean;
+}
+
+export interface GameWeatherForecast {
+  gameDate: string;           // YYYY-MM-DD
+  fetchedAt: string;          // ISO timestamp
+  daysUntilGame: number;
+  sunrise: string;            // "6:12 AM"
+  hourlyForecasts: HourlyForecast[];
+  summary: {
+    highTemp: number;
+    lowTemp: number;
+    maxWindSpeed: number;
+    maxWindGust: number;
+    avgWindSpeed: number;
+    dominantWindDirection: string;
+    maxPrecipProbability: number;
+    maxUvIndex: number;
+    condition: string;           // "Sunny", "Partly Cloudy", "Rain"
+    golfabilityScore: number;    // 1-5 (5 = perfect)
+    golfabilityLabel: string;    // "Great conditions", "Bring rain gear", etc.
+  };
 }
 
 export interface UpdateEventSettingsInput {
