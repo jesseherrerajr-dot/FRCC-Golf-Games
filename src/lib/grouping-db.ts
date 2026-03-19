@@ -11,7 +11,9 @@ import type {
   PartnerPreference,
   GroupingResult,
   TeeTimePreference,
+  TeeTimeHistoryEntry,
 } from "../types/events";
+import { pairKey } from "./grouping-engine";
 import { formatInitialLastName } from "./format";
 
 // ============================================================
@@ -111,6 +113,147 @@ export async function fetchApprovedGuests(
     guestPhone: g.guest_phone || "",
     guestGhinNumber: g.guest_ghin_number || "",
   }));
+}
+
+// ============================================================
+// Fetch Historical Data (for grouping option modifiers)
+// ============================================================
+
+/**
+ * Fetch tee time preference history for all golfers in an event over the last N weeks.
+ * Returns a map of profileId → { earlyCount, lateCount, totalWeeks }.
+ *
+ * Used by the engine to calculate tee time priority scores
+ * (infrequent requesters get priority over habitual ones).
+ */
+export async function fetchTeeTimeHistory(
+  supabase: SupabaseClient,
+  eventId: string,
+  lookbackWeeks: number = 8
+): Promise<Map<string, TeeTimeHistoryEntry>> {
+  const result = new Map<string, TeeTimeHistoryEntry>();
+
+  // Get the last N scheduled game dates for this event (excluding cancelled)
+  const { data: schedules, error: schedError } = await supabase
+    .from("event_schedules")
+    .select("id, game_date")
+    .eq("event_id", eventId)
+    .eq("status", "scheduled")
+    .order("game_date", { ascending: false })
+    .limit(lookbackWeeks);
+
+  if (schedError || !schedules || schedules.length === 0) {
+    if (schedError) console.error("Error fetching schedule history for tee time:", schedError);
+    return result;
+  }
+
+  const scheduleIds = schedules.map((s: { id: string }) => s.id);
+
+  // Fetch all RSVPs for those schedules (only confirmed "in" golfers)
+  const { data: rsvps, error: rsvpError } = await supabase
+    .from("rsvps")
+    .select("profile_id, tee_time_preference, schedule_id")
+    .in("schedule_id", scheduleIds)
+    .eq("status", "in");
+
+  if (rsvpError || !rsvps) {
+    if (rsvpError) console.error("Error fetching RSVP history for tee time:", rsvpError);
+    return result;
+  }
+
+  // Track which schedules each golfer participated in (to count totalWeeks correctly)
+  const golferSchedules = new Map<string, Set<string>>();
+
+  for (const rsvp of rsvps as Array<{ profile_id: string; tee_time_preference: string; schedule_id: string }>) {
+    const pid = rsvp.profile_id;
+    if (!result.has(pid)) {
+      result.set(pid, { earlyCount: 0, lateCount: 0, totalWeeks: 0 });
+      golferSchedules.set(pid, new Set());
+    }
+
+    const entry = result.get(pid)!;
+    const schedSet = golferSchedules.get(pid)!;
+
+    // Only count each schedule once per golfer
+    if (!schedSet.has(rsvp.schedule_id)) {
+      schedSet.add(rsvp.schedule_id);
+      entry.totalWeeks++;
+    }
+
+    const pref = rsvp.tee_time_preference || "no_preference";
+    if (pref === "early") entry.earlyCount++;
+    else if (pref === "late") entry.lateCount++;
+  }
+
+  return result;
+}
+
+/**
+ * Fetch recent pairing history for all golfers in an event over the last N weeks.
+ * Returns a map of pairKey → [weeksAgo values].
+ *
+ * Example: if golfers A and B were in the same group 1 week ago and 3 weeks ago,
+ * the map entry would be: "A:B" → [1, 3]
+ *
+ * Used by the engine to apply variety penalties (more recent = heavier penalty).
+ */
+export async function fetchRecentPairings(
+  supabase: SupabaseClient,
+  eventId: string,
+  lookbackWeeks: number = 8
+): Promise<Map<string, number[]>> {
+  const result = new Map<string, number[]>();
+
+  // Get the last N scheduled game dates (excluding cancelled), ordered newest first
+  const { data: schedules, error: schedError } = await supabase
+    .from("event_schedules")
+    .select("id, game_date")
+    .eq("event_id", eventId)
+    .eq("status", "scheduled")
+    .order("game_date", { ascending: false })
+    .limit(lookbackWeeks);
+
+  if (schedError || !schedules || schedules.length === 0) {
+    if (schedError) console.error("Error fetching schedule history for pairings:", schedError);
+    return result;
+  }
+
+  // For each past schedule, fetch groupings and build pair co-occurrences
+  for (let weekIdx = 0; weekIdx < schedules.length; weekIdx++) {
+    const schedule = schedules[weekIdx] as { id: string; game_date: string };
+    const weeksAgo = weekIdx + 1; // 1-based: most recent = 1
+
+    const { data: groupings, error: groupError } = await supabase
+      .from("groupings")
+      .select("group_number, profile_id")
+      .eq("schedule_id", schedule.id)
+      .not("profile_id", "is", null);
+
+    if (groupError || !groupings) {
+      if (groupError) console.error(`Error fetching groupings for schedule ${schedule.id}:`, groupError);
+      continue;
+    }
+
+    // Group profile_ids by group_number
+    const groupMap = new Map<number, string[]>();
+    for (const row of groupings as Array<{ group_number: number; profile_id: string }>) {
+      if (!groupMap.has(row.group_number)) groupMap.set(row.group_number, []);
+      groupMap.get(row.group_number)!.push(row.profile_id);
+    }
+
+    // For each group, record all pairs with their weeksAgo value
+    for (const [, members] of groupMap) {
+      for (let i = 0; i < members.length; i++) {
+        for (let j = i + 1; j < members.length; j++) {
+          const key = pairKey(members[i], members[j]);
+          if (!result.has(key)) result.set(key, []);
+          result.get(key)!.push(weeksAgo);
+        }
+      }
+    }
+  }
+
+  return result;
 }
 
 // ============================================================

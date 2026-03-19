@@ -2,7 +2,7 @@
 
 import { requireAdmin, requireSuperAdmin, hasEventAccess } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
-import type { AlertType } from "@/types/events";
+import type { AlertType, GroupingPartnerPrefMode, GroupingTeeTimePrefMode } from "@/types/events";
 
 // ============================================================
 // Event Basic Settings
@@ -516,6 +516,51 @@ export async function updateFeatureFlags(
   } catch (error) {
     console.error("Update feature flags error:", error);
     return { error: "Failed to update feature flags" };
+  }
+}
+
+// ============================================================
+// Grouping Preferences
+// ============================================================
+
+const VALID_PARTNER_MODES: GroupingPartnerPrefMode[] = ['off', 'light', 'moderate', 'full'];
+const VALID_TEE_TIME_MODES: GroupingTeeTimePrefMode[] = ['off', 'light', 'moderate', 'full'];
+
+export async function updateGroupingPreferences(
+  eventId: string,
+  settings: {
+    grouping_partner_pref_mode?: GroupingPartnerPrefMode;
+    grouping_tee_time_pref_mode?: GroupingTeeTimePrefMode;
+    grouping_promote_variety?: boolean;
+  }
+) {
+  const { supabase, profile, adminEvents } = await requireAdmin();
+
+  if (!hasEventAccess(profile, adminEvents, eventId)) {
+    return { error: "Access denied" };
+  }
+
+  // Validate enum values
+  if (settings.grouping_partner_pref_mode && !VALID_PARTNER_MODES.includes(settings.grouping_partner_pref_mode)) {
+    return { error: "Invalid partner preference mode" };
+  }
+  if (settings.grouping_tee_time_pref_mode && !VALID_TEE_TIME_MODES.includes(settings.grouping_tee_time_pref_mode)) {
+    return { error: "Invalid tee time preference mode" };
+  }
+
+  try {
+    const { error } = await supabase
+      .from("events")
+      .update(settings)
+      .eq("id", eventId);
+
+    if (error) throw error;
+
+    revalidatePath(`/admin/events/${eventId}/settings`);
+    return { success: true };
+  } catch (error) {
+    console.error("Update grouping preferences error:", error);
+    return { error: "Failed to update grouping preferences" };
   }
 }
 

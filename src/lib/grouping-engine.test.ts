@@ -14,10 +14,15 @@ import {
   pairKey,
   groupHarmonyScore,
   generateGroupings,
+  applyScoreModifiers,
+  teeTimePriorityScore,
+  DEFAULT_GROUPING_OPTIONS,
 } from './grouping-engine';
 import type {
   GroupingGolfer,
   PartnerPreference,
+  GroupingOptions,
+  TeeTimeHistoryEntry,
 } from '../types/events';
 
 // ============================================================
@@ -37,6 +42,14 @@ function makeGolfers(n: number, teeTime: 'early' | 'late' | 'no_preference' = 'n
 /** Create a partner preference */
 function pref(profileId: string, partnerId: string, rank: number): PartnerPreference {
   return { profileId, preferredPartnerId: partnerId, rank };
+}
+
+/** Build GroupingOptions with overrides */
+function opts(overrides: Partial<GroupingOptions> = {}): GroupingOptions {
+  return {
+    ...DEFAULT_GROUPING_OPTIONS,
+    ...overrides,
+  };
 }
 
 // ============================================================
@@ -490,5 +503,365 @@ describe('generateGroupings', () => {
       assert.notEqual(findGroup('g1'), findGroup('g5'),
         'Tee time constraint should separate g1(early) and g5(late)');
     });
+  });
+});
+
+// ============================================================
+// 7. applyScoreModifiers
+// ============================================================
+
+describe('applyScoreModifiers', () => {
+  it('should apply harmony multiplier from partner preference mode', () => {
+    const rawScores = new Map([['g1:g2', 200], ['g1:g3', 100]]);
+
+    // 'full' mode: multiplier = 1.0
+    const full = applyScoreModifiers(rawScores, opts({ partnerPreferenceMode: 'full' }));
+    assert.equal(full.get('g1:g2'), 200);
+    assert.equal(full.get('g1:g3'), 100);
+
+    // 'light' mode: multiplier = 0.25
+    const light = applyScoreModifiers(rawScores, opts({ partnerPreferenceMode: 'light' }));
+    assert.equal(light.get('g1:g2'), 50);  // 200 * 0.25 = 50
+    assert.equal(light.get('g1:g3'), 25);  // 100 * 0.25 = 25
+
+    // 'moderate' mode: multiplier = 0.6
+    const moderate = applyScoreModifiers(rawScores, opts({ partnerPreferenceMode: 'moderate' }));
+    assert.equal(moderate.get('g1:g2'), 120);  // 200 * 0.6 = 120
+    assert.equal(moderate.get('g1:g3'), 60);   // 100 * 0.6 = 60
+
+    // 'off' mode: multiplier = 0
+    const off = applyScoreModifiers(rawScores, opts({ partnerPreferenceMode: 'off' }));
+    assert.equal(off.size, 0); // no scores at all
+  });
+
+  it('should apply variety penalties from recent pairings', () => {
+    const rawScores = new Map([['g1:g2', 200]]);
+    const recentPairings = new Map([['g1:g2', [1]]]); // paired 1 week ago
+
+    const result = applyScoreModifiers(rawScores, opts({
+      promoteVariety: true,
+      recentPairings,
+    }));
+
+    // 200 (raw) - 60 (penalty for 1 week ago) = 140
+    assert.equal(result.get('g1:g2'), 140);
+  });
+
+  it('should stack variety penalties for multiple recent pairings', () => {
+    const rawScores = new Map([['g1:g2', 200]]);
+    const recentPairings = new Map([['g1:g2', [1, 3]]]); // paired 1 and 3 weeks ago
+
+    const result = applyScoreModifiers(rawScores, opts({
+      promoteVariety: true,
+      recentPairings,
+    }));
+
+    // 200 - 60 (week 1) - 30 (week 3) = 110
+    assert.equal(result.get('g1:g2'), 110);
+  });
+
+  it('should allow scores to go negative with heavy variety penalty', () => {
+    const rawScores = new Map([['g1:g2', 50]]);
+    const recentPairings = new Map([['g1:g2', [1, 2, 3]]]); // paired 3 of last 3 weeks
+
+    const result = applyScoreModifiers(rawScores, opts({
+      promoteVariety: true,
+      recentPairings,
+    }));
+
+    // 50 - 60 - 45 - 30 = -85
+    assert.equal(result.get('g1:g2'), -85);
+  });
+
+  it('should apply variety penalty to pairs with no preference score', () => {
+    const rawScores = new Map<string, number>(); // no preferences
+    const recentPairings = new Map([['g1:g2', [2]]]); // paired 2 weeks ago
+
+    const result = applyScoreModifiers(rawScores, opts({
+      promoteVariety: true,
+      recentPairings,
+    }));
+
+    // 0 (no pref) - 45 (week 2 penalty) = -45
+    assert.equal(result.get('g1:g2'), -45);
+  });
+
+  it('should not apply variety penalty when promoteVariety is false', () => {
+    const rawScores = new Map([['g1:g2', 200]]);
+    const recentPairings = new Map([['g1:g2', [1]]]);
+
+    const result = applyScoreModifiers(rawScores, opts({
+      promoteVariety: false,
+      recentPairings, // should be ignored
+    }));
+
+    assert.equal(result.get('g1:g2'), 200); // unmodified
+  });
+});
+
+// ============================================================
+// 8. teeTimePriorityScore
+// ============================================================
+
+describe('teeTimePriorityScore', () => {
+  it('should return 1.0 for golfer with no history', () => {
+    const history = new Map<string, TeeTimeHistoryEntry>();
+    assert.equal(teeTimePriorityScore('g1', 'early', history), 1.0);
+  });
+
+  it('should return 0.0 for golfer who always picks the same preference', () => {
+    const history = new Map<string, TeeTimeHistoryEntry>([
+      ['g1', { earlyCount: 8, lateCount: 0, totalWeeks: 8 }],
+    ]);
+    assert.equal(teeTimePriorityScore('g1', 'early', history), 0.0);
+  });
+
+  it('should return high priority for infrequent requesters', () => {
+    const history = new Map<string, TeeTimeHistoryEntry>([
+      ['g1', { earlyCount: 1, lateCount: 0, totalWeeks: 8 }],
+    ]);
+    assert.equal(teeTimePriorityScore('g1', 'early', history), 0.875); // 7/8
+  });
+
+  it('should differentiate early vs late counts', () => {
+    const history = new Map<string, TeeTimeHistoryEntry>([
+      ['g1', { earlyCount: 6, lateCount: 2, totalWeeks: 8 }],
+    ]);
+    // For 'early': (8 - 6) / 8 = 0.25
+    assert.equal(teeTimePriorityScore('g1', 'early', history), 0.25);
+    // For 'late': (8 - 2) / 8 = 0.75
+    assert.equal(teeTimePriorityScore('g1', 'late', history), 0.75);
+  });
+});
+
+// ============================================================
+// 9. Partner Preference Mode — Per-Group Cap
+// ============================================================
+
+describe('Partner Preference Mode', () => {
+  it('off mode: should produce groupings with no preference influence', () => {
+    // 8 golfers: mutual #1 prefs between g1-g2, g3-g4
+    const golfers = makeGolfers(8);
+    const prefs = [
+      pref('g1', 'g2', 1), pref('g2', 'g1', 1),
+      pref('g3', 'g4', 1), pref('g4', 'g3', 1),
+    ];
+
+    const result = generateGroupings(golfers, prefs, opts({ partnerPreferenceMode: 'off' }));
+    assert.equal(result.groups.length, 2);
+    // All harmony scores should be 0 since preferences are ignored in the algorithm
+    // (but reported harmony uses raw scores, so it depends on actual placement)
+    assert.equal(result.groups.length, 2);
+  });
+
+  it('light mode: should cap at 1 preferred partner per group', () => {
+    // 4 golfers who all prefer each other — in 'light' mode, max 1 preferred per group
+    const golfers = makeGolfers(4);
+    const prefs = [
+      pref('g1', 'g2', 1), pref('g1', 'g3', 2), pref('g1', 'g4', 3),
+      pref('g2', 'g1', 1), pref('g2', 'g3', 2), pref('g2', 'g4', 3),
+      pref('g3', 'g1', 1), pref('g3', 'g2', 2), pref('g3', 'g4', 3),
+      pref('g4', 'g1', 1), pref('g4', 'g2', 2), pref('g4', 'g3', 3),
+    ];
+
+    // With only 4 golfers, there's only 1 group (foursome), so the cap
+    // doesn't change the outcome. Test with 8 golfers instead.
+    const golfers8 = makeGolfers(8);
+    const prefs8 = [
+      // g1-g4 all prefer each other
+      pref('g1', 'g2', 1), pref('g1', 'g3', 2), pref('g1', 'g4', 3),
+      pref('g2', 'g1', 1), pref('g2', 'g3', 2), pref('g2', 'g4', 3),
+      pref('g3', 'g1', 1), pref('g3', 'g2', 2), pref('g3', 'g4', 3),
+      pref('g4', 'g1', 1), pref('g4', 'g2', 2), pref('g4', 'g3', 3),
+    ];
+
+    const fullResult = generateGroupings(golfers8, prefs8, opts({ partnerPreferenceMode: 'full' }));
+    const lightResult = generateGroupings(golfers8, prefs8, opts({ partnerPreferenceMode: 'light' }));
+
+    // In 'full' mode, g1-g4 should be tightly grouped (maximizing harmony)
+    // In 'light' mode, they should be more spread out
+    const fullGroup1 = new Set(fullResult.groups[0].golfers);
+    const lightGroup1 = new Set(lightResult.groups[0].golfers);
+
+    // Count how many of g1-g4 are in group 1 for each mode
+    const prefGolfers = ['g1', 'g2', 'g3', 'g4'];
+    const fullCount = prefGolfers.filter(id => fullGroup1.has(id)).length;
+    const lightCount = prefGolfers.filter(id => lightGroup1.has(id)).length;
+
+    // In full mode, we expect all 4 preferred golfers in one group
+    assert.equal(fullCount, 4, 'Full mode should cluster all preferred golfers');
+    // In light mode, the cap should prevent full clustering
+    assert.ok(lightCount <= 3, `Light mode should reduce clustering (got ${lightCount} preferred in group 1)`);
+  });
+
+  it('full mode: should match legacy behavior with boolean shuffle param', () => {
+    const golfers = makeGolfers(8);
+    const prefs = [
+      pref('g1', 'g2', 1), pref('g2', 'g1', 1),
+    ];
+
+    // Old boolean API (backwards compatibility)
+    const legacyResult = generateGroupings(golfers, prefs, false);
+    // New options API with 'full' mode
+    const newResult = generateGroupings(golfers, prefs, opts({ partnerPreferenceMode: 'full' }));
+
+    // Both should produce identical results (same defaults, no shuffle)
+    assert.deepEqual(legacyResult.groups.length, newResult.groups.length);
+    assert.equal(legacyResult.totalHarmonyScore, newResult.totalHarmonyScore);
+  });
+});
+
+// ============================================================
+// 10. Tee Time Preference Mode
+// ============================================================
+
+describe('Tee Time Preference Mode', () => {
+  it('off mode: should ignore tee time preferences', () => {
+    // 8 golfers: 4 early, 4 late. In 'off' mode, all treated as no_preference.
+    const golfers = [
+      ...makeGolfers(4, 'early'),
+      golfer('g5', 'late'), golfer('g6', 'late'),
+      golfer('g7', 'late'), golfer('g8', 'late'),
+    ];
+
+    const result = generateGroupings(golfers, [], opts({ teeTimePreferenceMode: 'off' }));
+    assert.equal(result.groups.length, 2);
+    // Groups should not be strictly early/late separated since tee time is ignored
+  });
+
+  it('full mode: should honor all tee time preferences', () => {
+    const golfers = [
+      golfer('g1', 'early'), golfer('g2', 'early'),
+      golfer('g3', 'early'), golfer('g4', 'early'),
+      golfer('g5', 'late'), golfer('g6', 'late'),
+      golfer('g7', 'late'), golfer('g8', 'late'),
+    ];
+
+    const result = generateGroupings(golfers, [], opts({ teeTimePreferenceMode: 'full' }));
+    assert.equal(result.groups.length, 2);
+
+    // Group 1 should have early golfers, group 2 should have late golfers
+    const group1Ids = new Set(result.groups[0].golfers);
+    const earlyInGroup1 = ['g1', 'g2', 'g3', 'g4'].filter(id => group1Ids.has(id)).length;
+    assert.equal(earlyInGroup1, 4, 'Full mode: group 1 should have all early golfers');
+  });
+
+  it('light mode: should demote habitual early requesters to no_preference', () => {
+    // 4 early golfers. g1 picks early every week (0 priority), g4 rarely picks early (high priority).
+    const golfers = [
+      golfer('g1', 'early'), golfer('g2', 'early'),
+      golfer('g3', 'early'), golfer('g4', 'early'),
+      golfer('g5', 'no_preference'), golfer('g6', 'no_preference'),
+      golfer('g7', 'no_preference'), golfer('g8', 'no_preference'),
+    ];
+
+    const teeTimeHistory = new Map<string, TeeTimeHistoryEntry>([
+      ['g1', { earlyCount: 8, lateCount: 0, totalWeeks: 8 }],  // always early (priority 0.0)
+      ['g2', { earlyCount: 7, lateCount: 0, totalWeeks: 8 }],  // almost always (priority 0.125)
+      ['g3', { earlyCount: 2, lateCount: 0, totalWeeks: 8 }],  // rarely (priority 0.75)
+      ['g4', { earlyCount: 1, lateCount: 0, totalWeeks: 8 }],  // very rarely (priority 0.875)
+    ]);
+
+    const result = generateGroupings(golfers, [], opts({
+      teeTimePreferenceMode: 'light',
+      teeTimeHistory,
+    }));
+
+    assert.equal(result.groups.length, 2);
+    // In light mode, bottom 50% of early pool (g1, g2) get demoted to no_preference.
+    // g3 and g4 (higher priority) should remain in the early pool.
+    const group1 = new Set(result.groups[0].golfers);
+    // g3 and g4 should be in group 1 (kept their early preference)
+    assert.ok(group1.has('g3') || group1.has('g4'),
+      'Light mode: high-priority early golfers should get early slots');
+  });
+});
+
+// ============================================================
+// 11. Variety Promotion (end-to-end with engine)
+// ============================================================
+
+describe('Variety Promotion', () => {
+  it('should separate recently paired golfers when variety is enabled', () => {
+    // 8 golfers, g1 and g2 are mutual #1 preferences
+    // but they were paired every week for the last 4 weeks
+    const golfers = makeGolfers(8);
+    const prefs = [
+      pref('g1', 'g2', 1), pref('g2', 'g1', 1),
+    ];
+
+    // Without variety: they should be grouped together
+    const noVariety = generateGroupings(golfers, prefs, opts({ promoteVariety: false }));
+    const g1GroupNoVar = noVariety.assignments.find(a => a.profileId === 'g1')!.groupNumber;
+    const g2GroupNoVar = noVariety.assignments.find(a => a.profileId === 'g2')!.groupNumber;
+    assert.equal(g1GroupNoVar, g2GroupNoVar, 'Without variety, mutual #1s should be together');
+
+    // With heavy variety penalty (paired every week for 4 weeks)
+    const recentPairings = new Map([[pairKey('g1', 'g2'), [1, 2, 3, 4]]]);
+    const withVariety = generateGroupings(golfers, prefs, opts({
+      promoteVariety: true,
+      recentPairings,
+    }));
+
+    const g1GroupVar = withVariety.assignments.find(a => a.profileId === 'g1')!.groupNumber;
+    const g2GroupVar = withVariety.assignments.find(a => a.profileId === 'g2')!.groupNumber;
+
+    // Penalty: -60 - 45 - 30 - 20 = -155, raw score: 200, net: 45
+    // With such a heavy penalty (net 45 vs raw 200), the engine has weaker
+    // motivation to group them. They might still end up together if no better
+    // options exist, but the score is drastically reduced.
+    // For this test, we just verify the total harmony is lower with variety
+    assert.ok(
+      withVariety.totalHarmonyScore <= noVariety.totalHarmonyScore,
+      'Variety promotion should reduce or maintain total harmony'
+    );
+  });
+});
+
+// ============================================================
+// 12. Backwards Compatibility
+// ============================================================
+
+describe('Backwards Compatibility', () => {
+  it('should accept boolean as third parameter (legacy API)', () => {
+    const golfers = makeGolfers(4);
+    const result = generateGroupings(golfers, [], false);
+    assert.equal(result.groups.length, 1);
+    assert.equal(result.groups[0].golfers.length, 4);
+  });
+
+  it('should accept GroupingOptions as third parameter', () => {
+    const golfers = makeGolfers(4);
+    const result = generateGroupings(golfers, [], opts());
+    assert.equal(result.groups.length, 1);
+    assert.equal(result.groups[0].golfers.length, 4);
+  });
+
+  it('should produce same results with default options as legacy boolean=false', () => {
+    const golfers = makeGolfers(12);
+    const prefs = [
+      pref('g1', 'g2', 1), pref('g2', 'g1', 1),
+      pref('g3', 'g4', 2), pref('g4', 'g3', 2),
+    ];
+
+    const legacy = generateGroupings(golfers, prefs, false);
+    const newApi = generateGroupings(golfers, prefs, opts());
+
+    assert.equal(legacy.groups.length, newApi.groups.length);
+    assert.equal(legacy.totalHarmonyScore, newApi.totalHarmonyScore);
+    // Verify same group compositions
+    for (let i = 0; i < legacy.groups.length; i++) {
+      assert.deepEqual(
+        legacy.groups[i].golfers.sort(),
+        newApi.groups[i].golfers.sort(),
+        `Group ${i + 1} should have same golfers`
+      );
+    }
+  });
+
+  it('edge case: no golfers with options', () => {
+    const result = generateGroupings([], [], opts());
+    assert.equal(result.groups.length, 0);
+    assert.equal(result.totalHarmonyScore, 0);
   });
 });

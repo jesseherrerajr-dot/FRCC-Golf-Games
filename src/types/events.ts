@@ -58,6 +58,11 @@ export interface Event {
   allow_playing_partner_preferences: boolean;
   allow_auto_grouping: boolean;
 
+  // Grouping algorithm preference controls
+  grouping_partner_pref_mode: GroupingPartnerPrefMode;
+  grouping_tee_time_pref_mode: GroupingTeeTimePrefMode;
+  grouping_promote_variety: boolean;
+
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -168,6 +173,66 @@ export interface CreateEventInput {
 
 export type TeeTimePreference = 'early' | 'late' | 'no_preference';
 
+// ============================================================
+// Grouping Engine Preference Modes
+// ============================================================
+
+/** How much partner preferences influence groupings */
+export type GroupingPartnerPrefMode = 'off' | 'light' | 'moderate' | 'full';
+
+/** How much tee time preferences influence group placement */
+export type GroupingTeeTimePrefMode = 'off' | 'light' | 'moderate' | 'full';
+
+/** Configuration for partner preference mode behavior */
+export interface PartnerPrefModeConfig {
+  harmonyMultiplier: number;  // 0 to 1.0 — scales all pair scores
+  perGroupCap: number;        // max preferred partners per group (Infinity for unlimited)
+}
+
+/** Map of partner preference modes to their config */
+export const PARTNER_PREF_MODE_CONFIG: Record<GroupingPartnerPrefMode, PartnerPrefModeConfig> = {
+  off:      { harmonyMultiplier: 0,    perGroupCap: 0 },
+  light:    { harmonyMultiplier: 0.25, perGroupCap: 1 },
+  moderate: { harmonyMultiplier: 0.6,  perGroupCap: 2 },
+  full:     { harmonyMultiplier: 1.0,  perGroupCap: Infinity },
+};
+
+/** Admin-facing labels for partner preference modes */
+export const PARTNER_PREF_MODE_LABELS: Record<GroupingPartnerPrefMode, { label: string; description: string }> = {
+  off:      { label: 'Fully Random',        description: 'Partner preferences are ignored. Groups are randomized.' },
+  light:    { label: 'Lightly Weighted',     description: 'Each golfer gets at most 1 preferred partner per group.' },
+  moderate: { label: 'Moderately Weighted',  description: 'Each golfer gets at most 2 preferred partners per group.' },
+  full:     { label: 'Fully Weighted',       description: 'The engine maximizes partner preference satisfaction.' },
+};
+
+/** Admin-facing labels for tee time preference modes */
+export const TEE_TIME_PREF_MODE_LABELS: Record<GroupingTeeTimePrefMode, { label: string; description: string }> = {
+  off:      { label: 'Ignore Tee Times',  description: 'Tee time preferences are ignored entirely.' },
+  light:    { label: 'Priority-Based',     description: 'Infrequent requesters get priority. Habitual requesters are deprioritized.' },
+  moderate: { label: 'Balanced',           description: 'Preferences are honored but infrequent requesters get higher priority.' },
+  full:     { label: 'Honor All',          description: 'All tee time preferences are honored equally (current behavior).' },
+};
+
+/** Tee time history for a single golfer over the lookback window */
+export interface TeeTimeHistoryEntry {
+  earlyCount: number;
+  lateCount: number;
+  totalWeeks: number;
+}
+
+/** Options passed to the grouping engine (all historical data pre-fetched) */
+export interface GroupingOptions {
+  partnerPreferenceMode: GroupingPartnerPrefMode;
+  teeTimePreferenceMode: GroupingTeeTimePrefMode;
+  promoteVariety: boolean;
+  /** Per-golfer tee time request history (profileId → counts). Empty map if no history. */
+  teeTimeHistory: Map<string, TeeTimeHistoryEntry>;
+  /** Recent pairings for variety promotion (pairKey → array of weeks-ago values). Empty map if disabled. */
+  recentPairings: Map<string, number[]>;
+  /** Whether to shuffle golfer order for randomization */
+  shuffle: boolean;
+}
+
 /** Input to the grouping engine — one per confirmed golfer */
 export interface GroupingGolfer {
   profileId: string;
@@ -277,4 +342,8 @@ export interface UpdateEventSettingsInput {
   cutoff_time?: string;
   confirmation_day?: number;
   confirmation_time?: string;
+  // Grouping algorithm preference controls
+  grouping_partner_pref_mode?: GroupingPartnerPrefMode;
+  grouping_tee_time_pref_mode?: GroupingTeeTimePrefMode;
+  grouping_promote_variety?: boolean;
 }

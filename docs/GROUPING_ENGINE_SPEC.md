@@ -80,13 +80,24 @@ Special case: N == 5 → single fivesome (don't split to 3+2)
 Special case: N == 6 → two threesomes (don't make a sixsome)
 ```
 
-### Level 3 — Tee Time Preferences (Soft Constraint)
+### Level 3 — Tee Time Preferences (Soft Constraint, Configurable)
 - Source: `rsvps.tee_time_preference` column (per-week, set during RSVP).
 - Values: `'early'`, `'late'`, `'no_preference'` (default).
 - The engine **tries** to place `early` golfers in lower-numbered groups and `late` golfers in higher-numbered groups.
 - This is a **soft constraint** — not guaranteed. When more golfers want "early" than fit in the first group(s), **partner preference scoring** determines who gets priority placement (not RSVP response time).
 - `no_preference` golfers fill remaining slots.
 - Standing tee time preference table (`tee_time_preferences`) exists but is **ignored** by the engine. Only the per-week RSVP field is used.
+
+**Configurable Tee Time Mode** (`events.grouping_tee_time_pref_mode`):
+
+| Mode | Label | Behavior |
+|------|-------|----------|
+| `off` | Ignore Tee Times | All golfers treated as `no_preference`. |
+| `light` | Priority-Based | Uses 8-week history. Calculates priority score = `(weeks_without_this_pref / total_weeks)`. Bottom 50% of each pool demoted to `no_preference`. First-timers get full priority (score 1.0). |
+| `moderate` | Balanced | Same priority scoring, but no demotion — pools are sorted by priority so infrequent requesters fill their preferred slots first when overflow occurs. |
+| `full` | Honor All | All tee time preferences honored equally (original behavior). Default. |
+
+**Tee Time Abuse Prevention:** In `light` and `moderate` modes, the engine tracks how often each golfer has requested early/late over the last 8 weeks. Golfers who consistently pick the same preference get lower priority than infrequent requesters. This prevents groups of friends from always selecting the same tee time to guarantee being grouped together.
 
 ### Partner Selection Rules (UI/Data Constraint)
 - When selecting preferred playing partners, a golfer can **only choose from active golfers who are subscribed to the same event**.
@@ -96,7 +107,7 @@ Special case: N == 6 → two threesomes (don't make a sixsome)
 - **Engine behavior for stale preferences:** The engine silently skips any preference pointing to a golfer who is not confirmed "in" for that week. No notifications to admins or golfers. It is the golfer's responsibility to maintain their preference list.
 - The preferences UI dropdown query must filter: `profiles.status = 'active'` AND `event_subscriptions` exists for that event AND `profile_id != current_user`.
 
-### Level 4 — Weighted Partner Preferences (Soft Constraint)
+### Level 4 — Weighted Partner Preferences (Soft Constraint, Configurable)
 - Source: `playing_partner_preferences` table with `rank` column (1 = most preferred, up to 10).
 - **Rank Reciprocal Scoring:**
 
@@ -119,6 +130,36 @@ Formula: `points = round(100 / rank)`
 - **Group Harmony Score:** Sum of all pairwise scores within a group. The engine maximizes total harmony across all groups.
 - The engine should not violate Level 2 (group sizes) or work against Level 3 (tee time) to chase higher harmony scores. Partner preferences are used to optimize within the constraints set by levels above.
 
+**Configurable Partner Preference Mode** (`events.grouping_partner_pref_mode`):
+
+| Mode | Label | Harmony Multiplier | Per-Group Cap | Behavior |
+|------|-------|--------------------|---------------|----------|
+| `off` | Fully Random | 0 | 0 | Preferences ignored. Pure shuffle. |
+| `light` | Lightly Weighted | 0.25 | 1 | Max 1 preferred partner per group. Weak preference pull. |
+| `moderate` | Moderately Weighted | 0.6 | 2 | Max 2 preferred partners per group. Moderate preference pull. |
+| `full` | Fully Weighted | 1.0 | unlimited | Maximize harmony. Original behavior. Default. |
+
+The **harmony multiplier** scales all raw pair scores before the greedy algorithm runs. The **per-group cap** enforces a hard limit: once a golfer has `cap` preferred partners already in a group, their preference-based score is zeroed out for that group (they can still be placed if no better slot exists, but the preference pull is eliminated).
+
+### Level 5 — Group Variety / Repeat Pairing Penalty (Soft Constraint, Optional)
+
+- **Toggle:** `events.grouping_promote_variety` (boolean, default false).
+- **Lookback window:** 8 weeks of historical grouping data from the `groupings` table.
+- When enabled, the engine applies a **recency-weighted penalty** to pair scores for golfers who were recently grouped together:
+
+| Weeks Ago | Penalty |
+|-----------|---------|
+| 1 | -60 points |
+| 2 | -45 points |
+| 3 | -30 points |
+| 4 | -20 points |
+| 5–8 | -10 points each |
+
+- Penalties stack: a pair grouped together in weeks 1, 3, and 4 gets -60 + -30 + -20 = -110.
+- Scores can go negative, meaning the engine actively avoids pairing those golfers.
+- **Example:** Mutual #1 pair (200 raw) grouped last week: 200 - 60 = 140 net. Still positive, still preferred, but weaker. Same pair grouped 3 of last 4 weeks: 200 - 60 - 30 - 20 = 90 net. Drastically reduced, allowing other golfers to compete for those slots.
+- **Interaction with partner preference mode:** Variety penalties are applied after the harmony multiplier. In `light` mode with variety, a pair's score would be: `(raw_score * 0.25) + penalties`.
+
 ---
 
 ## 4. Algorithm Approach
@@ -126,21 +167,22 @@ Formula: `points = round(100 / rank)`
 **Greedy heuristic** — not simulated annealing, not brute force.
 
 ### High-Level Steps:
-1. **Input:** List of confirmed ("in") golfers with their tee time preferences and partner preference rankings for the event.
+1. **Input:** List of confirmed ("in") golfers with tee time preferences, partner preference rankings, event grouping settings, and pre-fetched historical data (tee time history, recent pairings).
 2. **Calculate group sizes** using the formula in Level 2.
-3. **Partition golfers into tee time pools:** `early`, `late`, `no_preference`.
-4. **Assign pools to groups:**
+3. **Build pair scores** from partner preferences, then **apply score modifiers:**
+   - Multiply all raw pair scores by the harmony multiplier (from partner preference mode).
+   - Apply variety penalties from recent pairings (if promote variety is enabled).
+4. **Partition golfers into tee time pools** (`early`, `late`, `no_preference`) applying the tee time preference mode:
+   - `off`: All golfers go to `no_preference`.
+   - `light`: Sort by priority score (infrequent requesters first), demote bottom 50% to `no_preference`.
+   - `moderate`: Sort by priority score (infrequent requesters first), no demotion.
+   - `full`: No modification (original behavior).
+5. **Assign pools to groups:**
    - `early` golfers fill groups from the front (lowest group numbers).
    - `late` golfers fill groups from the back (highest group numbers).
    - `no_preference` golfers fill remaining slots.
-   - If a pool overflows its natural groups, excess golfers spill into adjacent groups. Partner scoring determines who stays vs. who spills.
-5. **Within each group, optimize for partner preferences:**
-   - Use a greedy "best available partner" approach.
-   - For each unfilled slot in a group, pick the golfer from the eligible pool who adds the most harmony score to that group.
-6. **Output:** Ordered list of groups, each with an ordered list of golfers, group number, and tee position.
-
-### Future Enhancement (deferred):
-- **Round Robin tiebreaker:** When harmony scores are equal, prioritize pairing golfers who haven't played together recently. Requires historical grouping data (which will accumulate once the `groupings` table is populated weekly). Not included in initial build.
+   - Within each assignment, use greedy partner scoring with **per-group cap enforcement**.
+6. **Output:** Ordered list of groups, each with an ordered list of golfers, group number, and tee position. Reported harmony scores use raw (unmodified) pair scores for admin visibility.
 
 ### Guest Handling (Implemented):
 - After the engine assigns golfers to groups, approved guests are placed into their host's group.
@@ -239,9 +281,10 @@ USING (profile_id = auth.uid());
 
 ### New Files:
 - `supabase/migrations/010_grouping_engine.sql` — Schema changes (groupings table, rank column, feature flag)
-- `src/lib/grouping-engine.ts` — Core algorithm (pure function, no DB calls, shuffle support)
-- `src/lib/grouping-engine.test.ts` — Unit tests for the algorithm (36 tests)
-- `src/lib/grouping-db.ts` — DB queries: fetch confirmed golfers, partner preferences, approved guests; store groupings; fetch stored groupings with preference annotations
+- `supabase/migrations/018_grouping_preferences.sql` — Grouping preference columns (partner mode, tee time mode, promote variety)
+- `src/lib/grouping-engine.ts` — Core algorithm (pure function, no DB calls, shuffle support, configurable preference modes)
+- `src/lib/grouping-engine.test.ts` — Unit tests for the algorithm (50+ tests including preference modes, variety, tee time priority)
+- `src/lib/grouping-db.ts` — DB queries: fetch confirmed golfers, partner preferences, approved guests, tee time history, recent pairings; store groupings; fetch stored groupings with preference annotations
 
 ### Modified Files:
 - `src/lib/email.ts` — Pro shop email with grouped roster, 6-column table (Name, Email, Phone, GHIN, Tee Time, Player Pref), guest labels, preference annotations
@@ -261,8 +304,8 @@ USING (profile_id = auth.uid());
 
 These items are acknowledged and designed for but NOT included in this build:
 
-1. **Round Robin tiebreaker** — Needs historical grouping data. Will be viable after engine runs for 4+ weeks.
-2. **Random / Handicap-based grouping methods** — Future algorithm modes. Current engine uses partner-preference-based grouping with shuffle randomization.
+1. ~~**Round Robin tiebreaker**~~ — **Done.** Superseded by the Group Variety feature (Level 5). The `grouping_promote_variety` setting uses 8-week lookback with recency-weighted penalties.
+2. **Handicap-based grouping methods** — Future algorithm mode. Current engine uses partner-preference-based grouping with configurable weighting.
 3. **Admin drag-and-drop editing** — Groupings are read-only suggestions for now.
 4. ~~**Guest integration**~~ — **Done.** Guests are placed in their host's group, labeled in the pro shop email.
 5. **Standing tee time preference cleanup** — Table and UI left in place, just ignored by engine.

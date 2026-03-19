@@ -658,10 +658,11 @@ The following is fully implemented and running in production:
 
 ## Roadmap
 
-### 1. Grouping Engine Enhancements
+### 1. Grouping Engine Enhancements (Partially Built)
 Enhance the foursome grouping algorithm to produce better, fairer results:
-- **Prevent repeat foursomes** — Use recent grouping history to penalize players who were grouped together in recent weeks. Promotes variety so golfers aren't always playing with the same people.
-- **Tee time preference limits** — Prevent golfers from gaming tee time preferences to guarantee grouping with preferred partners (e.g., friends all picking "early" every week). Design TBD — options include rotating/ignoring preferences, capping consecutive same-preference weeks, or making tee time a softer signal the engine can override.
+- **Prevent repeat foursomes** — ✅ BUILT. `grouping_promote_variety` toggle uses 8-week lookback with recency-weighted penalties (-60 to -10 points) to discourage repeat pairings. Configurable per event via Event Settings > Grouping Preferences.
+- **Tee time preference limits** — ✅ BUILT. `grouping_tee_time_pref_mode` setting (off/light/moderate/full) with historical priority scoring. In `light` mode, habitual requesters are demoted; in `moderate` mode, infrequent requesters get priority. Tracks 8 weeks of tee time history.
+- **Partner preference weighting** — ✅ BUILT. `grouping_partner_pref_mode` setting (off/light/moderate/full) with harmony multiplier (0 to 1.0) and per-group cap (0 to unlimited). Prevents friend groups from always being clustered.
 - **Admin partner avoidance** — Allow super admins and event admins to set "prefer not to be grouped with" preferences, providing some control over groupings beyond what golfers can see. Design TBD — scope, visibility, and UI to be determined when building.
 
 ### 2. Admin Reports

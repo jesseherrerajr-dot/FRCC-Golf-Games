@@ -16,13 +16,16 @@ import {
 } from "@/lib/timezone";
 import { sendAdminAlert } from "@/lib/admin-alerts";
 import { sendPushToUsers } from "@/lib/push";
-import { generateGroupings } from "@/lib/grouping-engine";
+import { generateGroupings, DEFAULT_GROUPING_OPTIONS } from "@/lib/grouping-engine";
+import type { GroupingOptions, GroupingPartnerPrefMode, GroupingTeeTimePrefMode } from "@/types/events";
 import {
   fetchConfirmedGolfers,
   fetchPartnerPreferences,
   storeGroupings,
   fetchStoredGroupings,
   fetchApprovedGuests,
+  fetchTeeTimeHistory,
+  fetchRecentPairings,
 } from "@/lib/grouping-db";
 import { formatGameDate, formatSponsorName, getSiteUrl } from "@/lib/format";
 import { getGameWeather } from "@/lib/weather";
@@ -596,9 +599,36 @@ async function handleGolferConfirmation(
   if (event.allow_auto_grouping) {
     try {
       console.log(`Running grouping engine for ${event.name}...`);
+      const eventId = event.id as string;
       const golfers = await fetchConfirmedGolfers(supabase, schedule.id);
-      const preferences = await fetchPartnerPreferences(supabase, event.id as string);
-      const groupingResult = generateGroupings(golfers, preferences, true);
+      const preferences = await fetchPartnerPreferences(supabase, eventId);
+
+      // Build grouping options from event settings + historical data
+      const partnerPrefMode = (event.grouping_partner_pref_mode as GroupingPartnerPrefMode) || 'full';
+      const teeTimePrefMode = (event.grouping_tee_time_pref_mode as GroupingTeeTimePrefMode) || 'full';
+      const promoteVariety = (event.grouping_promote_variety as boolean) || false;
+
+      // Fetch historical data only when needed
+      const teeTimeHistory = teeTimePrefMode !== 'full' && teeTimePrefMode !== 'off'
+        ? await fetchTeeTimeHistory(supabase, eventId, 8)
+        : new Map();
+
+      const recentPairings = promoteVariety
+        ? await fetchRecentPairings(supabase, eventId, 8)
+        : new Map();
+
+      const groupingOptions: GroupingOptions = {
+        partnerPreferenceMode: partnerPrefMode,
+        teeTimePreferenceMode: teeTimePrefMode,
+        promoteVariety,
+        teeTimeHistory,
+        recentPairings,
+        shuffle: true,
+      };
+
+      console.log(`Grouping options: partner=${partnerPrefMode}, teeTime=${teeTimePrefMode}, variety=${promoteVariety}`);
+
+      const groupingResult = generateGroupings(golfers, preferences, groupingOptions);
       const approvedGuestsForGrouping = await fetchApprovedGuests(supabase, schedule.id);
       const guestPairs = approvedGuestsForGrouping.map((g) => ({
         guestRequestId: g.guestRequestId,

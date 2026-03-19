@@ -7,6 +7,7 @@ import {
   AlertSettingsForm,
   ProShopContactsForm,
   AdminAssignmentsForm,
+  GroupingPreferencesForm,
   FeatureFlagsForm,
   DangerZone,
 } from "./components";
@@ -141,6 +142,22 @@ export default async function EventSettingsPage({
             />
           </div>
         </section>
+
+        {/* Grouping Preferences — Visible when auto-grouping is enabled */}
+        {event.allow_auto_grouping && (
+          <section className="mt-8">
+            <h2 className="text-lg font-semibold text-gray-900">
+              Grouping Preferences
+            </h2>
+            <p className="mt-1 text-sm text-gray-500">
+              Control how the automatic grouping engine balances player preferences,
+              tee time requests, and group variety.
+            </p>
+            <div className="mt-3 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+              <GroupingPreferencesForm event={event} />
+            </div>
+          </section>
+        )}
 
         {/* Admin Assignments — Super Admin Only */}
         {isSuperAdmin && (
