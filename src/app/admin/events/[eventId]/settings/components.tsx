@@ -1009,6 +1009,7 @@ export function GroupingPreferencesForm({ event }: { event: any }) {
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
 
+  const autoGroupingEnabled: boolean = event.allow_auto_grouping || false;
   const partnerEnabled: boolean = event.allow_playing_partner_preferences || false;
   const teeTimeEnabled: boolean = event.allow_tee_time_preferences || false;
   const partnerMode: GroupingPartnerPrefMode = event.grouping_partner_pref_mode || 'full';
@@ -1094,7 +1095,7 @@ export function GroupingPreferencesForm({ event }: { event: any }) {
             />
           </button>
         </div>
-        {partnerEnabled && (
+        {partnerEnabled && autoGroupingEnabled && (
           <div className="mt-3 space-y-2">
             {PARTNER_MODES.map((mode) => {
               const meta = PARTNER_PREF_MODE_LABELS[mode];
@@ -1154,7 +1155,7 @@ export function GroupingPreferencesForm({ event }: { event: any }) {
             />
           </button>
         </div>
-        {teeTimeEnabled && (
+        {teeTimeEnabled && autoGroupingEnabled && (
           <div className="mt-3 space-y-2">
             {TEE_TIME_MODES.map((mode) => {
               const meta = TEE_TIME_PREF_MODE_LABELS[mode];
@@ -1188,32 +1189,34 @@ export function GroupingPreferencesForm({ event }: { event: any }) {
         )}
       </div>
 
-      {/* Divider */}
-      <hr className="border-gray-200" />
-
-      {/* Promote Group Variety */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-sm font-medium text-gray-900">Promote Group Variety</p>
-          <p className="text-xs text-gray-500">
-            When enabled, the engine uses the last 8 weeks of grouping history to reduce repeat pairings.
-            Golfers who were recently grouped together will be less likely to be paired again.
-          </p>
-        </div>
-        <button
-          onClick={handleVarietyToggle}
-          disabled={isPending}
-          className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 ${
-            promoteVariety ? "bg-teal-500" : "bg-gray-200"
-          } ${isPending ? "opacity-50" : ""}`}
-        >
-          <span
-            className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform duration-200 ${
-              promoteVariety ? "translate-x-5" : "translate-x-0"
-            }`}
-          />
-        </button>
-      </div>
+      {/* Promote Group Variety — only when auto-grouping is enabled */}
+      {autoGroupingEnabled && (
+        <>
+          <hr className="border-gray-200" />
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium text-gray-900">Promote Group Variety</p>
+              <p className="text-xs text-gray-500">
+                When enabled, the engine uses the last 8 weeks of grouping history to reduce repeat pairings.
+                Golfers who were recently grouped together will be less likely to be paired again.
+              </p>
+            </div>
+            <button
+              onClick={handleVarietyToggle}
+              disabled={isPending}
+              className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 ${
+                promoteVariety ? "bg-teal-500" : "bg-gray-200"
+              } ${isPending ? "opacity-50" : ""}`}
+            >
+              <span
+                className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform duration-200 ${
+                  promoteVariety ? "translate-x-5" : "translate-x-0"
+                }`}
+              />
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }

@@ -143,8 +143,8 @@ export default async function EventSettingsPage({
           </div>
         </section>
 
-        {/* Grouping Engine — Super Admin Only, visible when auto-grouping is enabled */}
-        {isSuperAdmin && event.allow_auto_grouping && (
+        {/* Grouping Engine — Super Admin Only */}
+        {isSuperAdmin && (
           <section className="mt-8">
             <h2 className="text-lg font-semibold text-gray-900">
               Grouping Engine
