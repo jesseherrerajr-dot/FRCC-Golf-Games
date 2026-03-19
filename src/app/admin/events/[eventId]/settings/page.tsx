@@ -143,11 +143,14 @@ export default async function EventSettingsPage({
           </div>
         </section>
 
-        {/* Grouping Preferences — Visible when auto-grouping is enabled */}
-        {event.allow_auto_grouping && (
+        {/* Grouping Engine — Super Admin Only, visible when auto-grouping is enabled */}
+        {isSuperAdmin && event.allow_auto_grouping && (
           <section className="mt-8">
             <h2 className="text-lg font-semibold text-gray-900">
-              Grouping Preferences
+              Grouping Engine
+              <span className="ml-2 inline-flex rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-700">
+                Super Admin
+              </span>
             </h2>
             <p className="mt-1 text-sm text-gray-500">
               Control how the automatic grouping engine balances player preferences,

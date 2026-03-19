@@ -1003,23 +1003,40 @@ function AdminRow({ admin, eventId }: { admin: any; eventId: string }) {
 // ============================================================
 
 const PARTNER_MODES: GroupingPartnerPrefMode[] = ['off', 'light', 'moderate', 'full'];
-const TEE_TIME_MODES: GroupingTeeTimePrefMode[] = ['off', 'light', 'moderate', 'full'];
+const TEE_TIME_MODES: GroupingTeeTimePrefMode[] = ['light', 'moderate', 'full'];
 
 export function GroupingPreferencesForm({ event }: { event: any }) {
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
 
+  const partnerEnabled: boolean = event.allow_playing_partner_preferences || false;
+  const teeTimeEnabled: boolean = event.allow_tee_time_preferences || false;
   const partnerMode: GroupingPartnerPrefMode = event.grouping_partner_pref_mode || 'full';
   const teeTimeMode: GroupingTeeTimePrefMode = event.grouping_tee_time_pref_mode || 'full';
   const promoteVariety: boolean = event.grouping_promote_variety || false;
+
+  const showMessage = (msg: string, isError?: boolean) => {
+    setMessage(msg);
+    if (!isError) setTimeout(() => setMessage(null), 3000);
+  };
+
+  const handleFeatureToggle = (key: string, currentValue: boolean) => {
+    startTransition(async () => {
+      const result = await updateFeatureFlags(event.id, { [key]: !currentValue });
+      if (result.error) {
+        showMessage(result.error, true);
+      } else {
+        showMessage(!currentValue ? "Enabled." : "Disabled.");
+      }
+    });
+  };
 
   const handlePartnerModeChange = (mode: GroupingPartnerPrefMode) => {
     startTransition(async () => {
       const result = await updateGroupingPreferences(event.id, {
         grouping_partner_pref_mode: mode,
       });
-      setMessage(result.error || "Partner preference mode updated.");
-      if (!result.error) setTimeout(() => setMessage(null), 3000);
+      showMessage(result.error || "Partner preference mode updated.", !!result.error);
     });
   };
 
@@ -1028,8 +1045,7 @@ export function GroupingPreferencesForm({ event }: { event: any }) {
       const result = await updateGroupingPreferences(event.id, {
         grouping_tee_time_pref_mode: mode,
       });
-      setMessage(result.error || "Tee time preference mode updated.");
-      if (!result.error) setTimeout(() => setMessage(null), 3000);
+      showMessage(result.error || "Tee time preference mode updated.", !!result.error);
     });
   };
 
@@ -1038,8 +1054,7 @@ export function GroupingPreferencesForm({ event }: { event: any }) {
       const result = await updateGroupingPreferences(event.id, {
         grouping_promote_variety: !promoteVariety,
       });
-      setMessage(result.error || (promoteVariety ? "Group variety disabled." : "Group variety enabled."));
-      if (!result.error) setTimeout(() => setMessage(null), 3000);
+      showMessage(result.error || (promoteVariety ? "Group variety disabled." : "Group variety enabled."), !!result.error);
     });
   };
 
@@ -1056,88 +1071,121 @@ export function GroupingPreferencesForm({ event }: { event: any }) {
         </p>
       )}
 
-      {/* Partner Preference Influence */}
+      {/* Playing Partner Preferences — toggle + mode selector */}
       <div>
-        <p className="text-sm font-medium text-gray-900">
-          Partner Preference Influence
-        </p>
-        <p className="mt-0.5 text-xs text-gray-500">
-          Controls how much golfer playing partner preferences influence groupings.
-        </p>
-        <div className="mt-3 space-y-2">
-          {PARTNER_MODES.map((mode) => {
-            const meta = PARTNER_PREF_MODE_LABELS[mode];
-            const isSelected = partnerMode === mode;
-            return (
-              <label
-                key={mode}
-                className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors ${
-                  isSelected
-                    ? "border-teal-500 bg-teal-50"
-                    : "border-gray-200 bg-white hover:bg-gray-50"
-                } ${isPending ? "opacity-50 pointer-events-none" : ""}`}
-              >
-                <input
-                  type="radio"
-                  name="partner_mode"
-                  value={mode}
-                  checked={isSelected}
-                  onChange={() => handlePartnerModeChange(mode)}
-                  disabled={isPending}
-                  className="mt-0.5 h-4 w-4 text-teal-500 focus:ring-teal-500"
-                />
-                <div>
-                  <p className="text-sm font-medium text-gray-900">{meta.label}</p>
-                  <p className="text-xs text-gray-500">{meta.description}</p>
-                </div>
-              </label>
-            );
-          })}
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-sm font-medium text-gray-900">Playing Partner Preferences</p>
+            <p className="mt-0.5 text-xs text-gray-500">
+              Allow golfers to select preferred playing partners and control how those preferences influence suggested tee time groupings.
+            </p>
+          </div>
+          <button
+            onClick={() => handleFeatureToggle('allow_playing_partner_preferences', partnerEnabled)}
+            disabled={isPending}
+            className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 ${
+              partnerEnabled ? "bg-teal-500" : "bg-gray-200"
+            } ${isPending ? "opacity-50" : ""}`}
+          >
+            <span
+              className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform duration-200 ${
+                partnerEnabled ? "translate-x-5" : "translate-x-0"
+              }`}
+            />
+          </button>
         </div>
+        {partnerEnabled && (
+          <div className="mt-3 space-y-2">
+            {PARTNER_MODES.map((mode) => {
+              const meta = PARTNER_PREF_MODE_LABELS[mode];
+              const isSelected = partnerMode === mode;
+              return (
+                <label
+                  key={mode}
+                  className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors ${
+                    isSelected
+                      ? "border-teal-500 bg-teal-50"
+                      : "border-gray-200 bg-white hover:bg-gray-50"
+                  } ${isPending ? "opacity-50 pointer-events-none" : ""}`}
+                >
+                  <input
+                    type="radio"
+                    name="partner_mode"
+                    value={mode}
+                    checked={isSelected}
+                    onChange={() => handlePartnerModeChange(mode)}
+                    disabled={isPending}
+                    className="mt-0.5 h-4 w-4 text-teal-500 focus:ring-teal-500"
+                  />
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">{meta.label}</p>
+                    <p className="text-xs text-gray-500">{meta.description}</p>
+                  </div>
+                </label>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Divider */}
       <hr className="border-gray-200" />
 
-      {/* Tee Time Preference Influence */}
+      {/* Tee Time Preferences — toggle + mode selector */}
       <div>
-        <p className="text-sm font-medium text-gray-900">
-          Tee Time Preference Influence
-        </p>
-        <p className="mt-0.5 text-xs text-gray-500">
-          Controls how much tee time preferences influence group placement.
-          Priority-Based and Balanced modes track history and deprioritize habitual requesters.
-        </p>
-        <div className="mt-3 space-y-2">
-          {TEE_TIME_MODES.map((mode) => {
-            const meta = TEE_TIME_PREF_MODE_LABELS[mode];
-            const isSelected = teeTimeMode === mode;
-            return (
-              <label
-                key={mode}
-                className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors ${
-                  isSelected
-                    ? "border-teal-500 bg-teal-50"
-                    : "border-gray-200 bg-white hover:bg-gray-50"
-                } ${isPending ? "opacity-50 pointer-events-none" : ""}`}
-              >
-                <input
-                  type="radio"
-                  name="tee_time_mode"
-                  value={mode}
-                  checked={isSelected}
-                  onChange={() => handleTeeTimeModeChange(mode)}
-                  disabled={isPending}
-                  className="mt-0.5 h-4 w-4 text-teal-500 focus:ring-teal-500"
-                />
-                <div>
-                  <p className="text-sm font-medium text-gray-900">{meta.label}</p>
-                  <p className="text-xs text-gray-500">{meta.description}</p>
-                </div>
-              </label>
-            );
-          })}
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-sm font-medium text-gray-900">Tee Time Preferences</p>
+            <p className="mt-0.5 text-xs text-gray-500">
+              Allow golfers to indicate early/late tee time preference and control how those preferences influence group placement.
+            </p>
+          </div>
+          <button
+            onClick={() => handleFeatureToggle('allow_tee_time_preferences', teeTimeEnabled)}
+            disabled={isPending}
+            className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 ${
+              teeTimeEnabled ? "bg-teal-500" : "bg-gray-200"
+            } ${isPending ? "opacity-50" : ""}`}
+          >
+            <span
+              className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform duration-200 ${
+                teeTimeEnabled ? "translate-x-5" : "translate-x-0"
+              }`}
+            />
+          </button>
         </div>
+        {teeTimeEnabled && (
+          <div className="mt-3 space-y-2">
+            {TEE_TIME_MODES.map((mode) => {
+              const meta = TEE_TIME_PREF_MODE_LABELS[mode];
+              const isSelected = teeTimeMode === mode;
+              return (
+                <label
+                  key={mode}
+                  className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors ${
+                    isSelected
+                      ? "border-teal-500 bg-teal-50"
+                      : "border-gray-200 bg-white hover:bg-gray-50"
+                  } ${isPending ? "opacity-50 pointer-events-none" : ""}`}
+                >
+                  <input
+                    type="radio"
+                    name="tee_time_mode"
+                    value={mode}
+                    checked={isSelected}
+                    onChange={() => handleTeeTimeModeChange(mode)}
+                    disabled={isPending}
+                    className="mt-0.5 h-4 w-4 text-teal-500 focus:ring-teal-500"
+                  />
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">{meta.label}</p>
+                    <p className="text-xs text-gray-500">{meta.description}</p>
+                  </div>
+                </label>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Divider */}
@@ -1182,16 +1230,6 @@ export function FeatureFlagsForm({ event }: { event: any }) {
       key: "allow_guest_requests",
       label: "Guest Requests",
       description: "Allow golfers to request to bring guests",
-    },
-    {
-      key: "allow_tee_time_preferences",
-      label: "Tee Time Preferences",
-      description: "Allow golfers to indicate early/late preference",
-    },
-    {
-      key: "allow_playing_partner_preferences",
-      label: "Playing Partner Preferences",
-      description: "Allow golfers to select preferred playing partners",
     },
   ];
 

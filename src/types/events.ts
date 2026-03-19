@@ -200,9 +200,9 @@ export const PARTNER_PREF_MODE_CONFIG: Record<GroupingPartnerPrefMode, PartnerPr
 /** Admin-facing labels for partner preference modes */
 export const PARTNER_PREF_MODE_LABELS: Record<GroupingPartnerPrefMode, { label: string; description: string }> = {
   off:      { label: 'Fully Random',        description: 'Partner preferences are ignored. Groups are randomized.' },
-  light:    { label: 'Lightly Weighted',     description: 'Each golfer gets at most 1 preferred partner per group.' },
-  moderate: { label: 'Moderately Weighted',  description: 'Each golfer gets at most 2 preferred partners per group.' },
-  full:     { label: 'Fully Weighted',       description: 'The engine maximizes partner preference satisfaction.' },
+  light:    { label: 'Lightly Weighted',     description: 'The grouping engine strives to match each golfer with up to 1 preferred partner per group.' },
+  moderate: { label: 'Moderately Weighted',  description: 'The grouping engine strives to match each golfer with up to 2 preferred partners per group.' },
+  full:     { label: 'Fully Weighted',       description: 'The grouping engine strives to maximize grouping each golfer with their preferred partners. Golfers without defined preferences are randomly assigned to remaining spots.' },
 };
 
 /** Admin-facing labels for tee time preference modes */

@@ -534,11 +534,8 @@ export async function updateGroupingPreferences(
     grouping_promote_variety?: boolean;
   }
 ) {
-  const { supabase, profile, adminEvents } = await requireAdmin();
-
-  if (!hasEventAccess(profile, adminEvents, eventId)) {
-    return { error: "Access denied" };
-  }
+  await requireSuperAdmin();
+  const { supabase } = await requireAdmin();
 
   // Validate enum values
   if (settings.grouping_partner_pref_mode && !VALID_PARTNER_MODES.includes(settings.grouping_partner_pref_mode)) {
