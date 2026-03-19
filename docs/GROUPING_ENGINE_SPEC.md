@@ -92,10 +92,11 @@ Special case: N == 6 → two threesomes (don't make a sixsome)
 
 | Mode | Label | Behavior |
 |------|-------|----------|
-| `off` | Ignore Tee Times | All golfers treated as `no_preference`. |
 | `light` | Priority-Based | Uses 8-week history. Calculates priority score = `(weeks_without_this_pref / total_weeks)`. Bottom 50% of each pool demoted to `no_preference`. First-timers get full priority (score 1.0). |
 | `moderate` | Balanced | Same priority scoring, but no demotion — pools are sorted by priority so infrequent requesters fill their preferred slots first when overflow occurs. |
-| `full` | Honor All | All tee time preferences honored equally (original behavior). Default. |
+| `full` | Honor All | All tee time preferences honored equally. Default. |
+
+Note: The `off` value still exists in the database schema for backward compatibility but is not exposed in the admin UI. If tee time preferences are disabled entirely, the admin turns off the `allow_tee_time_preferences` toggle in the Grouping Engine section (which prevents golfers from submitting preferences at all).
 
 **Tee Time Abuse Prevention:** In `light` and `moderate` modes, the engine tracks how often each golfer has requested early/late over the last 8 weeks. Golfers who consistently pick the same preference get lower priority than infrequent requesters. This prevents groups of friends from always selecting the same tee time to guarantee being grouped together.
 
@@ -137,9 +138,11 @@ Formula: `points = round(100 / rank)`
 | `off` | Fully Random | 0 | 0 | Preferences ignored. Pure shuffle. |
 | `light` | Lightly Weighted | 0.25 | 1 | Max 1 preferred partner per group. Weak preference pull. |
 | `moderate` | Moderately Weighted | 0.6 | 2 | Max 2 preferred partners per group. Moderate preference pull. |
-| `full` | Fully Weighted | 1.0 | unlimited | Maximize harmony. Original behavior. Default. |
+| `full` | Fully Weighted | 1.0 | unlimited | Maximize harmony. Golfers without defined preferences are randomly assigned to remaining spots. Default. |
 
 The **harmony multiplier** scales all raw pair scores before the greedy algorithm runs. The **per-group cap** enforces a hard limit: once a golfer has `cap` preferred partners already in a group, their preference-based score is zeroed out for that group (they can still be placed if no better slot exists, but the preference pull is eliminated).
+
+**Access Control:** All grouping engine settings (partner preference mode, tee time preference mode, group variety) are super-admin only. The `allow_playing_partner_preferences` and `allow_tee_time_preferences` feature toggles are colocated with their respective mode selectors in the Grouping Engine section of Event Settings — mode selectors are only visible when the corresponding feature is enabled.
 
 ### Level 5 — Group Variety / Repeat Pairing Penalty (Soft Constraint, Optional)
 

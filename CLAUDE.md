@@ -113,7 +113,7 @@ Every page (except the landing page and login) **must** have a `<Breadcrumbs>` c
 - `events/[eventId]/rsvp/[scheduleId]/actions.ts` — RSVP management server actions
 - `events/[eventId]/rsvp/[scheduleId]/guest-actions.ts` — Guest approval server actions
 - `events/new/` — Create new event page (email settings with Reminder and Pro Shop Detail toggles, matching Event Settings UI)
-- `events/[eventId]/settings/` — Event settings (Event Details, Automated Email Settings with on/off toggles for Reminder and Pro Shop Detail emails, Admin Alerts, Pro Shop Contacts, Event Admins [super admin only], Feature Flags [super admin only], Danger Zone [super admin only])
+- `events/[eventId]/settings/` — Event settings (Event Details, Automated Email Settings with on/off toggles for Reminder and Pro Shop Detail emails, Admin Alerts, Pro Shop Contacts, Grouping Engine [super admin only — playing partner on/off + mode, tee time on/off + mode, group variety toggle], Event Admins [super admin only], Feature Flags [super admin only — guest requests], Danger Zone [super admin only])
 - `events/[eventId]/schedule/` — 8-week rolling schedule (Game On/No Game toggle, capacity override)
 - `events/[eventId]/emails/page.tsx` — Emails & Communications page (email status panel with send/resend, link to custom compose)
 - `events/[eventId]/email/compose/` — Custom email composer with templates
@@ -176,7 +176,7 @@ Super admins and event admins are also golfers. They register, subscribe to even
 When an admin logs in, they see their golfer dashboard (upcoming RSVPs, profile, preferences) PLUS admin tools (golfer management, schedule, RSVP overview, action items).
 
 ### Permission Hierarchy
-- **Super Admin**: All permissions. Manage events (create/edit/delete/deactivate/reactivate). Add/remove other admins. Add/remove golfers. Access all event settings. View all data across all events. Super-admin-only settings sections: Event Admins, Feature Flags, Danger Zone (deactivate/reactivate events).
+- **Super Admin**: All permissions. Manage events (create/edit/delete/deactivate/reactivate). Add/remove other admins. Add/remove golfers. Access all event settings. View all data across all events. Super-admin-only settings sections: Grouping Engine (playing partner/tee time preference toggles and mode configuration, group variety), Event Admins, Feature Flags (guest requests), Danger Zone (deactivate/reactivate events).
 - **Event Admin**: Scoped to assigned events only. Approve/deny registrations. Manage weekly RSVPs (override after cutoff). Toggle schedule on/off. Send custom emails. View full RSVP breakdown. Manage waitlist and guest approvals. Can manage Event Details, Automated Email Settings, Admin Alerts, and Pro Shop Contacts.
 - **Golfer**: Self-service only. RSVP for subscribed events. Edit own profile. Set playing partner preferences. View "In" list (only when opted in). Request guests. Subscribe/unsubscribe from events.
 
@@ -243,7 +243,7 @@ The first event is **"FRCC Saturday Morning Group"**. The platform is designed f
 - Primary and secondary event admins
 - Game type: 9 holes or 18 holes (determines weather forecast window duration)
 - First tee time: HH:MM format (used for weather forecast scoping)
-- Feature flags (guest requests, tee time preferences, playing partner preferences)
+- Feature flags (guest requests). Note: tee time preferences and playing partner preferences are now managed in the Grouping Engine section (super admin only), not Feature Flags.
 
 ### Schedule Management
 - Schedule management page shows a rolling 8-week view.
@@ -652,7 +652,7 @@ The following is fully implemented and running in production:
 - **Weekly RSVP Cycle:** Tokenized RSVP links, automated invite/reminder/confirmation/pro shop emails (configurable per event), evite-style "In" list visibility, capacity and waitlist management, admin RSVP override (post-cutoff).
 - **Preferences:** Playing partner preferences (ranked 1–10, per-event, searchable dropdown with reordering). Tee time preferences (per-week on RSVP page).
 - **Admin Tools:** Schedule management (8-week rolling view, Game On/No Game toggle with cancellation emails), custom email composer with templates, action items/task summary, golfer directory with search/filter (global + event-scoped), golfer detail pages with subscription management, admin "Add Golfer" (direct add), configurable email schedules (6 Vercel cron slots), admin notification emails (new_registration, capacity_reached, spot_opened, low_response), event-centric admin dashboard with summary cards, per-event admin scoping, help page with Golfer + Admin FAQ.
-- **Grouping Engine:** Greedy heuristic algorithm with weighted partner preferences, tee time constraints, shuffle randomization, guest-host pairing. 36 unit tests. DB layer, cron integration, pro shop email with grouped roster. See `docs/GROUPING_ENGINE_SPEC.md`.
+- **Grouping Engine:** Greedy heuristic algorithm with weighted partner preferences, tee time constraints, shuffle randomization, guest-host pairing. Configurable via super-admin-only Grouping Engine settings: playing partner preference mode (off/light/moderate/full), tee time preference mode (light/moderate/full) with habitual-requester abuse prevention, group variety toggle with 8-week lookback. Partner and tee time on/off toggles colocated with their mode selectors. 50+ unit tests. DB layer, cron integration, pro shop email with grouped roster. See `docs/GROUPING_ENGINE_SPEC.md`.
 
 ---
 

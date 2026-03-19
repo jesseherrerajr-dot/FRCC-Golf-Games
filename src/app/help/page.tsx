@@ -375,10 +375,12 @@ export default async function HelpPage() {
                   <p>
                     In <strong>Event Settings</strong>, the{" "}
                     <strong>Feature Flags</strong> section lets you toggle optional
-                    features on or off for each event: guest requests, tee time
-                    preferences, and playing partner preferences. Changes take effect
-                    immediately — if you disable a feature, golfers won&apos;t see
-                    that option on their RSVP page.
+                    features on or off for each event (currently: guest requests).
+                    Changes take effect immediately — if you disable a feature,
+                    golfers won&apos;t see that option on their RSVP page.
+                    Playing partner preferences and tee time preferences are
+                    managed in the <strong>Grouping Engine</strong> section
+                    (super admin only).
                   </p>
                 </FAQ>
 

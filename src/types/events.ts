@@ -210,7 +210,7 @@ export const TEE_TIME_PREF_MODE_LABELS: Record<GroupingTeeTimePrefMode, { label:
   off:      { label: 'Ignore Tee Times',  description: 'Tee time preferences are ignored entirely.' },
   light:    { label: 'Priority-Based',     description: 'Infrequent requesters get priority. Habitual requesters are deprioritized.' },
   moderate: { label: 'Balanced',           description: 'Preferences are honored but infrequent requesters get higher priority.' },
-  full:     { label: 'Honor All',          description: 'All tee time preferences are honored equally (current behavior).' },
+  full:     { label: 'Honor All',          description: 'All tee time preferences are honored equally.' },
 };
 
 /** Tee time history for a single golfer over the lookback window */
