@@ -88,11 +88,11 @@ async function authenticateGhin(): Promise<string> {
       "Accept": "application/json",
     },
     body: JSON.stringify({
+      token: "recaptcha-disabled",
       user: {
         email,
         password,
         remember_me: true,
-        token: "none",
       },
     }),
   });
