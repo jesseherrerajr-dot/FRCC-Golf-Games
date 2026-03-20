@@ -90,7 +90,7 @@ async function authenticateGhin(): Promise<string> {
     body: JSON.stringify({
       token: "recaptcha-disabled",
       user: {
-        email,
+        email_or_ghin: email,
         password,
         remember_me: true,
       },
