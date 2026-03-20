@@ -72,8 +72,21 @@ export async function generateSchedulesForEvent(
 ): Promise<number> {
   const today = getTodayPacific();
   const [ty, tm, td] = today.split("-").map(Number);
+  const todayDate = new Date(ty, tm - 1, td);
   const eightWeeksOut = new Date(ty, tm - 1, td);
   eightWeeksOut.setDate(eightWeeksOut.getDate() + 56); // 8 weeks
+
+  // Determine the effective start boundary
+  // If the event has a start_date in the future, don't generate schedules before it
+  let effectiveStartDate = todayDate;
+  if (event.start_date) {
+    const [sy, sm, sd] = event.start_date.split("-").map(Number);
+    const eventStart = new Date(sy, sm - 1, sd);
+    if (eventStart > todayDate) {
+      effectiveStartDate = eventStart;
+    }
+  }
+  const startStr = formatDateString(effectiveStartDate);
 
   // Determine the effective end boundary
   const eventEndDate = calculateEventEndDate(event);
@@ -93,7 +106,7 @@ export async function generateSchedulesForEvent(
   const gameDates = generateGameDates(
     event.day_of_week,
     event.frequency,
-    today,
+    startStr,
     endStr
   );
 
