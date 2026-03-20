@@ -226,7 +226,9 @@ export async function GET(request: Request) {
       // Check if handicap sync is needed for this event (non-fatal)
       if (!isTest) {
         try {
-          debug.push(`Checking handicap sync: isGhinConfigured=${isGhinConfigured()}, event.handicap_sync_enabled=${event.handicap_sync_enabled}`);
+          const ghinEmail = process.env.GHIN_EMAIL || "";
+          const ghinPass = process.env.GHIN_PASSWORD || "";
+          debug.push(`Checking handicap sync: isGhinConfigured=${isGhinConfigured()}, event.handicap_sync_enabled=${event.handicap_sync_enabled}, GHIN_EMAIL=${ghinEmail ? ghinEmail.substring(0,3) + "***" : "EMPTY"}, GHIN_PASSWORD=${ghinPass ? ghinPass.substring(0,3) + "***" : "EMPTY"}`);
           const syncNeeded = await needsHandicapSync(event.id as string);
           debug.push(`needsHandicapSync returned: ${syncNeeded}`);
           if (syncNeeded) {
