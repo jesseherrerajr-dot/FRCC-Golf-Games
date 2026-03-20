@@ -113,7 +113,7 @@ Every page (except the landing page and login) **must** have a `<Breadcrumbs>` c
 - `events/[eventId]/rsvp/[scheduleId]/actions.ts` — RSVP management server actions
 - `events/[eventId]/rsvp/[scheduleId]/guest-actions.ts` — Guest approval server actions
 - `events/new/` — Create new event page (email settings with Reminder and Pro Shop Detail toggles, matching Event Settings UI)
-- `events/[eventId]/settings/` — Event settings (Event Details, Automated Email Settings with on/off toggles for Reminder and Pro Shop Detail emails, Admin Alerts, Pro Shop Contacts, Grouping Engine [super admin only — playing partner on/off + mode, tee time on/off + mode, group variety toggle], Event Admins [super admin only], Feature Flags [super admin only — guest requests], Danger Zone [super admin only])
+- `events/[eventId]/settings/` — Event settings (Event Details, Automated Email Settings with on/off toggles for Reminder and Pro Shop Detail emails, Admin Alerts, Pro Shop Contacts, Grouping Engine [super admin only — playing partner on/off + mode, tee time on/off + mode, group variety toggle], Event Admins [super admin only], Feature Flags [super admin only — guest requests], Danger Zone [super admin only — deactivate/reactivate + permanently delete with name confirmation])
 - `events/[eventId]/schedule/` — 8-week rolling schedule (Game On/No Game toggle, capacity override)
 - `events/[eventId]/emails/page.tsx` — Emails & Communications page (email status panel with send/resend, link to custom compose)
 - `events/[eventId]/email/compose/` — Custom email composer with templates
@@ -176,7 +176,7 @@ Super admins and event admins are also golfers. They register, subscribe to even
 When an admin logs in, they see their golfer dashboard (upcoming RSVPs, profile, preferences) PLUS admin tools (golfer management, schedule, RSVP overview, action items).
 
 ### Permission Hierarchy
-- **Super Admin**: All permissions. Manage events (create/edit/delete/deactivate/reactivate). Add/remove other admins. Add/remove golfers. Access all event settings. View all data across all events. Super-admin-only settings sections: Grouping Engine (playing partner/tee time preference toggles and mode configuration, group variety), Event Admins, Feature Flags (guest requests), Danger Zone (deactivate/reactivate events).
+- **Super Admin**: All permissions. Manage events (create/edit/delete/deactivate/reactivate). Add/remove other admins. Add/remove golfers. Permanently delete events (with name confirmation) and golfers (with email confirmation). Access all event settings. View all data across all events. Super-admin-only settings sections: Grouping Engine (playing partner/tee time preference toggles and mode configuration, group variety), Event Admins, Feature Flags (guest requests), Danger Zone (deactivate/reactivate + permanently delete events).
 - **Event Admin**: Scoped to assigned events only. Approve/deny registrations. Manage weekly RSVPs (override after cutoff). Toggle schedule on/off. Send custom emails. View full RSVP breakdown. Manage waitlist and guest approvals. Can manage Event Details, Automated Email Settings, Admin Alerts, and Pro Shop Contacts.
 - **Golfer**: Self-service only. RSVP for subscribed events. Edit own profile. Set playing partner preferences. View "In" list (only when opted in). Request guests. Subscribe/unsubscribe from events.
 
@@ -214,8 +214,9 @@ The original `/join` page still exists for golfers who aren't referred to a spec
 - All fields can be modified later by the golfer through their profile settings.
 
 ### Golfer Management
-- Super admins and event admins can deactivate a golfer (stops invites, preserves account and history) or remove/delete them entirely.
+- Super admins and event admins can deactivate a golfer (stops invites, preserves account and history).
 - Deactivated golfers can be reactivated by an admin.
+- Super admins can permanently delete a golfer from the global golfer detail page (Admin → Golfers → [Golfer]). Requires typing the golfer's email to confirm. Deletes the golfer and all related data (RSVPs, preferences, subscriptions, grouping history). Cannot delete super admin accounts.
 
 ### Subscription Management
 - Super admins can manage a golfer's subscriptions to all events via the global golfer detail page (Admin → Golfers → [Golfer]).

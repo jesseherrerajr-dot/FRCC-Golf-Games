@@ -10,6 +10,7 @@ import {
   DenyButton,
   DeactivateButton,
   ReactivateButton,
+  PermanentlyDeleteGolferButton,
 } from "../../admin-actions";
 
 export default async function GolferDetailPage({
@@ -18,7 +19,8 @@ export default async function GolferDetailPage({
   params: Promise<{ golferId: string }>;
 }) {
   const { golferId } = await params;
-  const { supabase } = await requireAdmin();
+  const { supabase, profile: adminUser } = await requireAdmin();
+  const isSuperAdmin = adminUser?.is_super_admin || false;
 
   // Fetch the golfer profile
   const { data: golfer } = await supabase
@@ -186,6 +188,27 @@ export default async function GolferDetailPage({
               </>
             )}
           </div>
+
+          {/* Danger Zone — Super Admin Only, not for super admin accounts */}
+          {isSuperAdmin && !golfer.is_super_admin && (
+            <div className="mt-4 rounded-lg border border-red-200 bg-white p-6 shadow-sm">
+              <h2 className="text-sm font-semibold text-red-700">
+                Danger Zone
+                <span className="ml-2 inline-flex rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-700">
+                  Super Admin
+                </span>
+              </h2>
+              <p className="mt-1 text-xs text-gray-500">
+                Permanently remove this golfer and all their associated data from the platform.
+              </p>
+              <div className="mt-3">
+                <PermanentlyDeleteGolferButton
+                  profileId={golferId}
+                  golferEmail={golfer.email}
+                />
+              </div>
+            </div>
+          )}
         </div>
           </main>
   );

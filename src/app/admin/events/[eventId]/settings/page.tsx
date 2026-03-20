@@ -214,7 +214,7 @@ export default async function EventSettingsPage({
               </span>
             </h2>
             <div className="mt-3 rounded-lg border border-red-200 bg-white p-6 shadow-sm">
-              <DangerZone eventId={eventId} isActive={event.is_active} />
+              <DangerZone eventId={eventId} eventName={event.name} isActive={event.is_active} />
             </div>
           </section>
         )}

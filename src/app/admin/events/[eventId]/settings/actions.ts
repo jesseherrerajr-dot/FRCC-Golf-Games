@@ -1,7 +1,9 @@
 "use server";
 
 import { requireAdmin, requireSuperAdmin, hasEventAccess } from "@/lib/auth";
+import { createAdminClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import type { AlertType, GroupingPartnerPrefMode, GroupingTeeTimePrefMode } from "@/types/events";
 
 // ============================================================
@@ -611,5 +613,70 @@ export async function reactivateEvent(eventId: string) {
   } catch (error) {
     console.error("Reactivate event error:", error);
     return { error: "Failed to reactivate event" };
+  }
+}
+
+// ============================================================
+// Permanently Delete Event
+// ============================================================
+
+export async function permanentlyDeleteEvent(eventId: string, confirmName: string) {
+  await requireSuperAdmin();
+  const supabase = createAdminClient();
+
+  try {
+    // Verify the event exists and name matches (safety check)
+    const { data: event } = await supabase
+      .from("events")
+      .select("id, name")
+      .eq("id", eventId)
+      .single();
+
+    if (!event) {
+      return { error: "Event not found" };
+    }
+
+    if (event.name.trim().toLowerCase() !== confirmName.trim().toLowerCase()) {
+      return { error: "Event name does not match. Deletion cancelled." };
+    }
+
+    // Delete all related data in dependency order (child tables first)
+    // 1. RSVPs and groupings depend on event_schedules
+    await supabase
+      .from("rsvps")
+      .delete()
+      .in("schedule_id",
+        (await supabase.from("event_schedules").select("id").eq("event_id", eventId)).data?.map((s: { id: string }) => s.id) || []
+      );
+
+    await supabase
+      .from("groupings")
+      .delete()
+      .in("schedule_id",
+        (await supabase.from("event_schedules").select("id").eq("event_id", eventId)).data?.map((s: { id: string }) => s.id) || []
+      );
+
+    // 2. Direct event children
+    await supabase.from("event_schedules").delete().eq("event_id", eventId);
+    await supabase.from("event_subscriptions").delete().eq("event_id", eventId);
+    await supabase.from("email_schedules").delete().eq("event_id", eventId);
+    await supabase.from("event_alert_settings").delete().eq("event_id", eventId);
+    await supabase.from("playing_partner_preferences").delete().eq("event_id", eventId);
+    await supabase.from("pro_shop_contacts").delete().eq("event_id", eventId);
+    await supabase.from("event_admins").delete().eq("event_id", eventId);
+    await supabase.from("email_log").delete().eq("event_id", eventId);
+    await supabase.from("weather_cache").delete().eq("event_id", eventId);
+    await supabase.from("guest_requests").delete().eq("event_id", eventId);
+
+    // 3. Delete the event itself
+    const { error } = await supabase.from("events").delete().eq("id", eventId);
+
+    if (error) throw error;
+
+    revalidatePath("/admin");
+    return { success: true };
+  } catch (error) {
+    console.error("Permanently delete event error:", error);
+    return { error: "Failed to permanently delete event. Some related data may still exist." };
   }
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   updateEventBasicSettings,
   updateEmailScheduleSettings,
@@ -14,6 +15,7 @@ import {
   updateGroupingPreferences,
   deactivateEvent,
   reactivateEvent,
+  permanentlyDeleteEvent,
 } from "./actions";
 import type { AlertType, GroupingPartnerPrefMode, GroupingTeeTimePrefMode } from "@/types/events";
 import { PARTNER_PREF_MODE_LABELS, TEE_TIME_PREF_MODE_LABELS } from "@/types/events";
@@ -1358,14 +1360,20 @@ export function JoinLinkSection({ slug }: { slug: string | null }) {
 
 export function DangerZone({
   eventId,
+  eventName,
   isActive,
 }: {
   eventId: string;
+  eventName: string;
   isActive: boolean;
 }) {
   const [isPending, startTransition] = useTransition();
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteConfirmName, setDeleteConfirmName] = useState("");
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const router = useRouter();
 
-  const handleAction = () => {
+  const handleToggleActive = () => {
     const action = isActive ? "deactivate" : "reactivate";
     if (
       confirm(
@@ -1382,33 +1390,115 @@ export function DangerZone({
     }
   };
 
+  const handlePermanentDelete = () => {
+    setDeleteError(null);
+    startTransition(async () => {
+      const result = await permanentlyDeleteEvent(eventId, deleteConfirmName);
+      if (result.error) {
+        setDeleteError(result.error);
+      } else {
+        router.push("/admin");
+      }
+    });
+  };
+
+  const nameMatches = deleteConfirmName.trim().toLowerCase() === eventName.trim().toLowerCase();
+
   return (
-    <div className="flex items-center justify-between">
-      <div>
-        <p className="text-sm font-medium text-gray-900">
-          {isActive ? "Deactivate Event" : "Reactivate Event"}
-        </p>
-        <p className="text-xs text-gray-500">
-          {isActive
-            ? "Stops all automated emails and hides from golfer subscriptions."
-            : "Resumes automated emails and makes event visible again."}
-        </p>
+    <div className="space-y-6">
+      {/* Deactivate / Reactivate */}
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium text-gray-900">
+            {isActive ? "Deactivate Event" : "Reactivate Event"}
+          </p>
+          <p className="text-xs text-gray-500">
+            {isActive
+              ? "Stops all automated emails and hides from golfer subscriptions. The event and all its data are preserved."
+              : "Resumes automated emails and makes event visible again."}
+          </p>
+        </div>
+        <button
+          onClick={handleToggleActive}
+          disabled={isPending}
+          className={`rounded-md px-4 py-2 text-sm font-medium disabled:opacity-50 ${
+            isActive
+              ? "border border-red-300 text-red-700 hover:bg-red-50"
+              : "bg-teal-600 text-white hover:bg-teal-500"
+          }`}
+        >
+          {isPending
+            ? "..."
+            : isActive
+              ? "Deactivate"
+              : "Reactivate"}
+        </button>
       </div>
-      <button
-        onClick={handleAction}
-        disabled={isPending}
-        className={`rounded-md px-4 py-2 text-sm font-medium disabled:opacity-50 ${
-          isActive
-            ? "border border-red-300 text-red-700 hover:bg-red-50"
-            : "bg-teal-600 text-white hover:bg-teal-500"
-        }`}
-      >
-        {isPending
-          ? "..."
-          : isActive
-            ? "Deactivate"
-            : "Reactivate"}
-      </button>
+
+      {/* Divider */}
+      <hr className="border-red-200" />
+
+      {/* Permanently Delete */}
+      <div>
+        <p className="text-sm font-medium text-red-700">
+          Permanently Delete Event
+        </p>
+        <p className="mt-0.5 text-xs text-gray-500">
+          This will permanently delete the event and all associated data including
+          schedules, RSVPs, email history, golfer subscriptions, preferences, and
+          groupings. This action cannot be undone.
+        </p>
+        {!showDeleteConfirm ? (
+          <button
+            onClick={() => setShowDeleteConfirm(true)}
+            className="mt-3 rounded-md border border-red-300 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50"
+          >
+            Delete Event...
+          </button>
+        ) : (
+          <div className="mt-3 rounded-lg border border-red-300 bg-red-50 p-4">
+            <p className="text-sm font-medium text-red-800">
+              Type the event name to confirm:
+            </p>
+            <p className="mt-1 text-xs font-mono text-red-600">
+              {eventName}
+            </p>
+            <input
+              type="text"
+              value={deleteConfirmName}
+              onChange={(e) => {
+                setDeleteConfirmName(e.target.value);
+                setDeleteError(null);
+              }}
+              placeholder="Type event name here"
+              className="mt-2 w-full rounded-md border border-red-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+            />
+            {deleteError && (
+              <p className="mt-2 text-xs text-red-700">{deleteError}</p>
+            )}
+            <div className="mt-3 flex gap-2">
+              <button
+                onClick={handlePermanentDelete}
+                disabled={isPending || !nameMatches}
+                className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {isPending ? "Deleting..." : "Permanently Delete"}
+              </button>
+              <button
+                onClick={() => {
+                  setShowDeleteConfirm(false);
+                  setDeleteConfirmName("");
+                  setDeleteError(null);
+                }}
+                disabled={isPending}
+                className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

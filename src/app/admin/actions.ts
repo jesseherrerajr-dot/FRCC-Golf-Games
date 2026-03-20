@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { sendAdminAlert } from "@/lib/admin-alerts";
 import {
@@ -202,4 +202,78 @@ export async function reactivateGolfer(profileId: string) {
 
   revalidatePath("/admin");
   return { success: true };
+}
+
+export async function permanentlyDeleteGolfer(profileId: string, confirmEmail: string) {
+  const supabase = await createClient();
+
+  // Verify the current user is a super admin
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  const { data: adminProfile } = await supabase
+    .from("profiles")
+    .select("is_super_admin")
+    .eq("id", user.id)
+    .single();
+
+  if (!adminProfile?.is_super_admin) return { error: "Not authorized. Super admin required." };
+
+  // Use admin client to bypass RLS for cascade deletes
+  const adminSupabase = createAdminClient();
+
+  try {
+    // Verify the golfer exists and email matches (safety check)
+    const { data: golfer } = await adminSupabase
+      .from("profiles")
+      .select("id, email, is_super_admin")
+      .eq("id", profileId)
+      .single();
+
+    if (!golfer) {
+      return { error: "Golfer not found" };
+    }
+
+    if (golfer.is_super_admin) {
+      return { error: "Cannot delete a super admin account." };
+    }
+
+    if (golfer.email.trim().toLowerCase() !== confirmEmail.trim().toLowerCase()) {
+      return { error: "Email does not match. Deletion cancelled." };
+    }
+
+    // Delete all related data in dependency order (child tables first)
+    await adminSupabase.from("rsvps").delete().eq("profile_id", profileId);
+    await adminSupabase.from("groupings").delete().eq("profile_id", profileId);
+    await adminSupabase.from("event_subscriptions").delete().eq("profile_id", profileId);
+    await adminSupabase.from("playing_partner_preferences").delete().eq("profile_id", profileId);
+    // Also remove this golfer from other golfers' partner preferences
+    await adminSupabase.from("playing_partner_preferences").delete().eq("partner_profile_id", profileId);
+    await adminSupabase.from("guest_requests").delete().eq("profile_id", profileId);
+    await adminSupabase.from("event_admins").delete().eq("profile_id", profileId);
+    await adminSupabase.from("push_subscriptions").delete().eq("profile_id", profileId);
+
+    // Delete the Supabase Auth user (this also removes the profile via cascade or trigger)
+    const { error: authError } = await adminSupabase.auth.admin.deleteUser(profileId);
+
+    if (authError) {
+      // If auth deletion fails, try to delete the profile directly
+      console.error("Auth user deletion failed:", authError);
+      const { error: profileError } = await adminSupabase
+        .from("profiles")
+        .delete()
+        .eq("id", profileId);
+
+      if (profileError) throw profileError;
+    }
+
+    revalidatePath("/admin/golfers");
+    revalidatePath("/admin");
+    return { success: true };
+  } catch (error) {
+    console.error("Permanently delete golfer error:", error);
+    return { error: "Failed to permanently delete golfer. Some related data may still exist." };
+  }
 }
