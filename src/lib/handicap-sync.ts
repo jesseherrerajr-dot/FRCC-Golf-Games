@@ -92,6 +92,7 @@ async function authenticateGhin(): Promise<string> {
         email,
         password,
         remember_me: true,
+        token: "none",
       },
     }),
   });
