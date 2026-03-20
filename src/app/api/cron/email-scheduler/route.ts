@@ -29,7 +29,7 @@ import {
 } from "@/lib/grouping-db";
 import { formatGameDate, formatSponsorName, getSiteUrl } from "@/lib/format";
 import { getGameWeather } from "@/lib/weather";
-import { needsHandicapSync, runHandicapSync, getConsecutiveFailureCount, isGhinConfigured } from "@/lib/handicap-sync";
+import { needsHandicapSync, runHandicapSync, getConsecutiveFailureCount } from "@/lib/handicap-sync";
 import type { GameType } from "@/types/events";
 
 /**
@@ -100,11 +100,9 @@ export async function GET(request: Request) {
     }
 
     const results = [];
-    const debug: string[] = []; // TEMP: debug output for handicap sync troubleshooting
 
     for (const event of events) {
       console.log(`Processing event: ${event.name}`);
-      debug.push(`Processing event: ${event.name} (id: ${event.id})`);
 
       // Get the next game date for this event (in Pacific Time)
       const gameDateString = getUpcomingGameDatePacific(event.day_of_week);
@@ -122,10 +120,8 @@ export async function GET(request: Request) {
 
       if (!emailSchedules || emailSchedules.length === 0) {
         console.log(`No enabled email schedules for event: ${event.name}`);
-        debug.push(`No email schedules — skipping event entirely (including handicap sync)`);
         continue;
       }
-      debug.push(`Found ${emailSchedules.length} email schedules`);
 
       // Process each email schedule entry
       for (const emailSchedule of emailSchedules) {
@@ -226,11 +222,7 @@ export async function GET(request: Request) {
       // Check if handicap sync is needed for this event (non-fatal)
       if (!isTest) {
         try {
-          const ghinEmail = process.env.GHIN_EMAIL || "";
-          const ghinPass = process.env.GHIN_PASSWORD || "";
-          debug.push(`Checking handicap sync: isGhinConfigured=${isGhinConfigured()}, event.handicap_sync_enabled=${event.handicap_sync_enabled}, GHIN_EMAIL=${ghinEmail ? ghinEmail.substring(0,3) + "***" : "EMPTY"}, GHIN_PASSWORD=${ghinPass ? ghinPass.substring(0,3) + "***" : "EMPTY"}`);
           const syncNeeded = await needsHandicapSync(event.id as string);
-          debug.push(`needsHandicapSync returned: ${syncNeeded}`);
           if (syncNeeded) {
             console.log(`Running handicap sync for ${event.name}...`);
             const syncResult = await runHandicapSync(event.id as string);
@@ -270,7 +262,6 @@ export async function GET(request: Request) {
     return NextResponse.json({
       success: true,
       results,
-      debug, // TEMP: remove after handicap sync is verified
       test: isTest,
     });
   } catch (error) {
