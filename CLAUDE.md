@@ -144,6 +144,7 @@ Every page (except the landing page and login) **must** have a `<Breadcrumbs>` c
 - `grouping-engine.test.ts` — Unit tests for grouping algorithm (36 tests)
 - `grouping-db.ts` — DB queries: fetch confirmed golfers, partner preferences, approved guests; store groupings with guest placement; fetch stored groupings with tee time + partner preference annotations
 - `weather.ts` — Open-Meteo weather API integration, caching, golfability scoring, email HTML generation
+- `handicap-sync.ts` — GHIN Handicap Index sync service: authenticates with unofficial GHIN API, fetches handicap indices by GHIN number, updates profiles, logs sync runs, health monitoring helpers
 
 ### Other Key Files
 - `src/middleware.ts` — Next.js middleware (auth redirects, session refresh)
@@ -451,7 +452,7 @@ Admin → Events → [Event] → Emails → Compose allows:
 ## Technical Architecture
 
 ### Database: Supabase (PostgreSQL)
-Key tables: profiles, events, event_admins, event_subscriptions, event_schedules, rsvps, guest_requests, playing_partner_preferences, pro_shop_contacts, email_templates, email_log, event_email_schedules, event_alert_settings, groupings, weather_cache.
+Key tables: profiles, events, event_admins, event_subscriptions, event_schedules, rsvps, guest_requests, playing_partner_preferences, pro_shop_contacts, email_templates, email_log, event_email_schedules, event_alert_settings, groupings, weather_cache, handicap_sync_log.
 
 Notable columns added post-initial schema:
 - `events.slug` — URL-friendly identifier for join links (e.g., `saturday-morning`).
@@ -462,6 +463,12 @@ Notable columns added post-initial schema:
 
 Weather (migration 017):
 - `weather_cache` table: keyed by `(event_id, game_date)`, stores JSONB forecast data with `fetched_at` timestamp. RLS enabled — read by anyone, writes via service role only.
+
+Handicap sync (migration 018):
+- `profiles.handicap_index` — numeric(4,1), current USGA Handicap Index fetched from GHIN. NULL = never synced or no GHIN number.
+- `profiles.handicap_updated_at` — timestamptz, when the handicap was last successfully fetched.
+- `events.handicap_sync_enabled` — boolean, per-event toggle for automatic GHIN handicap sync. Default OFF.
+- `handicap_sync_log` table: tracks sync runs with success/failure counts, error messages, and status. RLS enabled — admins read, service role manages.
 
 Security hardening (migrations 015–016):
 - `push_subscriptions` table has RLS enabled with policies scoped to `profile_id = auth.uid()`.
@@ -654,17 +661,14 @@ The following is fully implemented and running in production:
 - **Preferences:** Playing partner preferences (ranked 1–10, per-event, searchable dropdown with reordering). Tee time preferences (per-week on RSVP page).
 - **Admin Tools:** Schedule management (8-week rolling view, Game On/No Game toggle with cancellation emails), custom email composer with templates, action items/task summary, golfer directory with search/filter (global + event-scoped), golfer detail pages with subscription management, admin "Add Golfer" (direct add), configurable email schedules (6 Vercel cron slots), admin notification emails (new_registration, capacity_reached, spot_opened, low_response), event-centric admin dashboard with summary cards, per-event admin scoping, help page with Golfer + Admin FAQ.
 - **Grouping Engine:** Greedy heuristic algorithm with weighted partner preferences, tee time constraints, shuffle randomization, guest-host pairing. Configurable via super-admin-only Grouping Engine settings: playing partner preference mode (off/light/moderate/full), tee time preference mode (light/moderate/full) with habitual-requester abuse prevention, group variety toggle with 8-week lookback. Partner and tee time on/off toggles colocated with their mode selectors. 50+ unit tests. DB layer, cron integration, pro shop email with grouped roster. See `docs/GROUPING_ENGINE_SPEC.md`.
+- **GHIN Handicap Sync:** Automated system to fetch current Handicap Index from GHIN for all golfers with a GHIN number. Uses unofficial GHIN mobile app API directly (no npm dependency). Syncs within 24 hours of each scheduled event via email-scheduler cron. Features: per-event toggle (`handicap_sync_enabled`), 20-golfer batch cap per cron run (stalest-first), 24-hour freshness window (shared across events for multi-event golfers), `handicap_sync_log` table for health monitoring, auto-alert on auth/total failure, status indicator in Event Settings. Handicap displayed on golfer profile, admin golfer detail pages, and pro shop email. Env vars: `GHIN_EMAIL`, `GHIN_PASSWORD`. See `docs/HANDICAP_SYNC_SPEC.md`.
 
 ---
 
 ## Roadmap
 
-### 1. Grouping Engine Enhancements (Partially Built)
-Enhance the foursome grouping algorithm to produce better, fairer results:
-- **Prevent repeat foursomes** — ✅ BUILT. `grouping_promote_variety` toggle uses 8-week lookback with recency-weighted penalties (-60 to -10 points) to discourage repeat pairings. Configurable per event via Event Settings > Grouping Preferences.
-- **Tee time preference limits** — ✅ BUILT. `grouping_tee_time_pref_mode` setting (off/light/moderate/full) with historical priority scoring. In `light` mode, habitual requesters are demoted; in `moderate` mode, infrequent requesters get priority. Tracks 8 weeks of tee time history.
-- **Partner preference weighting** — ✅ BUILT. `grouping_partner_pref_mode` setting (off/light/moderate/full) with harmony multiplier (0 to 1.0) and per-group cap (0 to unlimited). Prevents friend groups from always being clustered.
-- **Admin partner avoidance** — Allow super admins and event admins to set "prefer not to be grouped with" preferences, providing some control over groupings beyond what golfers can see. Design TBD — scope, visibility, and UI to be determined when building.
+### 1. ~~Grouping Engine Enhancements~~ ✅ COMPLETE
+All sub-items built: repeat foursome prevention, tee time preference limits, partner preference weighting, admin partner avoidance.
 
 ### 2. Admin Reports
 Build a set of useful reports for admins to understand usage and participation patterns. Specific reports TBD — brainstorming needed to identify what's most valuable. Potential areas: participation frequency, RSVP response patterns, no-show tracking, golfer engagement trends, event growth over time.

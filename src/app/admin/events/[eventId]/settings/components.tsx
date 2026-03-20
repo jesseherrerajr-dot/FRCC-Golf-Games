@@ -13,6 +13,7 @@ import {
   removeEventAdmin,
   updateFeatureFlags,
   updateGroupingPreferences,
+  updateHandicapSyncEnabled,
   deactivateEvent,
   reactivateEvent,
   permanentlyDeleteEvent,
@@ -1281,6 +1282,118 @@ export function FeatureFlagsForm({ event }: { event: any }) {
           </button>
         </div>
       ))}
+    </div>
+  );
+}
+
+// ============================================================
+// Handicap Sync Settings
+// ============================================================
+
+interface HandicapSyncStatus {
+  status: "healthy" | "partial" | "failed" | "never";
+  lastSyncAt: string | null;
+  successCount: number;
+  totalGolfers: number;
+  failureCount: number;
+  errorMessage: string | null;
+}
+
+export function HandicapSyncForm({
+  event,
+  syncStatus,
+}: {
+  event: any;
+  syncStatus: HandicapSyncStatus | null;
+}) {
+  const [isPending, startTransition] = useTransition();
+  const router = useRouter();
+
+  const handleToggle = () => {
+    startTransition(async () => {
+      await updateHandicapSyncEnabled(event.id, !event.handicap_sync_enabled);
+      router.refresh();
+    });
+  };
+
+  const statusConfig = {
+    healthy: { label: "Healthy", color: "bg-green-100 text-green-800", dot: "bg-green-500" },
+    partial: { label: "Partial", color: "bg-amber-100 text-amber-800", dot: "bg-amber-500" },
+    failed: { label: "Failed", color: "bg-red-100 text-red-800", dot: "bg-red-500" },
+    never: { label: "Never Synced", color: "bg-gray-100 text-gray-600", dot: "bg-gray-400" },
+  };
+
+  const status = syncStatus?.status || "never";
+  const config = statusConfig[status];
+
+  return (
+    <div className="space-y-4">
+      {/* Toggle */}
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-sm font-medium text-gray-900">Enable Handicap Sync</p>
+          <p className="text-xs text-gray-500">
+            Automatically fetch current USGA Handicap Index for all golfers with
+            a GHIN number. Syncs within 24 hours of each scheduled game.
+          </p>
+        </div>
+        <button
+          onClick={handleToggle}
+          disabled={isPending}
+          className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 ${
+            event.handicap_sync_enabled ? "bg-teal-500" : "bg-gray-200"
+          } ${isPending ? "opacity-50" : ""}`}
+        >
+          <span
+            className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform duration-200 ${
+              event.handicap_sync_enabled ? "translate-x-5" : "translate-x-0"
+            }`}
+          />
+        </button>
+      </div>
+
+      {/* Status Indicator */}
+      {event.handicap_sync_enabled && syncStatus && (
+        <div className="rounded-md border border-gray-200 bg-gray-50 p-3">
+          <div className="flex items-center gap-2">
+            <span className={`inline-block h-2 w-2 rounded-full ${config.dot}`} />
+            <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${config.color}`}>
+              {config.label}
+            </span>
+          </div>
+          {syncStatus.lastSyncAt && (
+            <p className="mt-1 text-xs text-gray-500">
+              Last synced: {new Date(syncStatus.lastSyncAt).toLocaleString("en-US", {
+                timeZone: "America/Los_Angeles",
+                month: "short",
+                day: "numeric",
+                hour: "numeric",
+                minute: "2-digit",
+                hour12: true,
+              })} PT
+            </p>
+          )}
+          {status !== "never" && (
+            <p className="mt-0.5 text-xs text-gray-500">
+              {syncStatus.successCount} of {syncStatus.totalGolfers} golfers updated
+              {syncStatus.failureCount > 0 && ` (${syncStatus.failureCount} failed)`}
+            </p>
+          )}
+          {status === "failed" && syncStatus.errorMessage && (
+            <p className="mt-1 text-xs text-red-600">
+              Error: {syncStatus.errorMessage}
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Info Note */}
+      <p className="rounded-md bg-blue-50 p-3 text-xs text-blue-700">
+        Requires GHIN credentials (GHIN_EMAIL and GHIN_PASSWORD) to be configured
+        in the environment. Uses the unofficial GHIN API — if the USGA changes
+        their API, the sync may stop working. You will receive an email alert if
+        the sync fails.
+      </p>
     </div>
   );
 }

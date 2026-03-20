@@ -6,7 +6,8 @@ type AlertType =
   | "new_registration"
   | "capacity_reached"
   | "spot_opened"
-  | "low_response";
+  | "low_response"
+  | "handicap_sync_failed";
 
 interface AlertContext {
   eventId: string;
@@ -21,6 +22,11 @@ interface AlertContext {
   // For low_response
   respondedCount?: number;
   totalSubscribers?: number;
+  // For handicap_sync_failed
+  syncSuccessCount?: number;
+  syncFailureCount?: number;
+  syncErrorMessage?: string;
+  consecutiveFailures?: number;
 }
 
 /**
@@ -42,10 +48,11 @@ export async function sendAdminAlert(
     .eq("alert_type", alertType)
     .maybeSingle();
 
-  // If no setting found, use defaults: new_registration ON, capacity_reached ON, others OFF
+  // If no setting found, use defaults: new_registration ON, capacity_reached ON,
+  // handicap_sync_failed always ON (no event_alert_settings row needed), others OFF
   const isEnabled =
     alertSetting?.is_enabled ??
-    (alertType === "new_registration" || alertType === "capacity_reached");
+    (alertType === "new_registration" || alertType === "capacity_reached" || alertType === "handicap_sync_failed");
 
   if (!isEnabled) {
     console.log(
@@ -186,6 +193,23 @@ function generateAlertEmail(
             </div>
             <p style="color: #374151;">Only <strong>${context.respondedCount}</strong> out of <strong>${context.totalSubscribers}</strong> golfers have responded so far.</p>
             <p style="color: #374151; font-size: 14px;">Consider sending a custom reminder or reaching out to golfers who haven't responded.</p>
+          </div>
+        `,
+      };
+
+    case "handicap_sync_failed":
+      return {
+        subject: `[${context.eventName}] Handicap Sync Failed${context.consecutiveFailures && context.consecutiveFailures >= 3 ? " (Repeated)" : ""}`,
+        html: `
+          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+            <div style="background: #fef2f2; border-left: 4px solid #ef4444; padding: 16px; margin-bottom: 20px;">
+              <h2 style="color: #991b1b; margin: 0 0 8px 0; font-size: 18px;">Handicap Sync Failed</h2>
+              <p style="margin: 0; color: #374151;">${context.eventName}</p>
+            </div>
+            ${context.syncErrorMessage ? `<p style="color: #374151;"><strong>Error:</strong> ${context.syncErrorMessage}</p>` : ""}
+            ${context.syncSuccessCount !== undefined && context.syncFailureCount !== undefined ? `<p style="color: #374151;">Results: <strong>${context.syncSuccessCount}</strong> succeeded, <strong>${context.syncFailureCount}</strong> failed.</p>` : ""}
+            ${context.consecutiveFailures && context.consecutiveFailures >= 3 ? `<p style="color: #991b1b; font-weight: 600;">This is the ${context.consecutiveFailures}${context.consecutiveFailures === 3 ? "rd" : "th"} consecutive failure. Consider disabling handicap sync in Event Settings until the issue is resolved.</p>` : ""}
+            <p style="color: #374151; font-size: 14px;">Possible causes: GHIN credentials expired, USGA API changed, or temporary service outage. Check Event Settings to disable sync if needed.</p>
           </div>
         `,
       };

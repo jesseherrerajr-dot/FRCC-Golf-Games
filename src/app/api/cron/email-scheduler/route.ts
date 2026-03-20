@@ -29,6 +29,7 @@ import {
 } from "@/lib/grouping-db";
 import { formatGameDate, formatSponsorName, getSiteUrl } from "@/lib/format";
 import { getGameWeather } from "@/lib/weather";
+import { needsHandicapSync, runHandicapSync, getConsecutiveFailureCount } from "@/lib/handicap-sync";
 import type { GameType } from "@/types/events";
 
 /**
@@ -215,6 +216,45 @@ export async function GET(request: Request) {
           await checkLowResponseAlert(supabase, event, gameDateString);
         } catch (err) {
           console.error(`Low response alert check failed for ${event.name}:`, err);
+        }
+      }
+
+      // Check if handicap sync is needed for this event (non-fatal)
+      if (!isTest) {
+        try {
+          const syncNeeded = await needsHandicapSync(event.id as string);
+          if (syncNeeded) {
+            console.log(`Running handicap sync for ${event.name}...`);
+            const syncResult = await runHandicapSync(event.id as string);
+
+            results.push({
+              event: event.name,
+              type: "handicap_sync",
+              priority: 0,
+              message: syncResult.success
+                ? `Synced ${syncResult.successCount} handicaps (${syncResult.skippedCount} fresh, ${syncResult.failureCount} failed)`
+                : `Handicap sync failed: ${syncResult.errorMessage}`,
+              sent: syncResult.successCount,
+            });
+
+            // Send admin alert if sync failed
+            if (!syncResult.success || (syncResult.failureCount > 0 && syncResult.successCount === 0)) {
+              const consecutiveFailures = await getConsecutiveFailureCount(event.id as string);
+              // Alert on first failure or every 3rd consecutive failure
+              if (consecutiveFailures === 1 || consecutiveFailures % 3 === 0) {
+                await sendAdminAlert("handicap_sync_failed", {
+                  eventId: event.id as string,
+                  eventName: event.name as string,
+                  syncSuccessCount: syncResult.successCount,
+                  syncFailureCount: syncResult.failureCount,
+                  syncErrorMessage: syncResult.errorMessage,
+                  consecutiveFailures,
+                });
+              }
+            }
+          }
+        } catch (err) {
+          console.error(`Handicap sync failed for ${event.name} (non-fatal):`, err);
         }
       }
     }
@@ -851,7 +891,7 @@ async function handleProShopDetail(
   const { data: confirmedRsvps } = await supabase
     .from("rsvps")
     .select(
-      "*, profile:profiles(id, first_name, last_name, email, phone, ghin_number)"
+      "*, profile:profiles(id, first_name, last_name, email, phone, ghin_number, handicap_index)"
     )
     .eq("schedule_id", schedule.id)
     .eq("status", "in")
@@ -875,6 +915,7 @@ async function handleProShopDetail(
         email: string;
         phone: string;
         ghin_number: string;
+        handicap_index: number | null;
       };
       return { ...profile, is_guest: false };
     }
@@ -892,6 +933,7 @@ async function handleProShopDetail(
         email: (g.guest_email as string) || "",
         phone: (g.guest_phone as string) || "",
         ghin_number: (g.guest_ghin_number as string) || "",
+        handicap_index: null as number | null,
         is_guest: true,
         sponsor_name: sponsor
           ? formatSponsorName(sponsor.first_name, sponsor.last_name)

@@ -358,6 +358,7 @@ export interface StoredGroupGolfer {
   phone: string;
   email: string;
   ghinNumber: string;
+  handicapIndex: number | null;
   isGuest: boolean;
   hostName: string | null; // "J. Herrera" format for guests
   hostProfileId: string | null;
@@ -392,7 +393,7 @@ export async function fetchStoredGroupings(
       harmony_score,
       profile_id,
       guest_request_id,
-      profile:profiles(id, first_name, last_name, phone, email, ghin_number)
+      profile:profiles(id, first_name, last_name, phone, email, ghin_number, handicap_index)
     `
     )
     .eq("schedule_id", scheduleId)
@@ -508,6 +509,7 @@ export async function fetchStoredGroupings(
       phone: string;
       email: string;
       ghin_number: string;
+      handicap_index: number | null;
     } | null;
   }>) {
     if (!groupMap.has(row.group_number)) {
@@ -529,6 +531,7 @@ export async function fetchStoredGroupings(
         phone: row.profile.phone || "",
         email: row.profile.email || "",
         ghinNumber: row.profile.ghin_number || "",
+        handicapIndex: row.profile.handicap_index ?? null,
         isGuest: false,
         hostName: null,
         hostProfileId: null,
@@ -563,6 +566,7 @@ export async function fetchStoredGroupings(
         phone: row.guest.guest_phone || "",
         email: row.guest.guest_email || "",
         ghinNumber: row.guest.guest_ghin_number || "",
+        handicapIndex: null, // Guests don't have synced handicaps
         isGuest: true,
         hostName,
         hostProfileId: row.guest.requested_by,

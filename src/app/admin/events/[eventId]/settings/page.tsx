@@ -8,9 +8,11 @@ import {
   ProShopContactsForm,
   AdminAssignmentsForm,
   GroupingPreferencesForm,
+  HandicapSyncForm,
   FeatureFlagsForm,
   DangerZone,
 } from "./components";
+import { getLatestSyncStatus } from "@/lib/handicap-sync";
 
 export default async function EventSettingsPage({
   params,
@@ -68,6 +70,14 @@ export default async function EventSettingsPage({
     .eq("status", "active")
     .eq("is_guest", false)
     .order("last_name");
+
+  // Fetch handicap sync status (non-fatal)
+  let syncStatus = null;
+  try {
+    syncStatus = await getLatestSyncStatus(eventId);
+  } catch {
+    // Non-fatal — sync status display is optional
+  }
 
   const isSuperAdmin = profile.is_super_admin;
 
@@ -158,6 +168,24 @@ export default async function EventSettingsPage({
             </p>
             <div className="mt-3 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
               <GroupingPreferencesForm event={event} />
+            </div>
+          </section>
+        )}
+
+        {/* Handicap Sync — Super Admin Only */}
+        {isSuperAdmin && (
+          <section className="mt-8">
+            <h2 className="text-lg font-semibold text-gray-900">
+              Handicap Sync
+              <span className="ml-2 inline-flex rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-700">
+                Super Admin
+              </span>
+            </h2>
+            <p className="mt-1 text-sm text-gray-500">
+              Automatically fetch USGA Handicap Index from GHIN before each game.
+            </p>
+            <div className="mt-3 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+              <HandicapSyncForm event={event} syncStatus={syncStatus} />
             </div>
           </section>
         )}

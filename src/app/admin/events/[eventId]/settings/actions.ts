@@ -564,6 +564,33 @@ export async function updateGroupingPreferences(
 }
 
 // ============================================================
+// Handicap Sync Settings
+// ============================================================
+
+export async function updateHandicapSyncEnabled(
+  eventId: string,
+  enabled: boolean
+) {
+  await requireSuperAdmin();
+  const { supabase } = await requireAdmin();
+
+  try {
+    const { error } = await supabase
+      .from("events")
+      .update({ handicap_sync_enabled: enabled })
+      .eq("id", eventId);
+
+    if (error) throw error;
+
+    revalidatePath(`/admin/events/${eventId}/settings`);
+    return { success: true };
+  } catch (error) {
+    console.error("Update handicap sync error:", error);
+    return { error: "Failed to update handicap sync setting" };
+  }
+}
+
+// ============================================================
 // Deactivate Event
 // ============================================================
 

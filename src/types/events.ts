@@ -63,6 +63,9 @@ export interface Event {
   grouping_tee_time_pref_mode: GroupingTeeTimePrefMode;
   grouping_promote_variety: boolean;
 
+  // GHIN Handicap Sync
+  handicap_sync_enabled: boolean;
+
   is_active: boolean;
   created_at: string;
   updated_at: string;

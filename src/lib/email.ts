@@ -243,6 +243,7 @@ export function generateProShopEmail({
     email: string;
     phone: string;
     ghin_number: string;
+    handicap_index?: number | null;
     is_guest?: boolean;
     sponsor_name?: string;
   }[];
@@ -280,6 +281,7 @@ export function generateProShopEmail({
               <td style="${tdStyle}">${m.email || "—"}</td>
               <td style="${tdStyle}">${formatPhoneDisplay(m.phone)}</td>
               <td style="${tdStyle}">${m.ghinNumber || "—"}</td>
+              <td style="${tdStyle} text-align: center;">${m.handicapIndex != null ? m.handicapIndex.toFixed(1) : "—"}</td>
               <td style="${tdStyle} text-align: center;">${teePref}</td>
               <td style="${tdStyle} text-align: center;">${playerPref}</td>
             </tr>`;
@@ -288,7 +290,7 @@ export function generateProShopEmail({
 
         return `
           <tr>
-            <td colspan="6" style="padding: 10px 8px 6px 8px; font-weight: 600; color: #1b2a4a; font-size: 14px; border-top: 2px solid #3d7676; background: #f0f3f7;">
+            <td colspan="7" style="padding: 10px 8px 6px 8px; font-weight: 600; color: #1b2a4a; font-size: 14px; border-top: 2px solid #3d7676; background: #f0f3f7;">
               Group ${group.groupNumber}
             </td>
           </tr>
@@ -312,6 +314,7 @@ export function generateProShopEmail({
             <th style="${thStyle}">Email</th>
             <th style="${thStyle}">Phone</th>
             <th style="${thStyle}">GHIN</th>
+            <th style="${thStyle} text-align: center;">HCP</th>
             <th style="${thStyle} text-align: center;">Tee Time</th>
             <th style="${thStyle} text-align: center;">Player Pref</th>
           </tr>
@@ -337,6 +340,7 @@ export function generateProShopEmail({
         <td style="${tdStyle}">${p.email}</td>
         <td style="${tdStyle}">${formatPhoneDisplay(p.phone)}</td>
         <td style="${tdStyle}">${p.ghin_number}</td>
+        <td style="${tdStyle} text-align: center;">${p.handicap_index != null ? p.handicap_index.toFixed(1) : "—"}</td>
       </tr>`;
       }
     )
@@ -355,6 +359,7 @@ export function generateProShopEmail({
             <th style="${thStyle}">Email</th>
             <th style="${thStyle}">Phone</th>
             <th style="${thStyle}">GHIN</th>
+            <th style="${thStyle} text-align: center;">HCP</th>
           </tr>
         </thead>
         <tbody>
