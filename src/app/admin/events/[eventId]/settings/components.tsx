@@ -1025,9 +1025,19 @@ export function GroupingPreferencesForm({ event }: { event: any }) {
       const result = await updateFeatureFlags(event.id, { [key]: !currentValue });
       if (result.error) {
         showMessage(result.error, true);
-      } else {
-        showMessage(!currentValue ? "Enabled." : "Disabled.");
+        return;
       }
+      // When enabling a preference, reset its mode to 'full' if currently set to 'off'
+      // (the 'off' option was removed from the UI)
+      if (!currentValue) {
+        if (key === 'allow_tee_time_preferences' && teeTimeMode === 'off') {
+          await updateGroupingPreferences(event.id, { grouping_tee_time_pref_mode: 'full' });
+        }
+        if (key === 'allow_playing_partner_preferences' && partnerMode === 'off') {
+          await updateGroupingPreferences(event.id, { grouping_partner_pref_mode: 'full' });
+        }
+      }
+      showMessage(!currentValue ? "Enabled." : "Disabled.");
     });
   };
 
