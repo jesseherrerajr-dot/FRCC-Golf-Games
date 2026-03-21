@@ -171,6 +171,16 @@ export default async function GolferDirectory({
                       <span className="block truncate text-xs text-gray-400">
                         {golfer.email}
                       </span>
+                      {golfer.handicap_index != null && (
+                        <span className="block text-xs text-teal-600">
+                          HCP: {Number(golfer.handicap_index).toFixed(1)}
+                          {golfer.handicap_updated_at && (
+                            <span className="ml-1 text-gray-400">
+                              (updated {new Date(golfer.handicap_updated_at).toLocaleDateString("en-US", { timeZone: "America/Los_Angeles", month: "short", day: "numeric" })})
+                            </span>
+                          )}
+                        </span>
+                      )}
                     </div>
                     <StatusBadge
                       status={golfer.status}
