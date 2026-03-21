@@ -218,6 +218,18 @@ export default async function HelpPage() {
                 </p>
               </FAQ>
 
+              <FAQ question="How does my Handicap Index get updated?">
+                <p>
+                  If you have a GHIN number on file, your Handicap Index is
+                  automatically fetched from the USGA/GHIN system before each
+                  scheduled game. You can see your current index and the date it was
+                  last updated on your Home page under &quot;My Profile.&quot; You
+                  don&apos;t need to do anything — it syncs automatically. If your
+                  index doesn&apos;t appear, make sure your GHIN number is entered
+                  correctly in your Profile settings.
+                </p>
+              </FAQ>
+
               <FAQ question='Who can see my information when I RSVP "In"?'>
                 <p>
                   Other golfers who are also &quot;In&quot; can see a list of confirmed
@@ -403,6 +415,22 @@ export default async function HelpPage() {
                     they&apos;re subscribed to.
                     You can also deactivate a golfer (stops all invites, preserves
                     history) or reactivate them later.
+                  </p>
+                </FAQ>
+
+                <FAQ question="How does the GHIN Handicap Sync work?">
+                  <p>
+                    When enabled in <strong>Event Settings</strong>, the system
+                    automatically fetches each golfer&apos;s current Handicap Index
+                    from the USGA/GHIN system before each scheduled game. Handicaps
+                    are updated in batches (up to 20 per sync run) and shared across
+                    events — if a golfer plays in multiple events, one sync covers
+                    them all. You can see each golfer&apos;s handicap and last-updated
+                    date in the <strong>Golfer Directory</strong> and on individual
+                    golfer detail pages. Handicaps are also included in the Pro Shop
+                    Detail email. If the GHIN API becomes unavailable, the system
+                    auto-disables and alerts the super admin — the rest of the app
+                    continues working normally.
                   </p>
                 </FAQ>
               </div>

@@ -327,20 +327,19 @@ export default async function DashboardPage() {
                   <div className="flex justify-between">
                     <dt className="text-gray-500">Handicap Index</dt>
                     <dd className="font-medium text-gray-900">
-                      {profile.handicap_index != null ? (
-                        <span>
-                          {Number(profile.handicap_index).toFixed(1)}
-                          {profile.handicap_updated_at && (
-                            <span className="ml-1 text-xs font-normal text-gray-400">
-                              (updated {new Date(profile.handicap_updated_at).toLocaleDateString("en-US", { timeZone: "America/Los_Angeles", month: "short", day: "numeric" })})
-                            </span>
-                          )}
-                        </span>
-                      ) : (
-                        <span className="text-gray-400">—</span>
-                      )}
+                      {profile.handicap_index != null
+                        ? Number(profile.handicap_index).toFixed(1)
+                        : <span className="text-gray-400">—</span>}
                     </dd>
                   </div>
+                  {profile.handicap_index != null && profile.handicap_updated_at && (
+                    <div className="flex justify-between">
+                      <dt className="text-gray-500">Last Synced</dt>
+                      <dd className="text-sm text-gray-400">
+                        {new Date(profile.handicap_updated_at).toLocaleDateString("en-US", { timeZone: "America/Los_Angeles", month: "short", day: "numeric" })}
+                      </dd>
+                    </div>
+                  )}
                 </dl>
               </div>
 

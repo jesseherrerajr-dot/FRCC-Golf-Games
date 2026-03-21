@@ -711,3 +711,51 @@ Allow golfers to share an event registration link that pre-identifies them as th
 
 ### 11. SMS / Text Notifications
 Add opt-in SMS notifications alongside email for key moments in the RSVP cycle — particularly a cutoff-day text to non-responders ("RSVP closes in 2 hours — tap here to respond"). SMS has significantly higher open rates than email and could meaningfully improve response rates. Primary concern is cost. **Before building:** evaluate SMS provider pricing (Twilio, AWS SNS, etc.) for the expected volume (~30 golfers × 1-2 texts/week per event) to confirm it's manageable. If cost-effective, start with a single high-value SMS touchpoint (cutoff reminder) before expanding to other notifications.
+
+---
+
+## Documentation Update Standard
+
+When the user asks to "update all product documentation" (or similar), update the following documents. This is the canonical checklist — no need to enumerate individual files each time.
+
+### Always Update (Tier 1 — Every Enhancement)
+
+| Document | What to Update |
+|----------|---------------|
+| `CLAUDE.md` | **File Map** — add/remove/rename any new or changed files. **"What's Been Built"** — add a bullet for the new feature or update existing bullets. **Roadmap** — mark completed items with ✅, add new roadmap items if applicable. **Centralized Utilities** — document any new shared functions, constants, or patterns. **Terminology** — add new terms introduced by the feature. |
+| `CLAUDE_CONTEXT.md` | **"What's complete"** list — add the new feature. **"What's on the roadmap"** list — update to match CLAUDE.md roadmap. Any new **project decisions, patterns, or preferences** established during the session. |
+| `src/types/events.ts` | Add/update TypeScript interfaces and types for any new database columns, API responses, or shared data structures. |
+
+### Update If Feature Has a Spec (Tier 2 — Feature-Specific)
+
+| Document | When to Update |
+|----------|---------------|
+| `docs/<FEATURE>_SPEC.md` | If the enhancement modifies or completes a feature that has its own spec doc (e.g., `GROUPING_ENGINE_SPEC.md`, `HANDICAP_SYNC_SPEC.md`). Update architecture, data model, modified files table, open decisions, and risks. |
+| New `docs/<FEATURE>_SPEC.md` | If a **new major feature** is built (comparable in scope to the grouping engine or handicap sync), create a new spec doc following the same structure as existing specs. |
+
+### Update If User-Facing Behavior Changed (Tier 3 — User Help)
+
+| Document | When to Update |
+|----------|---------------|
+| `src/app/help/page.tsx` | If the enhancement adds new user-visible functionality, changes existing workflows, or introduces new admin capabilities that golfers or admins would have questions about. Add/update FAQ entries in the appropriate section (Golfer FAQ or Admin FAQ). |
+
+### Update If Applicable (Tier 4 — Situational)
+
+| Document | When to Update |
+|----------|---------------|
+| `CLAUDE.md` — **Database Constraints** | If new CHECK constraints, RLS policies, or notable column types are added. |
+| `CLAUDE.md` — **Timezone Rules** | If new date/time handling is introduced that future developers need to be aware of. |
+| `CLAUDE.md` — **Infrastructure Constraints** | If changes affect Vercel cron slots, Resend email limits, or Supabase storage. |
+| `CLAUDE.md` — **Navigation Structure / Breadcrumbs** | If new pages are added or navigation hierarchy changes. |
+| `supabase/migrations/` | Not documentation per se, but ensure the migration file exists and is referenced in CLAUDE.md's database section. |
+
+### Do NOT Update (Historical / One-Time Docs)
+
+These files are historical artifacts and should **not** be routinely updated:
+
+- `PHASE4-REQUIREMENTS.md` — Original phase 4 requirements (completed).
+- `FRCC-Structural-Audit.md` — One-time structural audit.
+- `TESTING-PREFERENCES.md` — Testing session notes.
+- `REFACTOR-PROGRESS.md` — Refactor tracking (completed).
+- `docs/SITE_STRUCTURE.md` — Superseded by CLAUDE.md's File Map and Navigation sections.
+- `docs/NAVIGATION_RESTRUCTURE.md` — One-time navigation restructure plan (completed).

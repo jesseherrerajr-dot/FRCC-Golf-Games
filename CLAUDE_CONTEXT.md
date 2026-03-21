@@ -15,19 +15,25 @@ A companion to CLAUDE.md. Where CLAUDE.md is the technical specification and imp
 **What's complete:**
 - Phases 1–2 (Foundation + Weekly RSVP Cycle) — fully shipped
 - Phase 4 (Admin Tools & Communication) — mostly complete, powering the production workflow
-- Grouping engine — fully implemented with 36 unit tests, cron integration, and pro shop email integration
+- Grouping engine — fully implemented with 50+ unit tests, cron integration, pro shop email integration, repeat foursome prevention, tee time preference limits, partner preference weighting, and admin partner avoidance
 - Playing partner preferences — ranked 1–10 with per-event scoping
 - Tee time preferences — per-week on RSVP page
 - Multi-event architecture — designed and implemented, second event being onboarded
 - PWA install flow with push notification support
 - Configurable email schedules per event (6 Vercel cron slots)
+- Weather integration — Open-Meteo API, golfability scoring, displayed on RSVP pages, home page, and in emails
+- GHIN Handicap Sync — automated fetch from GHIN API (`api2.ghin.com`), per-event toggle, displayed on home page, profile, both golfer directories, golfer detail pages, and pro shop email
 
 **What's on the roadmap (see CLAUDE.md Roadmap for details):**
-1. Grouping engine enhancements (repeat prevention, tee time limits, admin avoidance)
-2. Admin reports (TBD — brainstorming needed)
-3. Email template review
-4. Guest workflow (architecture exists, feature-flagged OFF)
-5. Priority email batching (for when Resend free-tier limit is approached)
+1. Admin reports (TBD — brainstorming needed)
+2. Email template review
+3. Guest workflow (architecture exists, feature-flagged OFF)
+4. Priority email batching (for when Resend free-tier limit is approached)
+5. Public "Who's Playing" view
+6. Golfer engagement & gamification stats
+7. Waitlist end-to-end testing & refinement
+8. Invite-a-friend / referral registration
+9. SMS / text notifications
 
 ---
 
@@ -88,11 +94,15 @@ These are final decisions reflected in the codebase and not open for reconsidera
 
 See the Roadmap section of CLAUDE.md for the current prioritized list. Key items:
 
-1. **Grouping engine enhancements** — Prevent repeat foursomes (use history to penalize recent pairings), limit tee time preference gaming, admin partner avoidance lists. Design details TBD for each.
-2. **Admin reports** — Build useful reports for admins. Specific reports TBD — brainstorming needed.
-3. **Email template review** — Audit all automated emails for copy, formatting, and links.
-4. **Guest workflow** — Complete the guest request system (architecture exists, feature-flagged OFF).
-5. **Priority email batching** — For when distribution approaches the 100/day Resend limit.
+1. **Admin reports** — Build useful reports for admins. Specific reports TBD — brainstorming needed.
+2. **Email template review** — Audit all automated emails for copy, formatting, and links.
+3. **Guest workflow** — Complete the guest request system (architecture exists, feature-flagged OFF).
+4. **Priority email batching** — For when distribution approaches the 100/day Resend limit.
+5. **Public "Who's Playing" view** — Unlisted shareable page showing the "In" list without login.
+6. **Golfer engagement & gamification stats** — Participation streaks, response rate scores, badges.
+7. **Waitlist end-to-end testing** — Verify correct ordering, admin promotion flow, edge cases.
+8. **Invite-a-friend / referral registration** — Referral parameter on join link, shows referrer to admin.
+9. **SMS / text notifications** — Opt-in texts for cutoff reminders (cost evaluation needed first).
 
 **Technical debt visible in the codebase (not on the active roadmap but worth noting):**
 
@@ -218,3 +228,28 @@ See the Roadmap section of CLAUDE.md for the current prioritized list. Key items
 - **Email link best practice:** For email footer links, `/home` is the right destination (not `/` which shows the landing page even for logged-in users). Display text should say "Go to FRCC Golf Games" rather than exposing the URL path.
 - **Roadmap consolidation:** Removed items Jesse doesn't currently care about. The five active roadmap items are: (1) grouping engine enhancements (repeat prevention, tee time limits, admin avoidance), (2) admin reports (TBD), (3) email template review, (4) guest workflow, (5) priority email batching. Design details for grouping items are intentionally left TBD — to be addressed when each is tackled.
 - **Working preferences captured:** Jesse is not a software engineer — needs copy-paste ready commands and extra context for terminal/SQL/CLI work. Prefers step-by-step guidance over long action plans. Opus is the preferred model (Sonnet caused rework). Claude should internalize the stack constraints from CLAUDE.md rather than re-asking.
+
+### Session: March 19–20, 2026
+
+**Context:** GHIN Handicap Sync deployment, debugging, and UI expansion.
+
+**Changes made:**
+1. **Deployed GHIN Handicap Sync to production** — Committed all 15 files (handicap-sync.ts, migration 018, event settings UI, cron integration, types, spec doc). Walked through Supabase migration, Vercel env vars, and redeploy.
+
+2. **Debugged GHIN API authentication** — Multiple iterations to get the auth request body correct. Key findings: `token: "recaptcha-disabled"` required at root level, credential field is `email_or_ghin` (not `email`), endpoint is `api2.ghin.com/api/v1/golfer_login.json`. Used temporary debug arrays in cron JSON responses to troubleshoot serverless functions without log access.
+
+3. **Fixed Vercel env var issues** — Discovered `GHIN_EMAIL` and `GHIN_PASSWORD` were set at the **team level** (not available to project functions). Also found a typo (`GHIN_EMIAL` instead of `GHIN_EMAIL`). Both fixed by Jesse in Vercel project settings.
+
+4. **Added Handicap Index to golfer home page** — New row in My Profile section showing current index and last-updated date below the GHIN number.
+
+5. **Added Handicap Index to both golfer directories** — Global (Admin → Golfers) and event-scoped (Admin → Events → [Event] → Golfers) directories now show an HCP line on each golfer card with value and last-updated date.
+
+6. **Updated all documentation** — CLAUDE.md "What's Been Built" section, HANDICAP_SYNC_SPEC.md (direct HTTP client details, all display surfaces, corrected risks and modified files), and CLAUDE_CONTEXT.md.
+
+7. **Established Documentation Update Standard** — Added a new section to CLAUDE.md defining a tiered checklist for "update all product documentation" so future sessions don't require enumerating individual files. Four tiers: Always Update (CLAUDE.md, CLAUDE_CONTEXT.md, types), Feature Spec, User Help, and Situational.
+
+**Key decisions:**
+- **No npm dependency for GHIN:** The `@spicygolf/ghin` npm package was intentionally NOT used. Direct HTTP calls to `api2.ghin.com` are more maintainable and fully patchable if the API changes.
+- **Vercel env vars must be at project level:** Team-level env vars are NOT automatically available to project functions. This is now documented as a risk in the spec.
+- **Handicap sync piggybacks on email-scheduler cron:** No new cron slot needed (all 6 are already used). Sync runs within 24 hours of each scheduled event, 20 golfers per batch, stalest-first.
+- **All 11 golfer handicaps verified accurate** by Jesse after first successful sync.
