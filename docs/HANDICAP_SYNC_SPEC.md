@@ -43,12 +43,25 @@ Automated system to fetch current Handicap Index values from GHIN for all golfer
 |--------|------|---------|-------------|
 | `handicap_sync_enabled` | `boolean` | `false` | Per-event toggle. When ON, handicap sync runs before this event's games. |
 
-### Library: `@spicygolf/ghin`
+### Direct HTTP Client (No External Dependency)
 
-- **Package:** `@spicygolf/ghin` (npm)
-- **Auth:** Requires a GHIN Digital Profile — email + password stored as Vercel env vars (`GHIN_EMAIL`, `GHIN_PASSWORD`).
+- **API Base:** `https://api2.ghin.com/api/v1` (unofficial GHIN mobile app API)
+- **Auth endpoint:** `POST /golfer_login.json` with JSON body:
+  ```json
+  {
+    "token": "recaptcha-disabled",
+    "user": {
+      "email_or_ghin": "<GHIN_EMAIL>",
+      "password": "<GHIN_PASSWORD>",
+      "remember_me": true
+    }
+  }
+  ```
+  Returns `golfer_user.golfer_user_token` (bearer token, cached for 1 hour).
+- **Lookup endpoint:** `GET /golfers.json?golfer_id=<GHIN_NUMBER>&from_golfer=true` with `Authorization: Bearer <token>` header.
 - **Lookup method:** By GHIN number (not golfer name). Returns handicap index among other data.
 - **Rate limiting:** Throttle requests to 1 every 2 seconds to avoid triggering GHIN rate limits.
+- **Why direct HTTP instead of npm:** The `@spicygolf/ghin` npm package was considered but rejected — it's more maintainable to call the API directly so we can patch endpoint changes immediately without waiting for a library update.
 
 ### Environment Variables
 
@@ -57,7 +70,7 @@ Automated system to fetch current Handicap Index values from GHIN for all golfer
 | `GHIN_EMAIL` | Email address for the GHIN Digital Profile used for API auth. |
 | `GHIN_PASSWORD` | Password for the GHIN Digital Profile. |
 
-These are only needed in the Vercel production environment. If not set, the sync silently skips (never crashes).
+**IMPORTANT:** These must be set at the **Vercel project level** (Project → Settings → Environment Variables), not the team level. Team-level env vars are not automatically available to project functions. If not set, the sync silently skips (never crashes).
 
 ---
 
@@ -71,9 +84,9 @@ The existing `/api/cron/email-scheduler` already runs 6 times daily and knows ea
 For each active event:
   1. (existing) Process email schedules...
   2. (existing) Check low_response alert...
-  3. (NEW) Check if handicap sync is needed:
-     a. Is handicap_sync_enabled for this event? If no, skip.
-     b. Is there a game scheduled within the next 48 hours? If no, skip.
+  3. (NEW) Check if handicap sync is needed (needsHandicapSync):
+     a. Are GHIN_EMAIL and GHIN_PASSWORD env vars set? If no, skip silently.
+     b. Is handicap_sync_enabled for this event? If no, skip.
      c. Has a successful sync already run for this event within 24 hours? If yes, skip.
      d. Trigger handicap sync for this event's subscribed golfers.
 ```
@@ -142,16 +155,22 @@ Add to the Event Settings page (within a new "Handicap Sync" section, visible to
   - ⚪ "Never synced" (no sync log entries)
 - **Info text:** "Fetches current USGA Handicap Index for all golfers with a GHIN number. Syncs automatically within 24 hours of each game."
 
-### Golfer Profile — Handicap Display
+### Handicap Display — All Surfaces
 
-- Show `handicap_index` on the golfer's profile page (read-only, with "Last updated: [date]").
-- Show on admin golfer detail pages (both global and event-scoped).
-- Format: Display as-is (e.g., "12.3") or "+2.1" for plus handicaps. Show "N/A" if NULL.
+Handicap Index is displayed on the following pages (all read-only, system-managed):
 
-### Admin Golfer Directory
+| Surface | Location | Format | Visibility |
+|---------|----------|--------|------------|
+| Golfer Home Page (`/home`) | My Profile section, below GHIN row | `Handicap Index: 10.3 (updated Mar 20)` | All golfers (own data) |
+| Profile Edit Page (`/profile`) | Teal box below GHIN Number input | `Current Handicap Index: 10.3 (updated Mar 20)` | All golfers (own data) |
+| Admin Golfer Detail — Global (`/admin/golfers/[id]`) | Definition list row after GHIN | `Handicap Index: 10.3 (updated Mar 20)` or `N/A` | Super admin |
+| Admin Golfer Detail — Event (`/admin/events/[id]/golfers/[id]`) | Same as global | Same | Super admin + event admin |
+| Global Golfer Directory (`/admin/golfers`) | Third line on each golfer row | `HCP: 10.3 (updated Mar 20)` in teal | Super admin |
+| Event Golfer Directory (`/admin/events/[id]/golfers`) | Third line on each golfer row | `HCP: 10.3 (updated Mar 20)` in teal | Super admin + event admin |
+| Pro Shop Email | HCP column in player table | `10.3` or blank | Pro shop contacts, admins |
 
-- Add handicap index as a visible field in golfer list cards (subtle, secondary text).
-- Sortable by handicap index (future enhancement for reporting).
+- Golfers without a synced handicap show a dash (home page) or no HCP line (directories) or "N/A" (admin detail).
+- Sortable by handicap index is a future enhancement for reporting.
 
 ---
 
@@ -170,7 +189,7 @@ The handicap sync is explicitly designed as a non-critical feature:
 1. **Missing env vars:** If `GHIN_EMAIL` or `GHIN_PASSWORD` are not set, the sync silently skips. No errors, no alerts.
 2. **API down:** Individual lookup failures are logged but don't block other golfers. The sync continues.
 3. **Auth failure:** Logged, admin alerted, sync aborted for this run. Retried on next cron.
-4. **Library breaks:** If `@spicygolf/ghin` throws unexpected errors (e.g., after a USGA API change), the sync fails, admin is alerted, and the feature can be toggled off via Event Settings.
+4. **API changes:** If USGA changes the `api2.ghin.com` endpoints or auth flow, the sync fails, admin is alerted, and the feature can be toggled off via Event Settings. Since we use direct HTTP (no npm dependency), endpoint fixes can be patched immediately.
 5. **No impact on core flows:** RSVP, invites, confirmations, grouping — none of these depend on handicap data. A complete handicap sync failure has zero effect on the weekly RSVP cycle.
 
 ---
@@ -239,15 +258,18 @@ COMMENT ON TABLE public.handicap_sync_log IS 'Tracks GHIN handicap sync runs for
 
 | File | Change |
 |------|--------|
-| `src/app/api/cron/email-scheduler/route.ts` | Add handicap sync check at end of event loop. |
+| `src/app/api/cron/email-scheduler/route.ts` | Add handicap sync check at end of event loop. Pro shop email includes `handicap_index`. |
 | `src/lib/admin-alerts.ts` | Add `handicap_sync_failed` alert type and email template. |
+| `src/lib/email.ts` | Add HCP column to pro shop email (grouped and flat formats). |
+| `src/lib/grouping-db.ts` | Include `handicap_index` in stored grouping golfer data. |
 | `src/types/events.ts` | Add `handicap_sync_enabled` to Event interface. |
-| `src/app/admin/events/[eventId]/settings/` | Add Handicap Sync section (super admin only). |
-| `src/app/profile/` | Display handicap index (read-only). |
-| `src/app/admin/events/[eventId]/golfers/` | Show handicap in golfer cards. |
-| `src/app/admin/golfers/` | Show handicap in global golfer directory. |
-| `src/lib/email-templates.ts` | Add handicap to pro shop email template. |
-| `package.json` | Add `@spicygolf/ghin` dependency. |
+| `src/app/admin/events/[eventId]/settings/` | Add Handicap Sync section with toggle + health status (super admin only). |
+| `src/app/home/page.tsx` | Display handicap index in My Profile section on home page. |
+| `src/app/profile/page.tsx` | Display handicap index (read-only teal box below GHIN input). |
+| `src/app/admin/golfers/page.tsx` | Show HCP on each golfer row in global directory. |
+| `src/app/admin/events/[eventId]/golfers/page.tsx` | Show HCP on each golfer row in event directory. |
+| `src/app/admin/golfers/[golferId]/page.tsx` | Show handicap index on global golfer detail page. |
+| `src/app/admin/events/[eventId]/golfers/[golferId]/page.tsx` | Show handicap index on event golfer detail page. |
 
 ---
 
@@ -264,12 +286,13 @@ COMMENT ON TABLE public.handicap_sync_log IS 'Tracks GHIN handicap sync runs for
 
 ---
 
-## Open Decisions
+## Open Decisions / Future Enhancements
 
 1. **Handicap history table?** — Not in v1. If we want to track handicap changes over time (for reporting/trends), we'd add a `handicap_history` table later. For now, we just store the latest value.
-2. **Grouping engine integration** — Deferred. The data will be available on profiles for when we're ready to add handicap-based grouping modes.
+2. **Grouping engine integration** — Deferred. The data is available on profiles for when we're ready to add handicap-based grouping modes.
 3. **Guest handicaps** — Guests have `guest_ghin_number` on the `guest_requests` table. We could sync guest handicaps too, but guests are infrequent and their GHIN numbers are less likely to be on file. Defer to v2.
-4. **Manual sync trigger** — Should admins be able to trigger a sync on-demand from the UI? Useful for testing but not essential for v1. Could add a "Sync Now" button in Event Settings.
+4. **Manual sync trigger** — Admins can currently trigger a sync manually via the cron endpoint (`curl -H "Authorization: Bearer <CRON_SECRET>" "https://frccgolfgames.com/api/cron/email-scheduler"`). A dedicated "Sync Now" button in Event Settings could be added for convenience.
+5. **Sortable by handicap** — The golfer directories show handicap but don't yet support sorting by it. Could be useful for admin reporting.
 
 ---
 
@@ -277,8 +300,9 @@ COMMENT ON TABLE public.handicap_sync_log IS 'Tracks GHIN handicap sync runs for
 
 | Risk | Likelihood | Impact | Mitigation |
 |------|-----------|--------|------------|
-| USGA changes API, library breaks | Medium (annually) | Sync stops | Auto-detect via failure alerts. Toggle off. Wait for library update or fork/patch. |
+| USGA changes API endpoints or auth flow | Medium (annually) | Sync stops | Auto-detect via failure alerts. Toggle off. Direct HTTP client means we can patch immediately — no waiting for npm updates. |
 | GHIN credentials expire | Low | Sync stops | Auth failure triggers immediate admin alert with clear message. |
+| GHIN adds real reCAPTCHA enforcement | Low-Medium | Sync stops | Currently using `"token": "recaptcha-disabled"` placeholder. If GHIN enforces real CAPTCHA, the feature would need to be disabled or a CAPTCHA-solving service integrated. |
 | Rate limiting by GHIN | Low (at 30 golfers) | Partial sync | 2-second throttle between requests. Batch cap of 20 per cron run. |
 | Vercel function timeout | Low | Partial sync | 20-golfer batch limit. Remaining picked up on next cron run. |
-| Library abandoned | Low-Medium | No updates when API changes | Fork the library. It's small TypeScript — patchable. |
+| Vercel env var misconfiguration | Low | Sync skips silently | Env vars must be at project level (not team level). Debug endpoint available for troubleshooting. |
