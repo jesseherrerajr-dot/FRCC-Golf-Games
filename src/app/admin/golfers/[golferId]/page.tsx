@@ -116,13 +116,16 @@ export default async function GolferDetailPage({
                 <dt className="text-gray-500">Handicap Index</dt>
                 <dd className="font-medium text-gray-900">
                   {golfer.handicap_index != null ? golfer.handicap_index.toFixed(1) : "N/A"}
-                  {golfer.handicap_updated_at && (
-                    <span className="ml-1 text-xs text-gray-400">
-                      (updated {new Date(golfer.handicap_updated_at).toLocaleDateString("en-US", { timeZone: "America/Los_Angeles", month: "short", day: "numeric" })})
-                    </span>
-                  )}
                 </dd>
               </div>
+              {golfer.handicap_index != null && golfer.handicap_updated_at && (
+                <div className="flex justify-between">
+                  <dt className="text-gray-500">Last Synced</dt>
+                  <dd className="text-sm text-gray-400">
+                    {new Date(golfer.handicap_updated_at).toLocaleDateString("en-US", { timeZone: "America/Los_Angeles", month: "short", day: "numeric" })}
+                  </dd>
+                </div>
+              )}
               <div className="flex justify-between">
                 <dt className="text-gray-500">Joined</dt>
                 <dd className="font-medium text-gray-900">
