@@ -17,6 +17,61 @@ export type EmailType =
   | "pro_shop_detail";
 export type AdminRole = "primary" | "secondary";
 
+/** Grouping algorithm method */
+export type GroupingMethod = 'harmony' | 'flight_foursomes' | 'balanced_foursomes' | 'flight_teams' | 'balanced_teams';
+
+/** For flight_teams: how to pair teams into foursomes */
+export type FlightTeamPairing = 'similar' | 'random';
+
+/** Whether a grouping method is handicap-based (overrides partner/tee time prefs) */
+export function isHandicapMethod(method: GroupingMethod): boolean {
+  return method !== 'harmony';
+}
+
+/** Whether a grouping method uses 2-person teams */
+export function isTeamMethod(method: GroupingMethod): boolean {
+  return method === 'flight_teams' || method === 'balanced_teams';
+}
+
+/** Default handicap index used when a golfer has no synced or manual handicap */
+export const DEFAULT_HANDICAP_INDEX = 25.0;
+
+/** Admin-facing labels for grouping methods */
+export const GROUPING_METHOD_LABELS: Record<GroupingMethod, { label: string; description: string }> = {
+  harmony: {
+    label: 'Partner Preferences',
+    description: 'Groups are optimized based on playing partner preferences and tee time requests. The original grouping method.',
+  },
+  flight_foursomes: {
+    label: 'Flight Foursomes',
+    description: 'Golfers are sorted by handicap and grouped by skill level. The best 4 play together, then the next 4, and so on.',
+  },
+  balanced_foursomes: {
+    label: 'Balanced ABCD Foursomes',
+    description: 'The field is split into skill quartiles (A, B, C, D). Each foursome gets one player from each quartile for balanced competition.',
+  },
+  flight_teams: {
+    label: 'Flight 2-Person Teams',
+    description: 'Two-person teams are formed within skill tiers (A+A, B+B, etc.), then paired into foursomes.',
+  },
+  balanced_teams: {
+    label: 'Balanced 2-Person Teams',
+    description: 'Two-person teams are formed by balancing combined handicaps (pairs A+D, B+C), then paired into foursomes with equal totals.',
+  },
+};
+
+/** Admin-facing labels for flight team pairing modes */
+export const FLIGHT_TEAM_PAIRING_LABELS: Record<FlightTeamPairing, { label: string; description: string }> = {
+  similar: {
+    label: 'Similar Skill Foursomes',
+    description: 'Teams of similar skill are paired together (e.g., two A-tier teams share a tee time).',
+  },
+  random: {
+    label: 'Mixed Skill Foursomes',
+    description: 'Teams are paired randomly into foursomes regardless of skill tier.',
+  },
+};
+
 export interface Event {
   id: string;
   name: string;
@@ -59,9 +114,11 @@ export interface Event {
   allow_auto_grouping: boolean;
 
   // Grouping algorithm preference controls
+  grouping_method: GroupingMethod;
   grouping_partner_pref_mode: GroupingPartnerPrefMode;
   grouping_tee_time_pref_mode: GroupingTeeTimePrefMode;
   grouping_promote_variety: boolean;
+  flight_team_pairing: FlightTeamPairing;
 
   // GHIN Handicap Sync
   handicap_sync_enabled: boolean;
@@ -225,6 +282,10 @@ export interface TeeTimeHistoryEntry {
 
 /** Options passed to the grouping engine (all historical data pre-fetched) */
 export interface GroupingOptions {
+  /** Which algorithm to use */
+  groupingMethod: GroupingMethod;
+  /** For flight_teams: how to pair teams into foursomes */
+  flightTeamPairing: FlightTeamPairing;
   partnerPreferenceMode: GroupingPartnerPrefMode;
   teeTimePreferenceMode: GroupingTeeTimePrefMode;
   promoteVariety: boolean;
@@ -240,6 +301,8 @@ export interface GroupingOptions {
 export interface GroupingGolfer {
   profileId: string;
   teeTimePreference: TeeTimePreference;
+  /** Resolved handicap index: manual_handicap_index ?? handicap_index ?? DEFAULT_HANDICAP_INDEX */
+  handicapIndex: number;
 }
 
 /** A ranked partner preference */
@@ -254,6 +317,7 @@ export interface GroupingAssignment {
   groupNumber: number;  // 1-based group number
   teeOrder: number;     // 1 = first off, 2 = second off, etc.
   profileId: string;
+  teamNumber?: number;  // 1 or 2 within a group (team methods only)
   guestRequestId?: string; // future: for guest assignments
 }
 
@@ -262,7 +326,9 @@ export interface GroupResult {
   groupNumber: number;
   teeOrder: number;       // tee position (1 = first off)
   golfers: string[];      // profile IDs
-  harmonyScore: number;   // sum of pairwise partner scores
+  harmonyScore: number;   // sum of pairwise partner scores (0 for handicap methods)
+  /** Team assignments within this group (team methods only) */
+  teams?: { teamNumber: number; golfers: string[] }[];
 }
 
 /** Full engine output */
@@ -270,6 +336,8 @@ export interface GroupingResult {
   groups: GroupResult[];
   assignments: GroupingAssignment[];
   totalHarmonyScore: number;
+  /** Which method produced these groupings */
+  method: GroupingMethod;
 }
 
 /** Stored grouping row (matches DB schema) */
@@ -281,6 +349,7 @@ export interface Grouping {
   profile_id: string | null;
   guest_request_id: string | null;
   harmony_score: number | null;
+  team_number: number | null;
   created_at: string;
 }
 
@@ -346,7 +415,9 @@ export interface UpdateEventSettingsInput {
   confirmation_day?: number;
   confirmation_time?: string;
   // Grouping algorithm preference controls
+  grouping_method?: GroupingMethod;
   grouping_partner_pref_mode?: GroupingPartnerPrefMode;
   grouping_tee_time_pref_mode?: GroupingTeeTimePrefMode;
   grouping_promote_variety?: boolean;
+  flight_team_pairing?: FlightTeamPairing;
 }

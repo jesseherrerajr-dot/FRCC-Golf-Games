@@ -234,6 +234,7 @@ export function generateProShopEmail({
   gameDate,
   players,
   groupings,
+  groupingMethod,
 }: {
   eventName: string;
   gameDate: string;
@@ -248,6 +249,7 @@ export function generateProShopEmail({
     sponsor_name?: string;
   }[];
   groupings?: StoredGrouping[];
+  groupingMethod?: string;
 }) {
   const formattedDate = formatGameDate(gameDate);
 
@@ -304,7 +306,10 @@ export function generateProShopEmail({
 
       <p style="color: #374151; font-weight: 600; font-size: 15px; margin: 0 0 4px 0;">${totalPlayers} players — Suggested Groups</p>
       <p style="color: #6b7280; font-size: 13px; margin: 0 0 12px 0;">
-        Groups are based on playing partner and tee time preferences. &#10003; = golfer has a preferred partner in this group. Adjust as needed.
+        ${groupingMethod && groupingMethod !== 'harmony'
+          ? `Groups are based on handicap index (${groupingMethod.replace(/_/g, ' ')}). Adjust as needed.`
+          : 'Groups are based on playing partner and tee time preferences. &#10003; = golfer has a preferred partner in this group. Adjust as needed.'
+        }
       </p>
 
       <table style="width: 100%; border-collapse: collapse; font-size: 13px; margin: 16px 0;">

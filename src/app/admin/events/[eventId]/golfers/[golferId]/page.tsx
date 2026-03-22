@@ -10,6 +10,7 @@ import {
   DeactivateButton,
   ReactivateButton,
 } from "@/app/admin/admin-actions";
+import { EventManualHandicapField } from "./event-manual-handicap";
 
 export default async function EventGolferDetailPage({
   params,
@@ -142,6 +143,12 @@ export default async function EventGolferDetailPage({
                   {golfer.handicap_index != null ? golfer.handicap_index.toFixed(1) : "N/A"}
                 </dd>
               </div>
+              <EventManualHandicapField
+                profileId={golfer.id}
+                eventId={eventId}
+                manualHandicap={golfer.manual_handicap_index ?? null}
+                syncedHandicap={golfer.handicap_index ?? null}
+              />
               {golfer.handicap_index != null && golfer.handicap_updated_at && (
                 <div className="flex justify-between">
                   <dt className="text-gray-500">Last Synced</dt>

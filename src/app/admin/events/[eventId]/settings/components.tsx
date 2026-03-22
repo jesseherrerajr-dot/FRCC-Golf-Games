@@ -18,8 +18,8 @@ import {
   reactivateEvent,
   permanentlyDeleteEvent,
 } from "./actions";
-import type { AlertType, GroupingPartnerPrefMode, GroupingTeeTimePrefMode } from "@/types/events";
-import { PARTNER_PREF_MODE_LABELS, TEE_TIME_PREF_MODE_LABELS } from "@/types/events";
+import type { AlertType, GroupingPartnerPrefMode, GroupingTeeTimePrefMode, GroupingMethod, FlightTeamPairing } from "@/types/events";
+import { PARTNER_PREF_MODE_LABELS, TEE_TIME_PREF_MODE_LABELS, GROUPING_METHOD_LABELS, FLIGHT_TEAM_PAIRING_LABELS, isHandicapMethod } from "@/types/events";
 
 const DAY_NAMES = [
   "Sunday",
@@ -1007,6 +1007,8 @@ function AdminRow({ admin, eventId }: { admin: any; eventId: string }) {
 
 const PARTNER_MODES: GroupingPartnerPrefMode[] = ['off', 'light', 'moderate', 'full'];
 const TEE_TIME_MODES: GroupingTeeTimePrefMode[] = ['light', 'moderate', 'full'];
+const GROUPING_METHODS: GroupingMethod[] = ['harmony', 'flight_foursomes', 'balanced_foursomes', 'flight_teams', 'balanced_teams'];
+const FLIGHT_TEAM_PAIRINGS: FlightTeamPairing[] = ['similar', 'random'];
 
 export function GroupingPreferencesForm({ event }: { event: any }) {
   const [isPending, startTransition] = useTransition();
@@ -1017,10 +1019,31 @@ export function GroupingPreferencesForm({ event }: { event: any }) {
   const partnerMode: GroupingPartnerPrefMode = event.grouping_partner_pref_mode || 'full';
   const teeTimeMode: GroupingTeeTimePrefMode = event.grouping_tee_time_pref_mode || 'full';
   const promoteVariety: boolean = event.grouping_promote_variety || false;
+  const groupingMethod: GroupingMethod = event.grouping_method || 'harmony';
+  const flightTeamPairing: FlightTeamPairing = event.flight_team_pairing || 'similar';
+  const isHandicap = isHandicapMethod(groupingMethod);
 
   const showMessage = (msg: string, isError?: boolean) => {
     setMessage(msg);
     if (!isError) setTimeout(() => setMessage(null), 3000);
+  };
+
+  const handleMethodChange = (method: GroupingMethod) => {
+    startTransition(async () => {
+      const result = await updateGroupingPreferences(event.id, {
+        grouping_method: method,
+      });
+      showMessage(result.error || "Grouping method updated.", !!result.error);
+    });
+  };
+
+  const handleFlightTeamPairingChange = (pairing: FlightTeamPairing) => {
+    startTransition(async () => {
+      const result = await updateGroupingPreferences(event.id, {
+        flight_team_pairing: pairing,
+      });
+      showMessage(result.error || "Team pairing mode updated.", !!result.error);
+    });
   };
 
   const handleFeatureToggle = (key: string, currentValue: boolean) => {
@@ -1030,8 +1053,6 @@ export function GroupingPreferencesForm({ event }: { event: any }) {
         showMessage(result.error, true);
         return;
       }
-      // When enabling a preference, reset its mode to 'full' if currently set to 'off'
-      // (the 'off' option was removed from the UI)
       if (!currentValue) {
         if (key === 'allow_tee_time_preferences' && teeTimeMode === 'off') {
           await updateGroupingPreferences(event.id, { grouping_tee_time_pref_mode: 'full' });
@@ -1084,8 +1105,109 @@ export function GroupingPreferencesForm({ event }: { event: any }) {
         </p>
       )}
 
-      {/* Playing Partner Preferences — toggle + mode selector */}
+      {/* Grouping Method Selector */}
       <div>
+        <p className="text-sm font-medium text-gray-900">Grouping Method</p>
+        <p className="mt-0.5 text-xs text-gray-500">
+          Choose how the engine forms groups. Handicap-based methods use GHIN data to organize players by skill level.
+        </p>
+        <div className="mt-3 space-y-2">
+          {GROUPING_METHODS.map((method) => {
+            const meta = GROUPING_METHOD_LABELS[method];
+            const isSelected = groupingMethod === method;
+            return (
+              <label
+                key={method}
+                className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors ${
+                  isSelected
+                    ? "border-teal-500 bg-teal-50"
+                    : "border-gray-200 bg-white hover:bg-gray-50"
+                } ${isPending ? "opacity-50 pointer-events-none" : ""}`}
+              >
+                <input
+                  type="radio"
+                  name="grouping_method"
+                  value={method}
+                  checked={isSelected}
+                  onChange={() => handleMethodChange(method)}
+                  disabled={isPending}
+                  className="mt-0.5 h-4 w-4 text-teal-500 focus:ring-teal-500"
+                />
+                <div>
+                  <p className="text-sm font-medium text-gray-900">{meta.label}</p>
+                  <p className="text-xs text-gray-500">{meta.description}</p>
+                </div>
+              </label>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Flight Team Pairing — only shown when method is flight_teams */}
+      {groupingMethod === 'flight_teams' && (
+        <>
+          <hr className="border-gray-200" />
+          <div>
+            <p className="text-sm font-medium text-gray-900">Team Pairing Mode</p>
+            <p className="mt-0.5 text-xs text-gray-500">
+              After 2-person teams are formed by skill tier, choose how teams are paired into foursomes.
+            </p>
+            <div className="mt-3 space-y-2">
+              {FLIGHT_TEAM_PAIRINGS.map((pairing) => {
+                const meta = FLIGHT_TEAM_PAIRING_LABELS[pairing];
+                const isSelected = flightTeamPairing === pairing;
+                return (
+                  <label
+                    key={pairing}
+                    className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors ${
+                      isSelected
+                        ? "border-teal-500 bg-teal-50"
+                        : "border-gray-200 bg-white hover:bg-gray-50"
+                    } ${isPending ? "opacity-50 pointer-events-none" : ""}`}
+                  >
+                    <input
+                      type="radio"
+                      name="flight_team_pairing"
+                      value={pairing}
+                      checked={isSelected}
+                      onChange={() => handleFlightTeamPairingChange(pairing)}
+                      disabled={isPending}
+                      className="mt-0.5 h-4 w-4 text-teal-500 focus:ring-teal-500"
+                    />
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">{meta.label}</p>
+                      <p className="text-xs text-gray-500">{meta.description}</p>
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Handicap method warning banner */}
+      {isHandicap && (
+        <>
+          <hr className="border-gray-200" />
+          <div className="rounded-md bg-amber-50 border border-amber-200 p-3">
+            <p className="text-xs font-medium text-amber-800">
+              Handicap-based grouping is active
+            </p>
+            <p className="mt-1 text-xs text-amber-700">
+              Playing partner preferences, tee time preferences, and group variety settings below are overridden
+              when using a handicap-based method. Groups are formed entirely by skill level.
+              Switch back to &ldquo;Partner Preferences&rdquo; to re-enable those controls.
+            </p>
+          </div>
+        </>
+      )}
+
+      {/* Divider */}
+      <hr className="border-gray-200" />
+
+      {/* Playing Partner Preferences — toggle + mode selector */}
+      <div className={isHandicap ? "opacity-50 pointer-events-none" : ""}>
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-sm font-medium text-gray-900">Playing Partner Preferences</p>
@@ -1095,19 +1217,19 @@ export function GroupingPreferencesForm({ event }: { event: any }) {
           </div>
           <button
             onClick={() => handleFeatureToggle('allow_playing_partner_preferences', partnerEnabled)}
-            disabled={isPending}
+            disabled={isPending || isHandicap}
             className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 ${
-              partnerEnabled ? "bg-teal-500" : "bg-gray-200"
+              partnerEnabled && !isHandicap ? "bg-teal-500" : "bg-gray-200"
             } ${isPending ? "opacity-50" : ""}`}
           >
             <span
               className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform duration-200 ${
-                partnerEnabled ? "translate-x-5" : "translate-x-0"
+                partnerEnabled && !isHandicap ? "translate-x-5" : "translate-x-0"
               }`}
             />
           </button>
         </div>
-        {partnerEnabled && (
+        {partnerEnabled && !isHandicap && (
           <div className="mt-3 space-y-2">
             {PARTNER_MODES.map((mode) => {
               const meta = PARTNER_PREF_MODE_LABELS[mode];
@@ -1145,7 +1267,7 @@ export function GroupingPreferencesForm({ event }: { event: any }) {
       <hr className="border-gray-200" />
 
       {/* Tee Time Preferences — toggle + mode selector */}
-      <div>
+      <div className={isHandicap ? "opacity-50 pointer-events-none" : ""}>
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-sm font-medium text-gray-900">Tee Time Preferences</p>
@@ -1155,19 +1277,19 @@ export function GroupingPreferencesForm({ event }: { event: any }) {
           </div>
           <button
             onClick={() => handleFeatureToggle('allow_tee_time_preferences', teeTimeEnabled)}
-            disabled={isPending}
+            disabled={isPending || isHandicap}
             className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 ${
-              teeTimeEnabled ? "bg-teal-500" : "bg-gray-200"
+              teeTimeEnabled && !isHandicap ? "bg-teal-500" : "bg-gray-200"
             } ${isPending ? "opacity-50" : ""}`}
           >
             <span
               className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform duration-200 ${
-                teeTimeEnabled ? "translate-x-5" : "translate-x-0"
+                teeTimeEnabled && !isHandicap ? "translate-x-5" : "translate-x-0"
               }`}
             />
           </button>
         </div>
-        {teeTimeEnabled && (
+        {teeTimeEnabled && !isHandicap && (
           <div className="mt-3 space-y-2">
             {TEE_TIME_MODES.map((mode) => {
               const meta = TEE_TIME_PREF_MODE_LABELS[mode];
@@ -1205,7 +1327,7 @@ export function GroupingPreferencesForm({ event }: { event: any }) {
       <hr className="border-gray-200" />
 
       {/* Promote Group Variety */}
-      <div className="flex items-start justify-between gap-4">
+      <div className={`flex items-start justify-between gap-4 ${isHandicap ? "opacity-50 pointer-events-none" : ""}`}>
         <div>
           <p className="text-sm font-medium text-gray-900">Promote Group Variety</p>
           <p className="text-xs text-gray-500">
@@ -1215,14 +1337,14 @@ export function GroupingPreferencesForm({ event }: { event: any }) {
         </div>
         <button
           onClick={handleVarietyToggle}
-          disabled={isPending}
+          disabled={isPending || isHandicap}
           className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 ${
-            promoteVariety ? "bg-teal-500" : "bg-gray-200"
+            promoteVariety && !isHandicap ? "bg-teal-500" : "bg-gray-200"
           } ${isPending ? "opacity-50" : ""}`}
         >
           <span
             className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform duration-200 ${
-              promoteVariety ? "translate-x-5" : "translate-x-0"
+              promoteVariety && !isHandicap ? "translate-x-5" : "translate-x-0"
             }`}
           />
         </button>

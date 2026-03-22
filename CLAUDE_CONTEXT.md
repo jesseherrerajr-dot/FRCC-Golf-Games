@@ -15,7 +15,7 @@ A companion to CLAUDE.md. Where CLAUDE.md is the technical specification and imp
 **What's complete:**
 - Phases 1–2 (Foundation + Weekly RSVP Cycle) — fully shipped
 - Phase 4 (Admin Tools & Communication) — mostly complete, powering the production workflow
-- Grouping engine — fully implemented with 50+ unit tests, cron integration, pro shop email integration, repeat foursome prevention, tee time preference limits, partner preference weighting, and admin partner avoidance
+- Grouping engine — 5 methods (harmony + 4 handicap-based: flight foursomes, balanced ABCD foursomes, flight 2-person teams, balanced 2-person teams). 50+ unit tests, cron integration, pro shop email integration, repeat foursome prevention, tee time preference limits, partner preference weighting, manual handicap admin entry
 - Playing partner preferences — ranked 1–10 with per-event scoping
 - Tee time preferences — per-week on RSVP page
 - Multi-event architecture — designed and implemented, second event being onboarded
@@ -77,7 +77,8 @@ These are final decisions reflected in the codebase and not open for reconsidera
 - In (not "Confirmed"), Out, Not Sure (not "Not Sure Yet"), No Reply (not "No Response"), Waitlist (not "Waitlisted"). These must be consistent across all admin surfaces.
 
 **Grouping Engine:**
-- Greedy heuristic with weighted partner preferences, tee time constraints, shuffle randomization.
+- Five methods: harmony (greedy heuristic with partner prefs), flight foursomes, balanced ABCD foursomes, flight 2-person teams, balanced 2-person teams.
+- Handicap methods use GHIN-synced or manual handicap index (resolution: manual → synced → 25.0 default). Override partner/tee time preferences when active.
 - Pure function design — no DB calls in the algorithm. DB layer is separate (`grouping-db.ts`).
 - Runs automatically at cutoff time via existing email-scheduler cron (no separate cron entry).
 - Feature-flagged per event (`allow_auto_grouping`). When disabled, pro shop gets alphabetical roster.
@@ -253,3 +254,29 @@ See the Roadmap section of CLAUDE.md for the current prioritized list. Key items
 - **Vercel env vars must be at project level:** Team-level env vars are NOT automatically available to project functions. This is now documented as a risk in the spec.
 - **Handicap sync piggybacks on email-scheduler cron:** No new cron slot needed (all 6 are already used). Sync runs within 24 hours of each scheduled event, 20 golfers per batch, stalest-first.
 - **All 11 golfer handicaps verified accurate** by Jesse after first successful sync.
+
+### Session: March 21, 2026
+
+**Context:** Handicap-based grouping methods — designed with Gemini, implemented with Claude.
+
+**Changes made:**
+1. **Added 4 handicap-based grouping methods** to the grouping engine alongside the existing harmony (partner preference) method: Flight Foursomes, Balanced ABCD Foursomes, Flight 2-Person Teams (similar/random foursome pairing sub-option), and Balanced 2-Person Teams.
+
+2. **Created migration 019** — Added `events.grouping_method`, `events.flight_team_pairing`, `profiles.manual_handicap_index`, and `groupings.team_number` columns.
+
+3. **Updated admin Event Settings UI** — New grouping method radio selector (5 options) at the top of the Grouping Engine section. Flight team pairing sub-selector shown only for flight_teams. Amber warning banner when handicap method is active. Partner prefs, tee time prefs, and variety toggle are greyed out when overridden.
+
+4. **Added manual handicap entry** — Shared `ManualHandicapField` component used on both global and event-scoped admin golfer detail pages. Inline edit with save/cancel/clear. Validates range -10 to 54.
+
+5. **Updated cron/email integration** — When a handicap method is active, cron forces partner/tee time prefs off. Pro shop email description reflects the active method.
+
+6. **Updated DB layer** — `fetchConfirmedGolfers` resolves handicap (manual → synced → 25.0 default). `storeGroupings` writes `team_number` for team methods.
+
+7. **Added 15 unit tests** for all new methods (type-checked clean, test runner unavailable in sandbox).
+
+**Key decisions:**
+- **Handicap resolution hierarchy:** `manual_handicap_index ?? handicap_index ?? 25.0`. Manual always wins — allows admins to override GHIN-synced values for fairness.
+- **Handicap methods override partner/tee time prefs** in the engine (forced off) but UI shows them greyed out with a warning banner rather than hiding them — so admins understand what's happening.
+- **2-person team methods output complete foursomes** — the engine pairs teams into foursomes (not just teams), producing a full tee sheet.
+- **Balanced teams use outside-in pairing** at both levels: team (A+D, B+C) and foursome (lowest combined team + highest combined team).
+- **Default handicap (25.0)** used for golfers with no synced or manual handicap. High enough to land them in lower flights, reasonable for casual golfers.

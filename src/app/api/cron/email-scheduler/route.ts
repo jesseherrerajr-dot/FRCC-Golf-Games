@@ -17,7 +17,8 @@ import {
 import { sendAdminAlert } from "@/lib/admin-alerts";
 import { sendPushToUsers } from "@/lib/push";
 import { generateGroupings, DEFAULT_GROUPING_OPTIONS } from "@/lib/grouping-engine";
-import type { GroupingOptions, GroupingPartnerPrefMode, GroupingTeeTimePrefMode } from "@/types/events";
+import type { GroupingOptions, GroupingPartnerPrefMode, GroupingTeeTimePrefMode, GroupingMethod, FlightTeamPairing } from "@/types/events";
+import { isHandicapMethod } from "@/types/events";
 import {
   fetchConfirmedGolfers,
   fetchPartnerPreferences,
@@ -644,20 +645,27 @@ async function handleGolferConfirmation(
       const preferences = await fetchPartnerPreferences(supabase, eventId);
 
       // Build grouping options from event settings + historical data
-      const partnerPrefMode = (event.grouping_partner_pref_mode as GroupingPartnerPrefMode) || 'full';
-      const teeTimePrefMode = (event.grouping_tee_time_pref_mode as GroupingTeeTimePrefMode) || 'full';
-      const promoteVariety = (event.grouping_promote_variety as boolean) || false;
+      const groupingMethod = (event.grouping_method as GroupingMethod) || 'harmony';
+      const flightTeamPairing = (event.flight_team_pairing as FlightTeamPairing) || 'similar';
+      const handicapBased = isHandicapMethod(groupingMethod);
 
-      // Fetch historical data only when needed
-      const teeTimeHistory = teeTimePrefMode !== 'full' && teeTimePrefMode !== 'off'
+      // When using handicap methods, partner prefs and tee time prefs are overridden to 'off'
+      const partnerPrefMode = handicapBased ? 'off' : ((event.grouping_partner_pref_mode as GroupingPartnerPrefMode) || 'full');
+      const teeTimePrefMode = handicapBased ? 'off' : ((event.grouping_tee_time_pref_mode as GroupingTeeTimePrefMode) || 'full');
+      const promoteVariety = handicapBased ? false : ((event.grouping_promote_variety as boolean) || false);
+
+      // Fetch historical data only when needed (not needed for handicap methods)
+      const teeTimeHistory = !handicapBased && teeTimePrefMode !== 'full' && teeTimePrefMode !== 'off'
         ? await fetchTeeTimeHistory(supabase, eventId, 8)
         : new Map();
 
-      const recentPairings = promoteVariety
+      const recentPairings = !handicapBased && promoteVariety
         ? await fetchRecentPairings(supabase, eventId, 8)
         : new Map();
 
       const groupingOptions: GroupingOptions = {
+        groupingMethod,
+        flightTeamPairing,
         partnerPreferenceMode: partnerPrefMode,
         teeTimePreferenceMode: teeTimePrefMode,
         promoteVariety,
@@ -666,7 +674,7 @@ async function handleGolferConfirmation(
         shuffle: true,
       };
 
-      console.log(`Grouping options: partner=${partnerPrefMode}, teeTime=${teeTimePrefMode}, variety=${promoteVariety}`);
+      console.log(`Grouping options: method=${groupingMethod}, partner=${partnerPrefMode}, teeTime=${teeTimePrefMode}, variety=${promoteVariety}`);
 
       const groupingResult = generateGroupings(golfers, preferences, groupingOptions);
       const approvedGuestsForGrouping = await fetchApprovedGuests(supabase, schedule.id);
@@ -997,6 +1005,7 @@ async function handleProShopDetail(
     gameDate: gameDateString,
     players: allPlayers,
     groupings,
+    groupingMethod: (event.grouping_method as string) || 'harmony',
   });
 
   const formattedDate = formatGameDate(gameDateString);

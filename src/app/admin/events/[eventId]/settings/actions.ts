@@ -4,7 +4,7 @@ import { requireAdmin, requireSuperAdmin, hasEventAccess } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import type { AlertType, GroupingPartnerPrefMode, GroupingTeeTimePrefMode } from "@/types/events";
+import type { AlertType, GroupingPartnerPrefMode, GroupingTeeTimePrefMode, GroupingMethod, FlightTeamPairing } from "@/types/events";
 
 // ============================================================
 // Event Basic Settings
@@ -527,24 +527,34 @@ export async function updateFeatureFlags(
 
 const VALID_PARTNER_MODES: GroupingPartnerPrefMode[] = ['off', 'light', 'moderate', 'full'];
 const VALID_TEE_TIME_MODES: GroupingTeeTimePrefMode[] = ['off', 'light', 'moderate', 'full'];
+const VALID_GROUPING_METHODS: GroupingMethod[] = ['harmony', 'flight_foursomes', 'balanced_foursomes', 'flight_teams', 'balanced_teams'];
+const VALID_FLIGHT_TEAM_PAIRINGS: FlightTeamPairing[] = ['similar', 'random'];
 
 export async function updateGroupingPreferences(
   eventId: string,
   settings: {
+    grouping_method?: GroupingMethod;
     grouping_partner_pref_mode?: GroupingPartnerPrefMode;
     grouping_tee_time_pref_mode?: GroupingTeeTimePrefMode;
     grouping_promote_variety?: boolean;
+    flight_team_pairing?: FlightTeamPairing;
   }
 ) {
   await requireSuperAdmin();
   const { supabase } = await requireAdmin();
 
   // Validate enum values
+  if (settings.grouping_method && !VALID_GROUPING_METHODS.includes(settings.grouping_method)) {
+    return { error: "Invalid grouping method" };
+  }
   if (settings.grouping_partner_pref_mode && !VALID_PARTNER_MODES.includes(settings.grouping_partner_pref_mode)) {
     return { error: "Invalid partner preference mode" };
   }
   if (settings.grouping_tee_time_pref_mode && !VALID_TEE_TIME_MODES.includes(settings.grouping_tee_time_pref_mode)) {
     return { error: "Invalid tee time preference mode" };
+  }
+  if (settings.flight_team_pairing && !VALID_FLIGHT_TEAM_PAIRINGS.includes(settings.flight_team_pairing)) {
+    return { error: "Invalid flight team pairing mode" };
   }
 
   try {

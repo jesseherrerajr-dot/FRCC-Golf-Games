@@ -12,6 +12,7 @@ import {
   ReactivateButton,
   PermanentlyDeleteGolferButton,
 } from "../../admin-actions";
+import { GolferManualHandicapField } from "./manual-handicap";
 
 export default async function GolferDetailPage({
   params,
@@ -118,6 +119,11 @@ export default async function GolferDetailPage({
                   {golfer.handicap_index != null ? golfer.handicap_index.toFixed(1) : "N/A"}
                 </dd>
               </div>
+              <GolferManualHandicapField
+                profileId={golfer.id}
+                manualHandicap={golfer.manual_handicap_index ?? null}
+                syncedHandicap={golfer.handicap_index ?? null}
+              />
               {golfer.handicap_index != null && golfer.handicap_updated_at && (
                 <div className="flex justify-between">
                   <dt className="text-gray-500">Last Synced</dt>

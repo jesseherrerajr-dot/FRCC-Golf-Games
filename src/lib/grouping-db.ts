@@ -12,7 +12,9 @@ import type {
   GroupingResult,
   TeeTimePreference,
   TeeTimeHistoryEntry,
+  GroupingMethod,
 } from "../types/events";
+import { DEFAULT_HANDICAP_INDEX } from "../types/events";
 import { pairKey } from "./grouping-engine";
 import { formatInitialLastName } from "./format";
 
@@ -21,7 +23,10 @@ import { formatInitialLastName } from "./format";
 // ============================================================
 
 /**
- * Fetch confirmed golfers for a schedule with their per-week tee time preference.
+ * Fetch confirmed golfers for a schedule with their per-week tee time preference
+ * and resolved handicap index.
+ *
+ * Handicap resolution: manual_handicap_index ?? handicap_index ?? DEFAULT_HANDICAP_INDEX
  */
 export async function fetchConfirmedGolfers(
   supabase: SupabaseClient,
@@ -29,7 +34,7 @@ export async function fetchConfirmedGolfers(
 ): Promise<GroupingGolfer[]> {
   const { data, error } = await supabase
     .from("rsvps")
-    .select("profile_id, tee_time_preference")
+    .select("profile_id, tee_time_preference, profile:profiles(handicap_index, manual_handicap_index)")
     .eq("schedule_id", scheduleId)
     .eq("status", "in")
     .order("responded_at", { ascending: true });
@@ -39,10 +44,16 @@ export async function fetchConfirmedGolfers(
     return [];
   }
 
-  return (data || []).map((r: { profile_id: string; tee_time_preference: string }) => ({
-    profileId: r.profile_id,
-    teeTimePreference: (r.tee_time_preference || "no_preference") as TeeTimePreference,
-  }));
+  return (data || []).map((r: Record<string, unknown>) => {
+    // Supabase returns joined relations as arrays; unwrap to single object
+    const profileData = Array.isArray(r.profile) ? r.profile[0] : r.profile;
+    const profile = profileData as { handicap_index: number | null; manual_handicap_index: number | null } | null;
+    return {
+      profileId: r.profile_id as string,
+      teeTimePreference: ((r.tee_time_preference as string) || "no_preference") as TeeTimePreference,
+      handicapIndex: profile?.manual_handicap_index ?? profile?.handicap_index ?? DEFAULT_HANDICAP_INDEX,
+    };
+  });
 }
 
 /**
@@ -294,6 +305,18 @@ export async function storeGroupings(
     }
   }
 
+  // Build a profileId → teamNumber lookup from group teams
+  const profileTeamMap = new Map<string, number>();
+  for (const group of result.groups) {
+    if (group.teams) {
+      for (const team of group.teams) {
+        for (const profileId of team.golfers) {
+          profileTeamMap.set(profileId, team.teamNumber);
+        }
+      }
+    }
+  }
+
   // Build golfer rows
   const rows: Array<{
     schedule_id: string;
@@ -302,6 +325,7 @@ export async function storeGroupings(
     profile_id: string | null;
     guest_request_id: string | null;
     harmony_score: number;
+    team_number: number | null;
   }> = result.groups.flatMap((group) =>
     group.golfers.map((profileId) => ({
       schedule_id: scheduleId,
@@ -310,10 +334,11 @@ export async function storeGroupings(
       profile_id: profileId,
       guest_request_id: null,
       harmony_score: group.harmonyScore,
+      team_number: profileTeamMap.get(profileId) ?? null,
     }))
   );
 
-  // Build guest rows — place each guest in their host's group
+  // Build guest rows — place each guest in their host's group and team
   for (const guest of guests) {
     const hostGroup = golferGroupMap.get(guest.hostProfileId);
     if (hostGroup) {
@@ -324,6 +349,7 @@ export async function storeGroupings(
         profile_id: null,
         guest_request_id: guest.guestRequestId,
         harmony_score: hostGroup.harmonyScore,
+        team_number: profileTeamMap.get(guest.hostProfileId) ?? null,
       });
     } else {
       console.warn(`Guest ${guest.guestRequestId} host ${guest.hostProfileId} not found in any group`);
@@ -365,6 +391,7 @@ export interface StoredGroupGolfer {
   // Preference annotations (for admin/pro shop visibility)
   teeTimePreference: 'early' | 'late' | null; // null = no preference
   preferredPartnersInGroup: string[]; // Names of preferred partners in same group ("J. Herrera" format)
+  teamNumber: number | null; // 1 or 2 within group (team methods only)
 }
 
 export interface StoredGrouping {
@@ -391,6 +418,7 @@ export async function fetchStoredGroupings(
       group_number,
       tee_order,
       harmony_score,
+      team_number,
       profile_id,
       guest_request_id,
       profile:profiles(id, first_name, last_name, phone, email, ghin_number, handicap_index)
@@ -414,6 +442,7 @@ export async function fetchStoredGroupings(
       group_number,
       tee_order,
       harmony_score,
+      team_number,
       guest_request_id,
       guest:guest_requests(id, requested_by, guest_first_name, guest_last_name, guest_email, guest_phone, guest_ghin_number)
     `
@@ -501,6 +530,7 @@ export async function fetchStoredGroupings(
     group_number: number;
     tee_order: number;
     harmony_score: number | null;
+    team_number: number | null;
     profile_id: string;
     profile: {
       id: string;
@@ -537,6 +567,7 @@ export async function fetchStoredGroupings(
         hostProfileId: null,
         teeTimePreference: teeTimeMap.get(row.profile.id) || null,
         preferredPartnersInGroup: [], // populated below after all golfers are placed
+        teamNumber: row.team_number ?? null,
       });
     }
   }
@@ -544,6 +575,7 @@ export async function fetchStoredGroupings(
   // Add guests to their host's group
   for (const row of (guestData || []) as unknown as Array<{
     group_number: number;
+    team_number: number | null;
     guest_request_id: string;
     guest: {
       id: string;
@@ -572,6 +604,7 @@ export async function fetchStoredGroupings(
         hostProfileId: row.guest.requested_by,
         teeTimePreference: null,
         preferredPartnersInGroup: [],
+        teamNumber: row.team_number ?? null,
       });
     }
   }

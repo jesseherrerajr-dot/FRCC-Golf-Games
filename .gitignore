@@ -40,3 +40,6 @@ next-env.d.ts
 
 # data files
 *.xlsx
+
+# repomix (generated codebase snapshot for LLM context)
+repomix-output.xml

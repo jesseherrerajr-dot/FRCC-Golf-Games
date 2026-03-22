@@ -21,15 +21,19 @@ import type {
   GroupingResult,
   GroupingOptions,
   TeeTimePreference,
+  GroupingMethod,
+  FlightTeamPairing,
 } from '../types/events';
 
-import { PARTNER_PREF_MODE_CONFIG } from '../types/events';
+import { PARTNER_PREF_MODE_CONFIG, isHandicapMethod, isTeamMethod } from '../types/events';
 
 // ============================================================
 // Default Options (matches legacy behavior)
 // ============================================================
 
 export const DEFAULT_GROUPING_OPTIONS: GroupingOptions = {
+  groupingMethod: 'harmony',
+  flightTeamPairing: 'similar',
   partnerPreferenceMode: 'full',
   teeTimePreferenceMode: 'full',
   promoteVariety: false,
@@ -401,11 +405,26 @@ export function generateGroupings(
     ? { ...DEFAULT_GROUPING_OPTIONS, shuffle: options }
     : options;
 
+  const method = opts.groupingMethod || 'harmony';
   const n = golfers.length;
 
   // Edge case: no golfers
   if (n === 0) {
-    return { groups: [], assignments: [], totalHarmonyScore: 0 };
+    return { groups: [], assignments: [], totalHarmonyScore: 0, method };
+  }
+
+  // Dispatch to handicap-based algorithms
+  if (isHandicapMethod(method)) {
+    switch (method) {
+      case 'flight_foursomes':
+        return generateFlightFoursomes(golfers, opts);
+      case 'balanced_foursomes':
+        return generateBalancedFoursomes(golfers, opts);
+      case 'flight_teams':
+        return generateFlightTeams(golfers, opts);
+      case 'balanced_teams':
+        return generateBalancedTeams(golfers, opts);
+    }
   }
 
   // Step 1: Calculate group sizes (Level 2)
@@ -510,7 +529,330 @@ export function generateGroupings(
     }
   }
 
-  return { groups, assignments, totalHarmonyScore };
+  return { groups, assignments, totalHarmonyScore, method: 'harmony' };
+}
+
+// ============================================================
+// Handicap-Based Grouping Algorithms
+// ============================================================
+
+/**
+ * Sort golfers by handicap index (ascending = best first).
+ * If shuffle is enabled, golfers with identical handicaps are randomized.
+ */
+function sortByHandicap(golfers: GroupingGolfer[], shuffle: boolean): GroupingGolfer[] {
+  const sorted = [...golfers].sort((a, b) => a.handicapIndex - b.handicapIndex);
+  if (shuffle) {
+    // Shuffle within equal-handicap clusters for variety
+    let i = 0;
+    while (i < sorted.length) {
+      let j = i;
+      while (j < sorted.length && sorted[j].handicapIndex === sorted[i].handicapIndex) {
+        j++;
+      }
+      if (j - i > 1) {
+        const cluster = sorted.slice(i, j);
+        shuffleArray(cluster);
+        for (let k = 0; k < cluster.length; k++) {
+          sorted[i + k] = cluster[k];
+        }
+      }
+      i = j;
+    }
+  }
+  return sorted;
+}
+
+/**
+ * Flight Foursomes: Sort by handicap, chunk into groups.
+ * Best 4 together, next 4, etc. Group sizes follow calculateGroupSizes().
+ */
+function generateFlightFoursomes(
+  golfers: GroupingGolfer[],
+  opts: GroupingOptions
+): GroupingResult {
+  const sorted = sortByHandicap(golfers, opts.shuffle);
+  const groupSizes = calculateGroupSizes(sorted.length);
+
+  const groups: GroupResult[] = [];
+  const assignments: GroupingAssignment[] = [];
+  let idx = 0;
+
+  for (let g = 0; g < groupSizes.length; g++) {
+    const size = groupSizes[g];
+    const groupGolfers: string[] = [];
+    for (let k = 0; k < size && idx < sorted.length; k++) {
+      groupGolfers.push(sorted[idx].profileId);
+      idx++;
+    }
+
+    const groupNumber = g + 1;
+    groups.push({
+      groupNumber,
+      teeOrder: groupNumber,
+      golfers: groupGolfers,
+      harmonyScore: 0,
+    });
+
+    for (const profileId of groupGolfers) {
+      assignments.push({ groupNumber, teeOrder: groupNumber, profileId });
+    }
+  }
+
+  return { groups, assignments, totalHarmonyScore: 0, method: 'flight_foursomes' };
+}
+
+/**
+ * Split golfers into N quartiles (tiers) as evenly as possible.
+ * Returns arrays ordered from best (A) to worst (D).
+ */
+function splitIntoQuartiles(sorted: GroupingGolfer[], numQuartiles: number): GroupingGolfer[][] {
+  const quartiles: GroupingGolfer[][] = Array.from({ length: numQuartiles }, () => []);
+  for (let i = 0; i < sorted.length; i++) {
+    quartiles[i % numQuartiles].push(sorted[i]);
+  }
+  return quartiles;
+}
+
+/**
+ * Balanced ABCD Foursomes: Split into quartiles, distribute one per group.
+ * Each group gets one A, one B, one C, one D player.
+ * Remainders are distributed round-robin.
+ */
+function generateBalancedFoursomes(
+  golfers: GroupingGolfer[],
+  opts: GroupingOptions
+): GroupingResult {
+  const sorted = sortByHandicap(golfers, opts.shuffle);
+  const n = sorted.length;
+
+  // Number of full foursomes we can make
+  const numGroups = Math.ceil(n / 4);
+
+  if (numGroups === 0) {
+    return { groups: [], assignments: [], totalHarmonyScore: 0, method: 'balanced_foursomes' };
+  }
+
+  // Split into 4 tiers (or fewer if less than 4 golfers)
+  const numTiers = Math.min(4, n);
+  const tiers: GroupingGolfer[][] = Array.from({ length: numTiers }, () => []);
+
+  // Distribute sorted golfers into tiers round-robin
+  for (let i = 0; i < n; i++) {
+    tiers[i % numTiers].push(sorted[i]);
+  }
+
+  // Shuffle within each tier if randomization is on
+  if (opts.shuffle) {
+    for (const tier of tiers) {
+      shuffleArray(tier);
+    }
+  }
+
+  // Build groups: pull one from each tier round-robin
+  const groupSlots: GroupingGolfer[][] = Array.from({ length: numGroups }, () => []);
+  for (const tier of tiers) {
+    for (let i = 0; i < tier.length; i++) {
+      groupSlots[i % numGroups].push(tier[i]);
+    }
+  }
+
+  const groups: GroupResult[] = [];
+  const assignments: GroupingAssignment[] = [];
+
+  for (let g = 0; g < groupSlots.length; g++) {
+    const groupGolfers = groupSlots[g].map((gf) => gf.profileId);
+    const groupNumber = g + 1;
+    groups.push({
+      groupNumber,
+      teeOrder: groupNumber,
+      golfers: groupGolfers,
+      harmonyScore: 0,
+    });
+    for (const profileId of groupGolfers) {
+      assignments.push({ groupNumber, teeOrder: groupNumber, profileId });
+    }
+  }
+
+  return { groups, assignments, totalHarmonyScore: 0, method: 'balanced_foursomes' };
+}
+
+/**
+ * Flight 2-Person Teams: Create teams within skill tiers, then pair into foursomes.
+ *
+ * With 'similar' pairing: similar-skill teams are paired (AA+AA, BB+BB).
+ * With 'random' pairing: teams are paired randomly regardless of tier.
+ */
+function generateFlightTeams(
+  golfers: GroupingGolfer[],
+  opts: GroupingOptions
+): GroupingResult {
+  const sorted = sortByHandicap(golfers, opts.shuffle);
+  const n = sorted.length;
+
+  // Create 2-person teams by pairing adjacent golfers in sorted order
+  const teams: { golfers: GroupingGolfer[]; combinedHandicap: number; tierIndex: number }[] = [];
+  for (let i = 0; i < n; i += 2) {
+    if (i + 1 < n) {
+      teams.push({
+        golfers: [sorted[i], sorted[i + 1]],
+        combinedHandicap: sorted[i].handicapIndex + sorted[i + 1].handicapIndex,
+        tierIndex: Math.floor(i / 2), // preserves skill ordering
+      });
+    } else {
+      // Odd player out — solo team
+      teams.push({
+        golfers: [sorted[i]],
+        combinedHandicap: sorted[i].handicapIndex,
+        tierIndex: Math.floor(i / 2),
+      });
+    }
+  }
+
+  // Pair teams into foursomes
+  let pairedTeams: typeof teams[];
+
+  if (opts.flightTeamPairing === 'random') {
+    // Shuffle teams, then pair sequentially
+    const shuffled = [...teams];
+    if (opts.shuffle) shuffleArray(shuffled);
+    pairedTeams = [];
+    for (let i = 0; i < shuffled.length; i += 2) {
+      if (i + 1 < shuffled.length) {
+        pairedTeams.push([shuffled[i], shuffled[i + 1]]);
+      } else {
+        pairedTeams.push([shuffled[i]]);
+      }
+    }
+  } else {
+    // 'similar': pair adjacent teams (already sorted by skill)
+    pairedTeams = [];
+    for (let i = 0; i < teams.length; i += 2) {
+      if (i + 1 < teams.length) {
+        pairedTeams.push([teams[i], teams[i + 1]]);
+      } else {
+        pairedTeams.push([teams[i]]);
+      }
+    }
+  }
+
+  // Build result
+  const groups: GroupResult[] = [];
+  const assignments: GroupingAssignment[] = [];
+
+  for (let g = 0; g < pairedTeams.length; g++) {
+    const teamsInGroup = pairedTeams[g];
+    const groupNumber = g + 1;
+    const allGolfers: string[] = [];
+    const teamResults: { teamNumber: number; golfers: string[] }[] = [];
+
+    for (let t = 0; t < teamsInGroup.length; t++) {
+      const teamGolfers = teamsInGroup[t].golfers.map((gf) => gf.profileId);
+      teamResults.push({ teamNumber: t + 1, golfers: teamGolfers });
+      allGolfers.push(...teamGolfers);
+
+      for (const profileId of teamGolfers) {
+        assignments.push({ groupNumber, teeOrder: groupNumber, profileId, teamNumber: t + 1 });
+      }
+    }
+
+    groups.push({
+      groupNumber,
+      teeOrder: groupNumber,
+      golfers: allGolfers,
+      harmonyScore: 0,
+      teams: teamResults,
+    });
+  }
+
+  return { groups, assignments, totalHarmonyScore: 0, method: 'flight_teams' };
+}
+
+/**
+ * Balanced 2-Person Teams: Create teams with balanced combined handicaps,
+ * then pair teams into foursomes with balanced totals.
+ *
+ * Team creation: pair best with worst (A+D, B+C) to equalize team handicaps.
+ * Foursome pairing: pair teams to minimize variance in foursome handicap totals.
+ */
+function generateBalancedTeams(
+  golfers: GroupingGolfer[],
+  opts: GroupingOptions
+): GroupingResult {
+  const sorted = sortByHandicap(golfers, opts.shuffle);
+  const n = sorted.length;
+
+  // Create balanced 2-person teams: pair from outside in (best + worst)
+  const teams: { golfers: GroupingGolfer[]; combinedHandicap: number }[] = [];
+  let left = 0;
+  let right = n - 1;
+
+  while (left < right) {
+    teams.push({
+      golfers: [sorted[left], sorted[right]],
+      combinedHandicap: sorted[left].handicapIndex + sorted[right].handicapIndex,
+    });
+    left++;
+    right--;
+  }
+
+  // Odd player out
+  if (left === right) {
+    teams.push({
+      golfers: [sorted[left]],
+      combinedHandicap: sorted[left].handicapIndex,
+    });
+  }
+
+  // Pair teams into foursomes, optimizing for balanced foursome totals
+  // Sort teams by combined handicap, then pair from outside in again
+  const teamsSorted = [...teams].sort((a, b) => a.combinedHandicap - b.combinedHandicap);
+
+  const pairedTeams: (typeof teams[0])[][] = [];
+  let tLeft = 0;
+  let tRight = teamsSorted.length - 1;
+
+  while (tLeft < tRight) {
+    pairedTeams.push([teamsSorted[tLeft], teamsSorted[tRight]]);
+    tLeft++;
+    tRight--;
+  }
+
+  // Odd team out
+  if (tLeft === tRight) {
+    pairedTeams.push([teamsSorted[tLeft]]);
+  }
+
+  // Build result
+  const groups: GroupResult[] = [];
+  const assignments: GroupingAssignment[] = [];
+
+  for (let g = 0; g < pairedTeams.length; g++) {
+    const teamsInGroup = pairedTeams[g];
+    const groupNumber = g + 1;
+    const allGolfers: string[] = [];
+    const teamResults: { teamNumber: number; golfers: string[] }[] = [];
+
+    for (let t = 0; t < teamsInGroup.length; t++) {
+      const teamGolfers = teamsInGroup[t].golfers.map((gf) => gf.profileId);
+      teamResults.push({ teamNumber: t + 1, golfers: teamGolfers });
+      allGolfers.push(...teamGolfers);
+
+      for (const profileId of teamGolfers) {
+        assignments.push({ groupNumber, teeOrder: groupNumber, profileId, teamNumber: t + 1 });
+      }
+    }
+
+    groups.push({
+      groupNumber,
+      teeOrder: groupNumber,
+      golfers: allGolfers,
+      harmonyScore: 0,
+      teams: teamResults,
+    });
+  }
+
+  return { groups, assignments, totalHarmonyScore: 0, method: 'balanced_teams' };
 }
 
 // ============================================================

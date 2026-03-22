@@ -100,20 +100,24 @@ Every page (except the landing page and login) **must** have a `<Breadcrumbs>` c
 - `admin-actions.tsx` — Admin action items component
 - `golfers/page.tsx` — Global golfer directory (super admin only). Shows all golfers across all events with event filter.
 - `golfers/golfer-search.tsx` — Golfer search component with event filter
-- `golfers/[golferId]/page.tsx` — Global golfer detail page (status, subscriptions to all events)
+- `golfers/[golferId]/page.tsx` — Global golfer detail page (status, subscriptions to all events, manual handicap entry)
+- `golfers/[golferId]/manual-handicap.tsx` — Manual handicap field wrapper (global context)
+- `golfers/[golferId]/actions.ts` — Global golfer detail server actions (manual handicap update)
 - `golfers/add/` — Add golfer globally with multi-event subscription picker
 - `events/[eventId]/page.tsx` — Event dashboard. Shows event summary metrics, action items, upcoming games, quick links.
 - `events/[eventId]/golfers/page.tsx` — Event-scoped golfer directory (includes "Add New Golfer" section at top)
 - `events/[eventId]/golfers/golfer-search.tsx` — Event-scoped golfer search
 - `events/[eventId]/golfers/add/` — Add golfer to specific event (auto-subscribes)
-- `events/[eventId]/golfers/[golferId]/page.tsx` — Event-scoped golfer detail (status, subscriptions for this event only)
+- `events/[eventId]/golfers/[golferId]/page.tsx` — Event-scoped golfer detail (status, subscriptions for this event only, manual handicap entry)
+- `events/[eventId]/golfers/[golferId]/event-manual-handicap.tsx` — Manual handicap field wrapper (event context)
+- `events/[eventId]/golfers/[golferId]/actions.ts` — Event-scoped golfer detail server actions (manual handicap update)
 - `events/[eventId]/rsvp/[scheduleId]/page.tsx` — Event-scoped RSVP management redirect
 - `events/[eventId]/rsvp/[scheduleId]/rsvp-controls.tsx` — RSVP override controls (post-cutoff admin changes)
 - `events/[eventId]/rsvp/[scheduleId]/guest-controls.tsx` — Guest request approve/deny controls
 - `events/[eventId]/rsvp/[scheduleId]/actions.ts` — RSVP management server actions
 - `events/[eventId]/rsvp/[scheduleId]/guest-actions.ts` — Guest approval server actions
 - `events/new/` — Create new event page (email settings with Reminder and Pro Shop Detail toggles, matching Event Settings UI)
-- `events/[eventId]/settings/` — Event settings (Event Details, Automated Email Settings with on/off toggles for Reminder and Pro Shop Detail emails, Admin Alerts, Pro Shop Contacts, Grouping Engine [super admin only — playing partner on/off + mode, tee time on/off + mode, group variety toggle], Event Admins [super admin only], Feature Flags [super admin only — guest requests], Danger Zone [super admin only — deactivate/reactivate + permanently delete with name confirmation])
+- `events/[eventId]/settings/` — Event settings (Event Details, Automated Email Settings with on/off toggles for Reminder and Pro Shop Detail emails, Admin Alerts, Pro Shop Contacts, Grouping Engine [super admin only — grouping method selector (harmony/flight foursomes/balanced foursomes/flight teams/balanced teams), playing partner on/off + mode, tee time on/off + mode, group variety toggle; handicap methods override partner/tee time prefs with warning banner], Event Admins [super admin only], Feature Flags [super admin only — guest requests], Danger Zone [super admin only — deactivate/reactivate + permanently delete with name confirmation])
 - `events/[eventId]/schedule/` — 8-week rolling schedule (Game On/No Game toggle, capacity override)
 - `events/[eventId]/emails/page.tsx` — Emails & Communications page (email status panel with send/resend, link to custom compose)
 - `events/[eventId]/email/compose/` — Custom email composer with templates
@@ -140,9 +144,9 @@ Every page (except the landing page and login) **must** have a `<Breadcrumbs>` c
 - `supabase/client.ts` — Supabase browser client
 - `supabase/server.ts` — Supabase server client (for Server Actions/API routes)
 - `supabase/middleware.ts` — Supabase session middleware
-- `grouping-engine.ts` — Core foursome grouping algorithm (pure function, no DB calls, shuffle/randomization support)
-- `grouping-engine.test.ts` — Unit tests for grouping algorithm (36 tests)
-- `grouping-db.ts` — DB queries: fetch confirmed golfers, partner preferences, approved guests; store groupings with guest placement; fetch stored groupings with tee time + partner preference annotations
+- `grouping-engine.ts` — Core grouping algorithm (pure function, no DB calls). Supports harmony (partner prefs) + 4 handicap-based methods: flight foursomes, balanced ABCD foursomes, flight 2-person teams, balanced 2-person teams
+- `grouping-engine.test.ts` — Unit tests for grouping algorithm (50+ tests including handicap methods)
+- `grouping-db.ts` — DB queries: fetch confirmed golfers (with handicap resolution), partner preferences, approved guests; store groupings with guest placement and team numbers; fetch stored groupings with tee time + partner preference annotations
 - `weather.ts` — Open-Meteo weather API integration, caching, golfability scoring, email HTML generation
 - `handicap-sync.ts` — GHIN Handicap Index sync service: authenticates with unofficial GHIN API, fetches handicap indices by GHIN number, updates profiles, logs sync runs, health monitoring helpers
 
@@ -153,9 +157,10 @@ Every page (except the landing page and login) **must** have a `<Breadcrumbs>` c
 - `src/components/event-context-bar.tsx` — Event context indicator + event switcher (shows on `/admin/events/[eventId]/*` pages)
 - `src/components/collapsible-section.tsx` — Shared collapsible section component (expand/collapse with chevron, count badge, optional "View All" link)
 - `src/components/weather-forecast.tsx` — Weather forecast display (full + compact variants)
+- `src/components/manual-handicap-field.tsx` — Shared admin-only manual handicap inline editor (used on global and event-scoped golfer detail pages)
 - `scripts/import-golfers.ts` — Batch import golfers from Excel
 - `scripts/delete-user.ts` — Delete a user script
-- `supabase/migrations/` — Database schema migrations (001–017)
+- `supabase/migrations/` — Database schema migrations (001–019)
 - `vercel.json` — Vercel config (cron schedules)
 
 ---
@@ -246,6 +251,7 @@ The first event is **"FRCC Saturday Morning Group"**. The platform is designed f
 - Game type: 9 holes or 18 holes (determines weather forecast window duration)
 - First tee time: HH:MM format (used for weather forecast scoping)
 - Feature flags (guest requests). Note: tee time preferences and playing partner preferences are now managed in the Grouping Engine section (super admin only), not Feature Flags.
+- Grouping method: harmony (partner preferences), flight foursomes, balanced ABCD foursomes, flight 2-person teams, balanced 2-person teams. Configurable in Grouping Engine section (super admin only). Handicap methods override partner/tee time preferences.
 
 ### Schedule Management
 - Schedule management page shows a rolling 8-week view.
@@ -470,6 +476,12 @@ Handicap sync (migration 018):
 - `events.handicap_sync_enabled` — boolean, per-event toggle for automatic GHIN handicap sync. Default OFF.
 - `handicap_sync_log` table: tracks sync runs with success/failure counts, error messages, and status. RLS enabled — admins read, service role manages.
 
+Handicap-based grouping methods (migration 019):
+- `events.grouping_method` — text, one of: `harmony`, `flight_foursomes`, `balanced_foursomes`, `flight_teams`, `balanced_teams`. Default `harmony`.
+- `events.flight_team_pairing` — text, `similar` or `random`. Default `similar`. Only used when `grouping_method = 'flight_teams'`.
+- `profiles.manual_handicap_index` — numeric(4,1), admin-entered handicap override. Takes precedence over GHIN-synced `handicap_index`.
+- `groupings.team_number` — smallint, nullable. Tracks 2-person team assignments for team-based grouping methods.
+
 Security hardening (migrations 015–016):
 - `push_subscriptions` table has RLS enabled with policies scoped to `profile_id = auth.uid()`.
 - All database functions have `search_path` pinned to `public` to prevent schema-shadowing attacks.
@@ -660,7 +672,7 @@ The following is fully implemented and running in production:
 - **Weekly RSVP Cycle:** Tokenized RSVP links, automated invite/reminder/confirmation/pro shop emails (configurable per event), evite-style "In" list visibility, capacity and waitlist management, admin RSVP override (post-cutoff).
 - **Preferences:** Playing partner preferences (ranked 1–10, per-event, searchable dropdown with reordering). Tee time preferences (per-week on RSVP page).
 - **Admin Tools:** Schedule management (8-week rolling view, Game On/No Game toggle with cancellation emails), custom email composer with templates, action items/task summary, golfer directory with search/filter (global + event-scoped), golfer detail pages with subscription management, admin "Add Golfer" (direct add), configurable email schedules (6 Vercel cron slots), admin notification emails (new_registration, capacity_reached, spot_opened, low_response), event-centric admin dashboard with summary cards, per-event admin scoping, help page with Golfer + Admin FAQ.
-- **Grouping Engine:** Greedy heuristic algorithm with weighted partner preferences, tee time constraints, shuffle randomization, guest-host pairing. Configurable via super-admin-only Grouping Engine settings: playing partner preference mode (off/light/moderate/full), tee time preference mode (light/moderate/full) with habitual-requester abuse prevention, group variety toggle with 8-week lookback. Partner and tee time on/off toggles colocated with their mode selectors. 50+ unit tests. DB layer, cron integration, pro shop email with grouped roster. See `docs/GROUPING_ENGINE_SPEC.md`.
+- **Grouping Engine:** Five grouping methods: (1) Harmony — greedy heuristic with weighted partner preferences, tee time constraints, shuffle randomization; (2) Flight Foursomes — sorted by handicap, grouped by skill level; (3) Balanced ABCD Foursomes — round-robin tier distribution (one from each quartile per group); (4) Flight 2-Person Teams — adjacent handicap pairs, with similar or random foursome pairing; (5) Balanced 2-Person Teams — outside-in pairing (best+worst) for equal team totals. Handicap methods override partner/tee time preferences (with admin warning banner). Manual handicap entry on admin golfer detail pages (global + event-scoped). Handicap resolution: manual_handicap_index → handicap_index → 25.0 default. Guest-host pairing, group variety with 8-week lookback, configurable partner/tee time modes. 50+ unit tests. DB layer with team_number support, cron integration, pro shop email with grouped roster. See `docs/GROUPING_ENGINE_SPEC.md`.
 - **GHIN Handicap Sync:** Automated system to fetch current Handicap Index from GHIN for all golfers with a GHIN number. Uses unofficial GHIN mobile app API (`api2.ghin.com`) directly via HTTP — no npm dependency, fully patchable. Auth uses `email_or_ghin` + `password` + `token` fields. Syncs within 24 hours of each scheduled event via email-scheduler cron. Features: per-event toggle (`handicap_sync_enabled`), 20-golfer batch cap per cron run (stalest-first), 24-hour freshness window (shared across events for multi-event golfers), `handicap_sync_log` table for health monitoring, auto-alert on auth/total failure, status indicator in Event Settings. Handicap displayed on: golfer home page (My Profile section), golfer profile/edit page, admin golfer detail pages (global + event-scoped), both golfer directories (global + event-scoped, as HCP line on each row), and pro shop email (HCP column). Env vars: `GHIN_EMAIL`, `GHIN_PASSWORD` (must be set at the **Vercel project level**, not team level). See `docs/HANDICAP_SYNC_SPEC.md`.
 
 ---
@@ -725,6 +737,7 @@ When the user asks to "update all product documentation" (or similar), update th
 | `CLAUDE.md` | **File Map** — add/remove/rename any new or changed files. **"What's Been Built"** — add a bullet for the new feature or update existing bullets. **Roadmap** — mark completed items with ✅, add new roadmap items if applicable. **Centralized Utilities** — document any new shared functions, constants, or patterns. **Terminology** — add new terms introduced by the feature. |
 | `CLAUDE_CONTEXT.md` | **"What's complete"** list — add the new feature. **"What's on the roadmap"** list — update to match CLAUDE.md roadmap. Any new **project decisions, patterns, or preferences** established during the session. |
 | `src/types/events.ts` | Add/update TypeScript interfaces and types for any new database columns, API responses, or shared data structures. |
+| `repomix-output.xml` | **Regenerate** by running `npx repomix --ignore "node_modules,.next,.git,public/assets,package-lock.json"` from the project root. This is a full codebase snapshot used for Gemini context — must be refreshed after any code or documentation changes. |
 
 ### Update If Feature Has a Spec (Tier 2 — Feature-Specific)
 
