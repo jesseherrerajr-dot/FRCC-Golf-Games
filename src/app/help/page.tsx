@@ -418,6 +418,24 @@ export default async function HelpPage() {
                   </p>
                 </FAQ>
 
+                <FAQ question="Where can I see admin reports?">
+                  <p>
+                    Super admins can access <strong>Reports</strong> from the
+                    Admin Dashboard. The reports page includes four sections:{" "}
+                    <strong>Golfer Engagement</strong> — RSVP response rates,
+                    participation rates, and ghost detection (golfers who
+                    haven&apos;t responded in 3+ weeks).{" "}
+                    <strong>Platform Activity</strong> — login counts, page
+                    views, most visited pages, and most active users over the
+                    last 30 days.{" "}
+                    <strong>Response Timing</strong> — how quickly golfers
+                    respond after receiving the invite email.{" "}
+                    <strong>Profile Completeness</strong> — identifies golfers
+                    missing GHIN numbers, phone numbers, or handicap data.
+                    Reports update automatically each time you visit the page.
+                  </p>
+                </FAQ>
+
                 <FAQ question="How does the GHIN Handicap Sync work?">
                   <p>
                     When enabled in <strong>Event Settings</strong>, the system
