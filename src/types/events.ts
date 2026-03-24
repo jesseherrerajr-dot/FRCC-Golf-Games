@@ -47,7 +47,7 @@ export const GROUPING_METHOD_LABELS: Record<GroupingMethod, { label: string; des
     description: 'Golfers are sorted by handicap and grouped by skill level. The best 4 play together, then the next 4, and so on.',
   },
   balanced_foursomes: {
-    label: 'Balanced ABCD Foursomes',
+    label: 'Balanced Foursomes',
     description: 'The field is split into skill quartiles (A, B, C, D). Each foursome gets one player from each quartile for balanced competition.',
   },
   flight_teams: {

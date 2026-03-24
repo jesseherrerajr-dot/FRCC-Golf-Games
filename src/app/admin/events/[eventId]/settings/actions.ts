@@ -500,6 +500,7 @@ export async function updateFeatureFlags(
     allow_guest_requests?: boolean;
     allow_tee_time_preferences?: boolean;
     allow_playing_partner_preferences?: boolean;
+    allow_auto_grouping?: boolean;
   }
 ) {
   await requireSuperAdmin();
