@@ -23,10 +23,11 @@ A companion to CLAUDE.md. Where CLAUDE.md is the technical specification and imp
 - Configurable email schedules per event (6 Vercel cron slots)
 - Weather integration — Open-Meteo API, golfability scoring, displayed on RSVP pages, home page, and in emails
 - GHIN Handicap Sync — automated fetch from GHIN API (`api2.ghin.com`), per-event toggle, displayed on home page, profile, both golfer directories, golfer detail pages, and pro shop email
+- Admin Reports — super-admin-only reports page with Golfer Engagement, Platform Activity, Response Timing, and Profile Completeness reports
+- Activity Tracking — login and page view logging infrastructure (activity_log table, ActivityTracker component)
 
 **What's on the roadmap (see CLAUDE.md Roadmap for details):**
-1. Admin reports (TBD — brainstorming needed)
-2. Email template review
+1. Email template review
 3. Guest workflow (architecture exists, feature-flagged OFF)
 4. Priority email batching (for when Resend free-tier limit is approached)
 5. Public "Who's Playing" view
@@ -95,8 +96,7 @@ These are final decisions reflected in the codebase and not open for reconsidera
 
 See the Roadmap section of CLAUDE.md for the current prioritized list. Key items:
 
-1. **Admin reports** — Build useful reports for admins. Specific reports TBD — brainstorming needed.
-2. **Email template review** — Audit all automated emails for copy, formatting, and links.
+1. **Email template review** — Audit all automated emails for copy, formatting, and links.
 3. **Guest workflow** — Complete the guest request system (architecture exists, feature-flagged OFF).
 4. **Priority email batching** — For when distribution approaches the 100/day Resend limit.
 5. **Public "Who's Playing" view** — Unlisted shareable page showing the "In" list without login.
@@ -198,7 +198,7 @@ See the Roadmap section of CLAUDE.md for the current prioritized list. Key items
 
 **No regrets on architecture:** The project has been enjoyable to build. The stack made it easy to get started with a functional app quickly, then iterate. Nothing feels over-engineered or unnecessary so far.
 
-**Usage patterns are still emerging:** With 50+ users and the app in production, Jesse is planning to build out analytics and reporting (via Cowork) to better understand how golfers actually use the app — what behaviors to monitor, where engagement is strong or weak. This is an upcoming priority.
+**Usage tracking is now in place:** Activity logging (login events + page views) is live via the `activity_log` table. Admin Reports page shows golfer engagement, platform activity, response timing, and profile completeness. Data will accumulate over time to reveal usage patterns and identify disengaged golfers.
 
 **The app is a passion project:** Jesse genuinely enjoys working on it and wants to expand capabilities beyond what's strictly necessary. Future work is driven by interest and ambition as much as user demand.
 
@@ -280,3 +280,29 @@ See the Roadmap section of CLAUDE.md for the current prioritized list. Key items
 - **2-person team methods output complete foursomes** — the engine pairs teams into foursomes (not just teams), producing a full tee sheet.
 - **Balanced teams use outside-in pairing** at both levels: team (A+D, B+C) and foursome (lowest combined team + highest combined team).
 - **Default handicap (25.0)** used for golfers with no synced or manual handicap. High enough to land them in lower flights, reasonable for casual golfers.
+
+### Session: March 23, 2026
+
+**Context:** Grouping engine UX refinement, roadmap cleanup, and admin reports implementation.
+
+**Changes made:**
+1. **Grouping Engine on/off toggle** — Added master toggle (`allow_auto_grouping`) to the Grouping Engine section in Event Settings. When off, all sub-settings are greyed out and a message explains groups will follow RSVP order. When on, the full configuration UI (method selector, partner prefs, tee time prefs, variety) is available.
+
+2. **Roadmap cleanup** — Reviewed and updated the CLAUDE.md roadmap to reflect current priorities and mark completed items.
+
+3. **Admin Reports page** — Built a super-admin-only reports page (`/admin/reports`) with four interactive reports:
+   - **Golfer Engagement** — Per-golfer RSVP response rates, participation rates, consecutive no-replies, "ghost" detection (3+ weeks unresponsive). Filters: All, Ghosts, Low, Active. Sort by response rate, participation rate, or consecutive no-replies. Color-coded progress bars.
+   - **Platform Activity** — Login counts, unique users, page views, most visited pages, most active users. Based on the new `activity_log` table (last 30 days).
+   - **Response Timing** — Distribution of invite-to-response times across all events (last 8 weeks). Buckets: within 1 hour through 4+ days. Median/average stats. Insight callout about send-time optimization.
+   - **Profile Completeness** — Identifies golfers missing GHIN, phone, or handicap data. Filter by missing field type.
+
+4. **Activity tracking infrastructure** — Created `activity_log` table (migration 020), `/api/activity` POST endpoint, `ActivityTracker` client component (added to root layout). Login events logged in both OTP and magic link auth flows. Page views logged on every route change via client-side tracker.
+
+5. **Fixed TS error** — Removed invalid `.catch()` on Supabase PostgrestFilterBuilder in auth callback route.
+
+**Key decisions:**
+- **Reports are super-admin-only** for now. Can be expanded to event admins later if useful.
+- **Activity tracking is lightweight and non-blocking** — fire-and-forget pattern. Failures never block auth or navigation.
+- **Page paths are normalized** in the activity report — UUIDs and tokens are replaced with `[id]`/`[token]` for meaningful aggregation.
+- **Golfer engagement report uses 12-week lookback** — long enough for meaningful trends, short enough to reflect current behavior.
+- **Reports linked from admin dashboard** via a card in the global section.

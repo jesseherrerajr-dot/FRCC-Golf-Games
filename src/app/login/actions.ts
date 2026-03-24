@@ -68,5 +68,19 @@ export async function verifyLoginOtp(
     return { error: "Invalid or expired code. Please try again or request a new one.", step: "otp", email };
   }
 
+  // Log login event
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      await supabase.from("activity_log").insert({
+        profile_id: user.id,
+        activity_type: "login",
+        metadata: { method: "otp" },
+      });
+    }
+  } catch {
+    // Don't block login flow for logging failures
+  }
+
   redirect("/home");
 }

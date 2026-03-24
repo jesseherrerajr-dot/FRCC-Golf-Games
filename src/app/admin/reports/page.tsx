@@ -10,70 +10,10 @@ export default async function AdminReportsPage() {
   const today = getTodayPacific();
 
   // ============================================================
-  // 1. Profile Completeness
+  // 1. Golfer Engagement (RSVP-based stats per golfer)
   // ============================================================
-  // Fetch all active, non-guest profiles missing GHIN or phone
-  const { data: incompleteProfiles } = await supabase
-    .from("profiles")
-    .select("id, first_name, last_name, email, phone, ghin_number, handicap_index")
-    .eq("status", "active")
-    .eq("is_guest", false)
-    .order("last_name")
-    .order("first_name");
 
-  const missingGhin = (incompleteProfiles || []).filter(
-    (p) => !p.ghin_number || p.ghin_number.trim() === ""
-  );
-  const missingPhone = (incompleteProfiles || []).filter(
-    (p) => !p.phone || p.phone.trim() === ""
-  );
-  // Golfers missing either
-  const incompleteGolfers = (incompleteProfiles || []).filter(
-    (p) =>
-      (!p.ghin_number || p.ghin_number.trim() === "") ||
-      (!p.phone || p.phone.trim() === "")
-  );
-
-  const profileCompletenessData = {
-    totalActive: (incompleteProfiles || []).length,
-    missingGhinCount: missingGhin.length,
-    missingPhoneCount: missingPhone.length,
-    incompleteCount: incompleteGolfers.length,
-    golfers: incompleteGolfers.map((p) => ({
-      id: p.id,
-      name: formatFullName(p.first_name, p.last_name),
-      displayName: formatInitialLastName(p.first_name, p.last_name),
-      email: p.email,
-      missingGhin: !p.ghin_number || p.ghin_number.trim() === "",
-      missingPhone: !p.phone || p.phone.trim() === "",
-      hasHandicap: p.handicap_index !== null,
-    })),
-  };
-
-  // ============================================================
-  // 2. Ghost Report — golfers with 3+ consecutive no-responses
-  // ============================================================
-  // Get recent schedules (last 8 weeks) across all active events
-  const { data: recentSchedules } = await supabase
-    .from("event_schedules")
-    .select("id, game_date, event_id, status")
-    .eq("status", "scheduled")
-    .lte("game_date", today)
-    .order("game_date", { ascending: false })
-    .limit(200);
-
-  // Group schedules by event, take last N per event
-  const schedulesByEvent: Record<string, { id: string; game_date: string }[]> = {};
-  for (const sched of recentSchedules || []) {
-    if (!schedulesByEvent[sched.event_id]) {
-      schedulesByEvent[sched.event_id] = [];
-    }
-    if (schedulesByEvent[sched.event_id].length < 8) {
-      schedulesByEvent[sched.event_id].push({ id: sched.id, game_date: sched.game_date });
-    }
-  }
-
-  // Get all active events for labeling
+  // Get all active events
   const { data: allEvents } = await supabase
     .from("events")
     .select("id, name")
@@ -84,22 +24,49 @@ export default async function AdminReportsPage() {
     eventNameMap[ev.id] = ev.name;
   }
 
-  // For each event, get RSVPs for recent schedules and find ghosts
-  type GhostGolfer = {
+  // Get recent past schedules (last 12 weeks) across all active events
+  const { data: recentSchedules } = await supabase
+    .from("event_schedules")
+    .select("id, game_date, event_id, status")
+    .eq("status", "scheduled")
+    .lte("game_date", today)
+    .order("game_date", { ascending: false })
+    .limit(300);
+
+  // Group schedules by event, take last 12 per event
+  const schedulesByEvent: Record<string, { id: string; game_date: string }[]> = {};
+  for (const sched of recentSchedules || []) {
+    if (!schedulesByEvent[sched.event_id]) {
+      schedulesByEvent[sched.event_id] = [];
+    }
+    if (schedulesByEvent[sched.event_id].length < 12) {
+      schedulesByEvent[sched.event_id].push({ id: sched.id, game_date: sched.game_date });
+    }
+  }
+
+  // Build per-golfer engagement stats
+  type GolferEngagement = {
     id: string;
     name: string;
-    displayName: string;
     email: string;
     eventName: string;
     eventId: string;
+    totalInvites: number;        // How many weeks they were on the distribution list
+    totalResponses: number;      // How many times they responded (any status except no_response)
+    totalIn: number;             // How many times they said "In"
+    totalOut: number;            // How many times they said "Out"
+    totalNotSure: number;
+    totalNoResponse: number;
+    responseRate: number;        // % of invites they responded to
+    participationRate: number;   // % of invites they said "In"
     consecutiveNoReplies: number;
     lastResponseDate: string | null;
   };
 
-  const ghosts: GhostGolfer[] = [];
+  const engagementData: GolferEngagement[] = [];
 
   for (const [eventId, schedules] of Object.entries(schedulesByEvent)) {
-    if (schedules.length < 3) continue; // Need at least 3 weeks of data
+    if (schedules.length === 0) continue;
 
     const scheduleIds = schedules.map((s) => s.id);
 
@@ -119,13 +86,17 @@ export default async function AdminReportsPage() {
       (sub: any) => sub.profiles?.status === "active"
     );
 
-    // For each subscriber, check consecutive no-responses from most recent
     for (const sub of activeSubscribers) {
       const profile = sub.profiles as any;
       if (!profile) continue;
 
+      let totalIn = 0;
+      let totalOut = 0;
+      let totalNotSure = 0;
+      let totalNoResponse = 0;
       let consecutiveNoReplies = 0;
       let lastResponseDate: string | null = null;
+      let foundFirstResponse = false;
 
       // Walk through schedules from most recent to oldest
       for (const sched of schedules) {
@@ -133,38 +104,153 @@ export default async function AdminReportsPage() {
           (r) => r.profile_id === profile.id && r.schedule_id === sched.id
         );
 
-        if (!rsvp || rsvp.status === "no_response") {
-          consecutiveNoReplies++;
-        } else {
-          if (!lastResponseDate) {
+        const status = rsvp?.status || "no_response";
+
+        if (status === "in" || status === "waitlisted") totalIn++;
+        else if (status === "out") totalOut++;
+        else if (status === "not_sure") totalNotSure++;
+        else totalNoResponse++;
+
+        // Track consecutive no-replies from most recent
+        if (!foundFirstResponse) {
+          if (status === "no_response") {
+            consecutiveNoReplies++;
+          } else {
+            foundFirstResponse = true;
             lastResponseDate = sched.game_date;
           }
-          break; // Stop at first response found
         }
       }
 
-      if (consecutiveNoReplies >= 3) {
-        ghosts.push({
-          id: profile.id,
-          name: formatFullName(profile.first_name, profile.last_name),
-          displayName: formatInitialLastName(profile.first_name, profile.last_name),
-          email: profile.email,
-          eventName: eventNameMap[eventId] || "Unknown Event",
-          eventId,
-          consecutiveNoReplies,
-          lastResponseDate,
-        });
-      }
+      const totalInvites = schedules.length;
+      const totalResponses = totalIn + totalOut + totalNotSure;
+
+      engagementData.push({
+        id: profile.id,
+        name: formatFullName(profile.first_name, profile.last_name),
+        email: profile.email,
+        eventName: eventNameMap[eventId] || "Unknown Event",
+        eventId,
+        totalInvites,
+        totalResponses,
+        totalIn,
+        totalOut,
+        totalNotSure,
+        totalNoResponse,
+        responseRate: totalInvites > 0 ? Math.round((totalResponses / totalInvites) * 100) : 0,
+        participationRate: totalInvites > 0 ? Math.round((totalIn / totalInvites) * 100) : 0,
+        consecutiveNoReplies,
+        lastResponseDate,
+      });
     }
   }
 
-  // Sort ghosts by consecutive no-replies descending
-  ghosts.sort((a, b) => b.consecutiveNoReplies - a.consecutiveNoReplies);
+  // Sort by response rate ascending (worst engagement first)
+  engagementData.sort((a, b) => a.responseRate - b.responseRate || b.consecutiveNoReplies - a.consecutiveNoReplies);
+
+  // Calculate aggregate stats
+  const totalGolfers = engagementData.length;
+  const avgResponseRate = totalGolfers > 0
+    ? Math.round(engagementData.reduce((sum, g) => sum + g.responseRate, 0) / totalGolfers)
+    : 0;
+  const avgParticipationRate = totalGolfers > 0
+    ? Math.round(engagementData.reduce((sum, g) => sum + g.participationRate, 0) / totalGolfers)
+    : 0;
+  const ghostCount = engagementData.filter((g) => g.consecutiveNoReplies >= 3).length;
+
+  // ============================================================
+  // 2. Activity Log (logins & page views)
+  // ============================================================
+  // Fetch login counts per golfer (last 30 days)
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+  const { data: recentLogins } = await supabase
+    .from("activity_log")
+    .select("profile_id, created_at")
+    .eq("activity_type", "login")
+    .gte("created_at", thirtyDaysAgo);
+
+  const { data: recentPageViews } = await supabase
+    .from("activity_log")
+    .select("profile_id, page_path, created_at")
+    .eq("activity_type", "page_view")
+    .gte("created_at", thirtyDaysAgo);
+
+  // Aggregate logins per golfer
+  const loginsByGolfer: Record<string, number> = {};
+  for (const login of recentLogins || []) {
+    loginsByGolfer[login.profile_id] = (loginsByGolfer[login.profile_id] || 0) + 1;
+  }
+
+  // Aggregate page views by path
+  const viewsByPath: Record<string, number> = {};
+  const viewsByGolfer: Record<string, number> = {};
+  for (const pv of recentPageViews || []) {
+    // Normalize paths: strip UUIDs and tokens for grouping
+    const normalizedPath = (pv.page_path || "")
+      .replace(/\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g, "/[id]")
+      .replace(/\/rsvp\/[^/]+/g, "/rsvp/[token]");
+    viewsByPath[normalizedPath] = (viewsByPath[normalizedPath] || 0) + 1;
+    viewsByGolfer[pv.profile_id] = (viewsByGolfer[pv.profile_id] || 0) + 1;
+  }
+
+  // Get profile names for top users
+  const allProfileIds = [...new Set([
+    ...Object.keys(loginsByGolfer),
+    ...Object.keys(viewsByGolfer),
+  ])];
+
+  let activityProfileMap: Record<string, string> = {};
+  if (allProfileIds.length > 0) {
+    const { data: activityProfiles } = await supabase
+      .from("profiles")
+      .select("id, first_name, last_name")
+      .in("id", allProfileIds.slice(0, 50)); // Cap to avoid huge queries
+
+    for (const p of activityProfiles || []) {
+      activityProfileMap[p.id] = formatFullName(p.first_name, p.last_name);
+    }
+  }
+
+  // Top pages (sorted by views)
+  const topPages = Object.entries(viewsByPath)
+    .map(([path, count]) => ({ path, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10);
+
+  // Top users by logins
+  const topLoginUsers = Object.entries(loginsByGolfer)
+    .map(([profileId, count]) => ({
+      profileId,
+      name: activityProfileMap[profileId] || "Unknown",
+      count,
+    }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10);
+
+  // Top users by page views
+  const topActiveUsers = Object.entries(viewsByGolfer)
+    .map(([profileId, count]) => ({
+      profileId,
+      name: activityProfileMap[profileId] || "Unknown",
+      count,
+    }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10);
+
+  const activityData = {
+    totalLogins: (recentLogins || []).length,
+    totalPageViews: (recentPageViews || []).length,
+    uniqueLoggedIn: Object.keys(loginsByGolfer).length,
+    uniqueActiveUsers: Object.keys(viewsByGolfer).length,
+    topPages,
+    topLoginUsers,
+    topActiveUsers,
+  };
 
   // ============================================================
   // 3. Response Timing — how quickly golfers respond after invite
   // ============================================================
-  // Get invite emails sent in the last 8 weeks
   const { data: recentInviteLogs } = await supabase
     .from("email_log")
     .select("schedule_id, sent_at, event_id")
@@ -195,7 +281,6 @@ export default async function AdminReportsPage() {
   };
 
   if (recentInviteLogs && recentInviteLogs.length > 0) {
-    // Get RSVPs for those schedules that have a responded_at timestamp
     const inviteScheduleIds = [...new Set(recentInviteLogs.map((l) => l.schedule_id))];
 
     const { data: respondedRsvps } = await supabase
@@ -205,7 +290,6 @@ export default async function AdminReportsPage() {
       .not("responded_at", "is", null)
       .neq("status", "no_response");
 
-    // Build invite sent time map (schedule_id → sent_at)
     const inviteSentMap: Record<string, string> = {};
     for (const log of recentInviteLogs) {
       if (!inviteSentMap[log.schedule_id]) {
@@ -213,7 +297,6 @@ export default async function AdminReportsPage() {
       }
     }
 
-    // Calculate response times in hours
     const responseTimes: number[] = [];
     for (const rsvp of respondedRsvps || []) {
       const inviteSentAt = inviteSentMap[rsvp.schedule_id];
@@ -223,13 +306,11 @@ export default async function AdminReportsPage() {
       const respondedTime = new Date(rsvp.responded_at).getTime();
       const hoursToRespond = (respondedTime - sentTime) / (1000 * 60 * 60);
 
-      // Only count positive times (responded after invite)
       if (hoursToRespond > 0) {
         responseTimes.push(hoursToRespond);
       }
     }
 
-    // Bucket the response times
     const bucketDefs = [
       { label: "Within 1 hour", max: 1 },
       { label: "1–4 hours", max: 4 },
@@ -241,19 +322,16 @@ export default async function AdminReportsPage() {
 
     const bucketCounts = bucketDefs.map(() => 0);
     for (const hours of responseTimes) {
-      let prevMax = 0;
       for (let i = 0; i < bucketDefs.length; i++) {
         if (hours <= bucketDefs[i].max || i === bucketDefs.length - 1) {
           bucketCounts[i]++;
           break;
         }
-        prevMax = bucketDefs[i].max;
       }
     }
 
     const total = responseTimes.length;
 
-    // Calculate average and median
     let averageHours: number | null = null;
     let medianHours: number | null = null;
     if (total > 0) {
@@ -278,6 +356,45 @@ export default async function AdminReportsPage() {
     };
   }
 
+  // ============================================================
+  // 4. Profile Completeness
+  // ============================================================
+  const { data: allProfiles } = await supabase
+    .from("profiles")
+    .select("id, first_name, last_name, email, phone, ghin_number, handicap_index")
+    .eq("status", "active")
+    .eq("is_guest", false)
+    .order("last_name")
+    .order("first_name");
+
+  const missingGhin = (allProfiles || []).filter(
+    (p) => !p.ghin_number || p.ghin_number.trim() === ""
+  );
+  const missingPhone = (allProfiles || []).filter(
+    (p) => !p.phone || p.phone.trim() === ""
+  );
+  const incompleteGolfers = (allProfiles || []).filter(
+    (p) =>
+      (!p.ghin_number || p.ghin_number.trim() === "") ||
+      (!p.phone || p.phone.trim() === "")
+  );
+
+  const profileCompletenessData = {
+    totalActive: (allProfiles || []).length,
+    missingGhinCount: missingGhin.length,
+    missingPhoneCount: missingPhone.length,
+    incompleteCount: incompleteGolfers.length,
+    golfers: incompleteGolfers.map((p) => ({
+      id: p.id,
+      name: formatFullName(p.first_name, p.last_name),
+      displayName: formatInitialLastName(p.first_name, p.last_name),
+      email: p.email,
+      missingGhin: !p.ghin_number || p.ghin_number.trim() === "",
+      missingPhone: !p.phone || p.phone.trim() === "",
+      hasHandicap: p.handicap_index !== null,
+    })),
+  };
+
   return (
     <main className="min-h-screen px-4 py-8">
       <div className="mx-auto max-w-4xl">
@@ -296,9 +413,16 @@ export default async function AdminReportsPage() {
         </p>
 
         <ReportsClient
-          profileCompleteness={profileCompletenessData}
-          ghosts={ghosts}
+          engagement={{
+            golfers: engagementData,
+            totalGolfers,
+            avgResponseRate,
+            avgParticipationRate,
+            ghostCount,
+          }}
+          activity={activityData}
           responseTiming={responseTimingData}
+          profileCompleteness={profileCompletenessData}
         />
       </div>
     </main>

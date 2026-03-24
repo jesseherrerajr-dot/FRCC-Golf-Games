@@ -9,6 +9,56 @@ import { formatGameDate } from "@/lib/format";
 // Types
 // ============================================================
 
+interface GolferEngagement {
+  id: string;
+  name: string;
+  email: string;
+  eventName: string;
+  eventId: string;
+  totalInvites: number;
+  totalResponses: number;
+  totalIn: number;
+  totalOut: number;
+  totalNotSure: number;
+  totalNoResponse: number;
+  responseRate: number;
+  participationRate: number;
+  consecutiveNoReplies: number;
+  lastResponseDate: string | null;
+}
+
+interface EngagementData {
+  golfers: GolferEngagement[];
+  totalGolfers: number;
+  avgResponseRate: number;
+  avgParticipationRate: number;
+  ghostCount: number;
+}
+
+interface ActivityData {
+  totalLogins: number;
+  totalPageViews: number;
+  uniqueLoggedIn: number;
+  uniqueActiveUsers: number;
+  topPages: { path: string; count: number }[];
+  topLoginUsers: { profileId: string; name: string; count: number }[];
+  topActiveUsers: { profileId: string; name: string; count: number }[];
+}
+
+interface TimingBucket {
+  label: string;
+  count: number;
+  percentage: number;
+}
+
+interface ResponseTimingData {
+  totalResponses: number;
+  totalInvitesSent: number;
+  buckets: TimingBucket[];
+  averageHours: number | null;
+  medianHours: number | null;
+}
+
 interface IncompleteGolfer {
   id: string;
   name: string;
@@ -27,33 +77,8 @@ interface ProfileCompletenessData {
   golfers: IncompleteGolfer[];
 }
 
-interface GhostGolfer {
-  id: string;
-  name: string;
-  displayName: string;
-  email: string;
-  eventName: string;
-  eventId: string;
-  consecutiveNoReplies: number;
-  lastResponseDate: string | null;
-}
-
-interface TimingBucket {
-  label: string;
-  count: number;
-  percentage: number;
-}
-
-interface ResponseTimingData {
-  totalResponses: number;
-  totalInvitesSent: number;
-  buckets: TimingBucket[];
-  averageHours: number | null;
-  medianHours: number | null;
-}
-
 // ============================================================
-// Helper: format hours to human-readable
+// Helpers
 // ============================================================
 
 function formatHours(hours: number): string {
@@ -65,143 +90,223 @@ function formatHours(hours: number): string {
     const h = Math.round(hours);
     return `${h} hour${h !== 1 ? "s" : ""}`;
   }
-  const days = Math.round(hours / 24 * 10) / 10;
+  const days = Math.round((hours / 24) * 10) / 10;
   return `${days} day${days !== 1 ? "s" : ""}`;
 }
 
+function rateColor(rate: number): string {
+  if (rate >= 80) return "text-teal-700";
+  if (rate >= 50) return "text-amber-700";
+  return "text-red-700";
+}
+
+function rateBgColor(rate: number): string {
+  if (rate >= 80) return "bg-teal-50";
+  if (rate >= 50) return "bg-amber-50";
+  return "bg-red-50";
+}
+
+/** Pretty labels for normalized page paths */
+function pageLabel(path: string): string {
+  const labels: Record<string, string> = {
+    "/home": "Home",
+    "/profile": "Profile",
+    "/help": "Help",
+    "/login": "Login",
+    "/admin": "Admin Dashboard",
+    "/admin/reports": "Admin Reports",
+    "/admin/golfers": "Admin Golfers",
+    "/rsvp/[token]": "RSVP (via email link)",
+  };
+  if (labels[path]) return labels[path];
+  if (path.startsWith("/admin/events/[id]/settings")) return "Event Settings";
+  if (path.startsWith("/admin/events/[id]/golfers")) return "Event Golfers";
+  if (path.startsWith("/admin/events/[id]/rsvp")) return "RSVP Management";
+  if (path.startsWith("/admin/events/[id]/emails")) return "Emails & Comms";
+  if (path.startsWith("/admin/events/[id]/schedule")) return "Event Schedule";
+  if (path.startsWith("/admin/events/[id]")) return "Event Dashboard";
+  if (path.startsWith("/join")) return "Join / Registration";
+  return path;
+}
+
 // ============================================================
-// Main Component
+// Main Component — new order: Engagement → Activity → Timing → Profile
 // ============================================================
 
 export function ReportsClient({
-  profileCompleteness,
-  ghosts,
+  engagement,
+  activity,
   responseTiming,
+  profileCompleteness,
 }: {
-  profileCompleteness: ProfileCompletenessData;
-  ghosts: GhostGolfer[];
+  engagement: EngagementData;
+  activity: ActivityData;
   responseTiming: ResponseTimingData;
+  profileCompleteness: ProfileCompletenessData;
 }) {
   return (
     <div className="mt-6 space-y-2">
-      {/* Profile Completeness */}
-      <ProfileCompletenessReport data={profileCompleteness} />
-
-      {/* Ghost Report */}
-      <GhostReport ghosts={ghosts} />
-
-      {/* Response Timing */}
+      <GolferEngagementReport data={engagement} />
+      <ActivityReport data={activity} />
       <ResponseTimingReport data={responseTiming} />
+      <ProfileCompletenessReport data={profileCompleteness} />
     </div>
   );
 }
 
 // ============================================================
-// 1. Profile Completeness Report
+// 1. Golfer Engagement Report
 // ============================================================
 
-function ProfileCompletenessReport({ data }: { data: ProfileCompletenessData }) {
-  const [filter, setFilter] = useState<"all" | "ghin" | "phone">("all");
-
-  const completionRate = data.totalActive > 0
-    ? Math.round(((data.totalActive - data.incompleteCount) / data.totalActive) * 100)
-    : 100;
+function GolferEngagementReport({ data }: { data: EngagementData }) {
+  const [filter, setFilter] = useState<"all" | "ghosts" | "low" | "active">("all");
+  const [sortBy, setSortBy] = useState<"responseRate" | "participationRate" | "consecutiveNoReplies">("responseRate");
 
   const filtered = data.golfers.filter((g) => {
-    if (filter === "ghin") return g.missingGhin;
-    if (filter === "phone") return g.missingPhone;
+    if (filter === "ghosts") return g.consecutiveNoReplies >= 3;
+    if (filter === "low") return g.responseRate < 50;
+    if (filter === "active") return g.responseRate >= 80;
     return true;
+  });
+
+  const sorted = [...filtered].sort((a, b) => {
+    if (sortBy === "responseRate") return a.responseRate - b.responseRate;
+    if (sortBy === "participationRate") return a.participationRate - b.participationRate;
+    return b.consecutiveNoReplies - a.consecutiveNoReplies;
   });
 
   return (
     <CollapsibleSection
-      title="Profile Completeness"
-      count={data.incompleteCount}
-      defaultOpen={data.incompleteCount > 0}
-      emptyMessage="All golfer profiles are complete."
+      title="Golfer Engagement"
+      count={data.totalGolfers}
+      defaultOpen={true}
       badge={
-        data.incompleteCount > 0
-          ? { label: "Needs Attention", className: "bg-amber-100 text-amber-700" }
-          : { label: "All Good", className: "bg-teal-100 text-teal-700" }
+        data.ghostCount > 0
+          ? { label: `${data.ghostCount} Ghost${data.ghostCount !== 1 ? "s" : ""}`, className: "bg-red-100 text-red-700" }
+          : { label: "Healthy", className: "bg-teal-100 text-teal-700" }
       }
     >
+      <p className="text-xs text-gray-500 mb-3">
+        RSVP response rates and participation trends over the last 12 weeks across all events.
+      </p>
+
       {/* Summary tiles */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div className="rounded-lg border border-gray-200 bg-teal-50 p-3">
-          <p className="text-xs font-medium uppercase tracking-wide text-teal-700">Completion Rate</p>
-          <p className="mt-1 text-2xl font-bold text-teal-900">{completionRate}%</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-teal-700">Avg Response Rate</p>
+          <p className={`mt-1 text-2xl font-bold ${rateColor(data.avgResponseRate)}`}>{data.avgResponseRate}%</p>
+        </div>
+        <div className="rounded-lg border border-gray-200 bg-teal-50 p-3">
+          <p className="text-xs font-medium uppercase tracking-wide text-teal-700">Avg Participation</p>
+          <p className={`mt-1 text-2xl font-bold ${rateColor(data.avgParticipationRate)}`}>{data.avgParticipationRate}%</p>
+        </div>
+        <div className="rounded-lg border border-gray-200 bg-red-50 p-3">
+          <p className="text-xs font-medium uppercase tracking-wide text-red-700">Ghosts (3+ wks)</p>
+          <p className="mt-1 text-2xl font-bold text-red-900">{data.ghostCount}</p>
         </div>
         <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-          <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Active Golfers</p>
-          <p className="mt-1 text-2xl font-bold text-gray-900">{data.totalActive}</p>
-        </div>
-        <div className="rounded-lg border border-gray-200 bg-amber-50 p-3">
-          <p className="text-xs font-medium uppercase tracking-wide text-amber-700">Missing GHIN</p>
-          <p className="mt-1 text-2xl font-bold text-amber-900">{data.missingGhinCount}</p>
-        </div>
-        <div className="rounded-lg border border-gray-200 bg-amber-50 p-3">
-          <p className="text-xs font-medium uppercase tracking-wide text-amber-700">Missing Phone</p>
-          <p className="mt-1 text-2xl font-bold text-amber-900">{data.missingPhoneCount}</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Total Golfers</p>
+          <p className="mt-1 text-2xl font-bold text-gray-900">{data.totalGolfers}</p>
         </div>
       </div>
 
-      {data.incompleteCount > 0 && (
+      {data.golfers.length > 0 && (
         <>
-          {/* Filter buttons */}
-          <div className="mt-4 flex gap-2">
-            {(["all", "ghin", "phone"] as const).map((f) => {
-              const labels = { all: "All Incomplete", ghin: "Missing GHIN", phone: "Missing Phone" };
-              const counts = { all: data.incompleteCount, ghin: data.missingGhinCount, phone: data.missingPhoneCount };
-              return (
+          {/* Filter + sort controls */}
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <div className="flex gap-1.5">
+              {([
+                { key: "all", label: "All", count: data.totalGolfers },
+                { key: "ghosts", label: "Ghosts", count: data.ghostCount },
+                { key: "low", label: "Low (<50%)", count: data.golfers.filter((g) => g.responseRate < 50).length },
+                { key: "active", label: "Active (80%+)", count: data.golfers.filter((g) => g.responseRate >= 80).length },
+              ] as const).map((f) => (
                 <button
-                  key={f}
-                  onClick={() => setFilter(f)}
+                  key={f.key}
+                  onClick={() => setFilter(f.key)}
                   className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
-                    filter === f
+                    filter === f.key
                       ? "bg-navy-900 text-white"
                       : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                   }`}
                 >
-                  {labels[f]} ({counts[f]})
+                  {f.label} ({f.count})
                 </button>
-              );
-            })}
+              ))}
+            </div>
+            <div className="ml-auto flex items-center gap-1.5 text-xs text-gray-500">
+              <span>Sort:</span>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+                className="rounded border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700"
+              >
+                <option value="responseRate">Response Rate</option>
+                <option value="participationRate">Participation Rate</option>
+                <option value="consecutiveNoReplies">Consecutive No-Replies</option>
+              </select>
+            </div>
           </div>
 
           {/* Golfer list */}
           <div className="mt-3 rounded-lg border border-gray-200 bg-white">
-            {filtered.map((golfer, i) => (
+            {sorted.length === 0 && (
+              <p className="px-4 py-6 text-center text-sm text-gray-400">No golfers match this filter.</p>
+            )}
+            {sorted.map((golfer, i) => (
               <Link
-                key={golfer.id}
-                href={`/admin/golfers/${golfer.id}`}
+                key={`${golfer.id}-${golfer.eventId}`}
+                href={`/admin/events/${golfer.eventId}/golfers/${golfer.id}`}
                 className={`flex items-center justify-between px-4 py-3 transition-colors hover:bg-gray-50 ${
                   i > 0 ? "border-t border-gray-100" : ""
                 }`}
               >
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-gray-900">{golfer.name}</p>
-                  <p className="text-xs text-gray-500">{golfer.email}</p>
-                  <div className="mt-1 flex flex-wrap gap-1.5">
-                    {golfer.missingGhin && (
-                      <span className="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
-                        No GHIN
-                      </span>
-                    )}
-                    {golfer.missingPhone && (
-                      <span className="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
-                        No Phone
-                      </span>
-                    )}
-                    {golfer.missingGhin && !golfer.hasHandicap && (
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium text-gray-900">{golfer.name}</p>
+                    {golfer.consecutiveNoReplies >= 3 && (
                       <span className="inline-flex rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
-                        No Handicap
+                        Ghost
                       </span>
                     )}
                   </div>
+                  <p className="text-xs text-gray-500">{golfer.eventName}</p>
+                  {/* Stats row */}
+                  <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs">
+                    <span className={rateColor(golfer.responseRate)}>
+                      <span className="font-semibold">{golfer.responseRate}%</span> response
+                    </span>
+                    <span className={rateColor(golfer.participationRate)}>
+                      <span className="font-semibold">{golfer.participationRate}%</span> participation
+                    </span>
+                    <span className="text-gray-500">
+                      {golfer.totalIn} in · {golfer.totalOut} out · {golfer.totalNoResponse} no reply
+                    </span>
+                  </div>
+                  {golfer.consecutiveNoReplies >= 3 && (
+                    <p className="mt-1 text-xs text-red-600">
+                      {golfer.consecutiveNoReplies} consecutive weeks with no reply
+                      {golfer.lastResponseDate
+                        ? ` · Last response: ${formatGameDate(golfer.lastResponseDate)}`
+                        : " · Never responded"}
+                    </p>
+                  )}
                 </div>
-                <svg className="h-4 w-4 flex-shrink-0 text-gray-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                </svg>
+                {/* Mini response rate bar */}
+                <div className="ml-3 flex flex-shrink-0 flex-col items-end gap-1">
+                  <div className="h-2 w-16 overflow-hidden rounded-full bg-gray-100">
+                    <div
+                      className={`h-2 rounded-full transition-all ${
+                        golfer.responseRate >= 80 ? "bg-teal-500" :
+                        golfer.responseRate >= 50 ? "bg-amber-400" : "bg-red-400"
+                      }`}
+                      style={{ width: `${golfer.responseRate}%` }}
+                    />
+                  </div>
+                  <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                  </svg>
+                </div>
               </Link>
             ))}
           </div>
@@ -212,62 +317,87 @@ function ProfileCompletenessReport({ data }: { data: ProfileCompletenessData }) 
 }
 
 // ============================================================
-// 2. Ghost Report
+// 2. Activity Report (Logins & Page Views)
 // ============================================================
 
-function GhostReport({ ghosts }: { ghosts: GhostGolfer[] }) {
+function ActivityReport({ data }: { data: ActivityData }) {
+  const hasData = data.totalLogins > 0 || data.totalPageViews > 0;
+
   return (
     <CollapsibleSection
-      title="Unresponsive Golfers"
-      count={ghosts.length}
-      defaultOpen={ghosts.length > 0}
-      emptyMessage="All subscribed golfers have responded within the last 3 weeks."
+      title="Platform Activity"
+      defaultOpen={hasData}
+      emptyMessage="No activity data yet. Login and page view tracking has been enabled — data will appear after users start using the app."
       badge={
-        ghosts.length > 0
-          ? { label: `${ghosts.length} Ghost${ghosts.length !== 1 ? "s" : ""}`, className: "bg-red-100 text-red-700" }
-          : { label: "All Active", className: "bg-teal-100 text-teal-700" }
+        hasData
+          ? { label: "Last 30 Days", className: "bg-blue-100 text-blue-700" }
+          : { label: "New", className: "bg-gray-100 text-gray-500" }
       }
     >
-      <p className="text-xs text-gray-500 mb-3">
-        Golfers who are active and subscribed but haven&apos;t responded to 3 or more consecutive invites.
-        Consider reaching out or deactivating if they&apos;re no longer participating.
-      </p>
+      {hasData && (
+        <>
+          <p className="text-xs text-gray-500 mb-3">
+            Login and page view activity over the last 30 days.
+          </p>
 
-      {ghosts.length > 0 && (
-        <div className="rounded-lg border border-gray-200 bg-white">
-          {ghosts.map((ghost, i) => (
-            <Link
-              key={`${ghost.id}-${ghost.eventId}`}
-              href={`/admin/events/${ghost.eventId}/golfers/${ghost.id}`}
-              className={`flex items-center justify-between px-4 py-3 transition-colors hover:bg-gray-50 ${
-                i > 0 ? "border-t border-gray-100" : ""
-              }`}
-            >
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-gray-900">{ghost.name}</p>
-                <p className="text-xs text-gray-500">{ghost.eventName}</p>
-                <div className="mt-1 flex flex-wrap gap-1.5">
-                  <span className="inline-flex rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
-                    {ghost.consecutiveNoReplies} weeks no reply
-                  </span>
-                  {ghost.lastResponseDate && (
-                    <span className="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
-                      Last response: {formatGameDate(ghost.lastResponseDate)}
-                    </span>
-                  )}
-                  {!ghost.lastResponseDate && (
-                    <span className="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
-                      Never responded
-                    </span>
-                  )}
+          {/* Summary tiles */}
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="rounded-lg border border-gray-200 bg-blue-50 p-3">
+              <p className="text-xs font-medium uppercase tracking-wide text-blue-700">Logins</p>
+              <p className="mt-1 text-2xl font-bold text-blue-900">{data.totalLogins}</p>
+            </div>
+            <div className="rounded-lg border border-gray-200 bg-blue-50 p-3">
+              <p className="text-xs font-medium uppercase tracking-wide text-blue-700">Unique Users</p>
+              <p className="mt-1 text-2xl font-bold text-blue-900">{data.uniqueLoggedIn}</p>
+            </div>
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+              <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Page Views</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">{data.totalPageViews}</p>
+            </div>
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+              <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Active Users</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">{data.uniqueActiveUsers}</p>
+            </div>
+          </div>
+
+          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {/* Top Pages */}
+            {data.topPages.length > 0 && (
+              <div className="rounded-lg border border-gray-200 bg-white p-4">
+                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500">
+                  Most Visited Pages
+                </p>
+                <div className="space-y-1.5">
+                  {data.topPages.map((page) => (
+                    <div key={page.path} className="flex items-center justify-between">
+                      <p className="text-sm text-gray-700 truncate">{pageLabel(page.path)}</p>
+                      <span className="ml-2 flex-shrink-0 text-xs font-medium text-gray-500">{page.count}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
-              <svg className="h-4 w-4 flex-shrink-0 text-gray-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-              </svg>
-            </Link>
-          ))}
-        </div>
+            )}
+
+            {/* Most Active Users */}
+            {data.topActiveUsers.length > 0 && (
+              <div className="rounded-lg border border-gray-200 bg-white p-4">
+                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500">
+                  Most Active Users
+                </p>
+                <div className="space-y-1.5">
+                  {data.topActiveUsers.map((user) => (
+                    <div key={user.profileId} className="flex items-center justify-between">
+                      <p className="text-sm text-gray-700 truncate">{user.name}</p>
+                      <span className="ml-2 flex-shrink-0 text-xs font-medium text-gray-500">
+                        {user.count} view{user.count !== 1 ? "s" : ""}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </>
       )}
     </CollapsibleSection>
   );
@@ -377,6 +507,121 @@ function ResponseTimingReport({ data }: { data: ResponseTimingData }) {
               </p>
             </div>
           )}
+        </>
+      )}
+    </CollapsibleSection>
+  );
+}
+
+// ============================================================
+// 4. Profile Completeness Report
+// ============================================================
+
+function ProfileCompletenessReport({ data }: { data: ProfileCompletenessData }) {
+  const [filter, setFilter] = useState<"all" | "ghin" | "phone">("all");
+
+  const completionRate = data.totalActive > 0
+    ? Math.round(((data.totalActive - data.incompleteCount) / data.totalActive) * 100)
+    : 100;
+
+  const filtered = data.golfers.filter((g) => {
+    if (filter === "ghin") return g.missingGhin;
+    if (filter === "phone") return g.missingPhone;
+    return true;
+  });
+
+  return (
+    <CollapsibleSection
+      title="Profile Completeness"
+      count={data.incompleteCount}
+      defaultOpen={data.incompleteCount > 0}
+      emptyMessage="All golfer profiles are complete."
+      badge={
+        data.incompleteCount > 0
+          ? { label: "Needs Attention", className: "bg-amber-100 text-amber-700" }
+          : { label: "All Good", className: "bg-teal-100 text-teal-700" }
+      }
+    >
+      {/* Summary tiles */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="rounded-lg border border-gray-200 bg-teal-50 p-3">
+          <p className="text-xs font-medium uppercase tracking-wide text-teal-700">Completion Rate</p>
+          <p className="mt-1 text-2xl font-bold text-teal-900">{completionRate}%</p>
+        </div>
+        <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+          <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Active Golfers</p>
+          <p className="mt-1 text-2xl font-bold text-gray-900">{data.totalActive}</p>
+        </div>
+        <div className="rounded-lg border border-gray-200 bg-amber-50 p-3">
+          <p className="text-xs font-medium uppercase tracking-wide text-amber-700">Missing GHIN</p>
+          <p className="mt-1 text-2xl font-bold text-amber-900">{data.missingGhinCount}</p>
+        </div>
+        <div className="rounded-lg border border-gray-200 bg-amber-50 p-3">
+          <p className="text-xs font-medium uppercase tracking-wide text-amber-700">Missing Phone</p>
+          <p className="mt-1 text-2xl font-bold text-amber-900">{data.missingPhoneCount}</p>
+        </div>
+      </div>
+
+      {data.incompleteCount > 0 && (
+        <>
+          {/* Filter buttons */}
+          <div className="mt-4 flex gap-2">
+            {(["all", "ghin", "phone"] as const).map((f) => {
+              const labels = { all: "All Incomplete", ghin: "Missing GHIN", phone: "Missing Phone" };
+              const counts = { all: data.incompleteCount, ghin: data.missingGhinCount, phone: data.missingPhoneCount };
+              return (
+                <button
+                  key={f}
+                  onClick={() => setFilter(f)}
+                  className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                    filter === f
+                      ? "bg-navy-900 text-white"
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  }`}
+                >
+                  {labels[f]} ({counts[f]})
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Golfer list */}
+          <div className="mt-3 rounded-lg border border-gray-200 bg-white">
+            {filtered.map((golfer, i) => (
+              <Link
+                key={golfer.id}
+                href={`/admin/golfers/${golfer.id}`}
+                className={`flex items-center justify-between px-4 py-3 transition-colors hover:bg-gray-50 ${
+                  i > 0 ? "border-t border-gray-100" : ""
+                }`}
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-gray-900">{golfer.name}</p>
+                  <p className="text-xs text-gray-500">{golfer.email}</p>
+                  <div className="mt-1 flex flex-wrap gap-1.5">
+                    {golfer.missingGhin && (
+                      <span className="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+                        No GHIN
+                      </span>
+                    )}
+                    {golfer.missingPhone && (
+                      <span className="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+                        No Phone
+                      </span>
+                    )}
+                    {golfer.missingGhin && !golfer.hasHandicap && (
+                      <span className="inline-flex rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
+                        No Handicap
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <svg className="h-4 w-4 flex-shrink-0 text-gray-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                </svg>
+              </Link>
+            ))}
+          </div>
         </>
       )}
     </CollapsibleSection>

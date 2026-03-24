@@ -3,6 +3,7 @@ import { Providers } from "@/components/providers";
 import Header from "@/components/header";
 import { EventContextBar } from "@/components/event-context-bar";
 import { ScrollToTop } from "@/components/scroll-to-top";
+import { ActivityTracker } from "@/components/activity-tracker";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -38,6 +39,7 @@ export default function RootLayout({
       <body className="min-h-screen bg-navy-50 text-gray-900 antialiased">
         <Providers>
           <ScrollToTop />
+          <ActivityTracker />
           <Header />
           <EventContextBar />
           {children}

@@ -12,12 +12,20 @@ export async function GET(request: Request) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (!error) {
-      // Check if this is a new registration (pending_approval status)
-      // and send admin alert if so
+      // Log login event and check for new registrations
       try {
         const {
           data: { user },
         } = await supabase.auth.getUser();
+
+        // Log the login
+        if (user) {
+          await supabase.from("activity_log").insert({
+            profile_id: user.id,
+            activity_type: "login",
+            metadata: { method: "magic_link" },
+          }); // Best-effort — don't block auth for logging failures
+        }
         if (user) {
           const { data: profile } = await supabase
             .from("profiles")
