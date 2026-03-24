@@ -61,16 +61,55 @@ export async function sendAdminAlert(
     return;
   }
 
-  // Get admin recipients
-  const { data: eventAdmins } = await supabase
-    .from("event_admins")
-    .select("role, profile:profiles(email, first_name, last_name)")
-    .eq("event_id", context.eventId);
-
+  // Get super admins (needed for all alert types)
   const { data: superAdmins } = await supabase
     .from("profiles")
     .select("email, first_name, last_name")
     .eq("is_super_admin", true);
+
+  // System-level alerts (infrastructure issues only a super admin can fix)
+  // go directly to super admins — event admins are not included.
+  const SYSTEM_ALERT_TYPES: AlertType[] = ["handicap_sync_failed"];
+
+  if (SYSTEM_ALERT_TYPES.includes(alertType)) {
+    const superAdminEmails = (superAdmins || [])
+      .map((a: { email: string }) => a.email)
+      .filter(Boolean);
+
+    if (superAdminEmails.length === 0) {
+      console.error(
+        `No super admin email found for system alert ${alertType} on event ${context.eventName}`
+      );
+      return;
+    }
+
+    const toEmail = superAdminEmails[0];
+    const ccEmails = superAdminEmails.slice(1);
+
+    const { subject, html } = generateAlertEmail(alertType, context);
+
+    try {
+      await sendEmail({
+        to: toEmail,
+        cc: ccEmails.length > 0 ? ccEmails : undefined,
+        subject,
+        html,
+      });
+      console.log(
+        `Sent system alert ${alertType} for ${context.eventName} to super admins only`
+      );
+    } catch (err) {
+      console.error(`Failed to send ${alertType} system alert:`, err);
+    }
+
+    return;
+  }
+
+  // Event-operational alerts — TO primary event admin, CC secondary + super admins
+  const { data: eventAdmins } = await supabase
+    .from("event_admins")
+    .select("role, profile:profiles(email, first_name, last_name)")
+    .eq("event_id", context.eventId);
 
   const primaryAdmin = eventAdmins?.find(
     (a: Record<string, unknown>) => a.role === "primary"
