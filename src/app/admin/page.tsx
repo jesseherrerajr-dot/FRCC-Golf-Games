@@ -474,6 +474,29 @@ export default async function AdminDashboard() {
                 </Link>
 
                 <Link
+                  href="/admin/reports"
+                  className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4 shadow-sm hover:border-teal-300 hover:shadow-md transition"
+                >
+                  <div>
+                    <h3 className="font-semibold text-gray-900">Reports</h3>
+                    <p className="text-xs text-gray-500 mt-1">Profile completeness, engagement, and response timing</p>
+                  </div>
+                  <svg
+                    className="h-5 w-5 text-gray-400"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    strokeWidth={2}
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M8.25 4.5l7.5 7.5-7.5 7.5"
+                    />
+                  </svg>
+                </Link>
+
+                <Link
                   href="/admin/events/new"
                   className="flex items-center justify-between rounded-lg border border-teal-200 bg-teal-50 p-4 shadow-sm hover:border-teal-400 hover:shadow-md transition"
                 >
