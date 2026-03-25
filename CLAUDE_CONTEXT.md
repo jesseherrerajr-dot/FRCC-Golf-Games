@@ -22,7 +22,7 @@ A companion to CLAUDE.md. Where CLAUDE.md is the technical specification and imp
 - PWA install flow with push notification support
 - Configurable email schedules per event (6 Vercel cron slots)
 - Weather integration — Open-Meteo API, golfability scoring, displayed on RSVP pages, home page, and in emails
-- GHIN Handicap Sync — automated fetch from GHIN API (`api2.ghin.com`), per-event toggle, displayed on home page, profile, both golfer directories, golfer detail pages, and pro shop email
+- GHIN Handicap Sync — automated fetch from GHIN API (`api2.ghin.com`), per-event toggle, displayed on home page, profile, both golfer directories, golfer detail pages, and pro shop email. Handicap history recorded in `handicap_history` table for trend tracking.
 - Admin Reports — super-admin-only reports page with Golfer Engagement, Platform Activity, Response Timing, and Profile Completeness reports
 - Activity Tracking — login and page view logging infrastructure (activity_log table, ActivityTracker component)
 - Profile Completion Nudge — RSVP token page detects missing phone/GHIN and shows amber banner with link to profile page
@@ -315,9 +315,13 @@ See the Roadmap section of CLAUDE.md for the current prioritized list. Key items
 **Changes made:**
 1. **Profile completion nudge on RSVP page** — Added an amber banner to `/rsvp/[token]` that detects missing profile fields (phone number, GHIN number) and prompts the golfer to complete their profile. Includes privacy reassurance and a direct "Update Profile" button linking to `/profile`. Disappears when profile is complete.
 
+2. **Handicap history table** — Created `handicap_history` table (migration 021) to record every handicap index value fetched from GHIN. Append-only, one row per golfer per sync. Updated `handicap-sync.ts` to insert a history record alongside each profile update. Added `HandicapHistoryEntry` type. Enables per-golfer trend analysis and group-level handicap distribution tracking over time.
+
 **Key decisions:**
 - **RSVP token page is the highest-traffic touchpoint** — most golfers never log into the dashboard. The nudge belongs where golfers already are every week, not behind a login.
 - **Soft nudge now, hard gate later** — current implementation is a non-blocking prompt. Future option to gate RSVP submission behind profile completion is architecturally supported (one conditional change) but deferred.
 - **Extensible field list** — the `profileMissingFields` array can be extended with additional required fields (e.g., playing partner preferences) without restructuring.
 - **Privacy reassurance included** — "This information is only shared with event admins and the pro shop" addresses the likely reason golfers skip these fields.
 - **Rejected dashboard-only approach** — Gemini recommended an onboarding checklist on the dashboard, but that only reaches the small fraction of users who log in. The RSVP page has near-100% weekly reach.
+- **Handicap history records every sync, not just changes** — Jesse wants a complete timeline for group trending. Recording every fetch (even unchanged values) lets you see stability vs. movement. The data volume is trivial (~30 rows/week for current roster, ~1,500/year).
+- **History only written on successful GHIN fetch** — if GHIN returns null/NH or the API errors, no history row is inserted. This keeps the history clean — every row represents a real GHIN-issued handicap index.

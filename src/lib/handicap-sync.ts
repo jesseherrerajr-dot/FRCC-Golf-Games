@@ -334,11 +334,12 @@ export async function runHandicapSync(eventId: string): Promise<SyncResult> {
         const handicapIndex = await fetchHandicapIndex(profile.ghin_number, token);
 
         if (handicapIndex !== null) {
+          const now = new Date().toISOString();
           const { error: updateError } = await supabase
             .from("profiles")
             .update({
               handicap_index: handicapIndex,
-              handicap_updated_at: new Date().toISOString(),
+              handicap_updated_at: now,
             })
             .eq("id", profile.id);
 
@@ -349,6 +350,16 @@ export async function runHandicapSync(eventId: string): Promise<SyncResult> {
             );
             failureCount++;
           } else {
+            // Record history for trend tracking
+            await supabase
+              .from("handicap_history")
+              .insert({
+                profile_id: profile.id,
+                handicap_index: handicapIndex,
+                source: "ghin_sync",
+                recorded_at: now,
+              });
+
             console.log(
               `Updated handicap for ${profile.first_name} ${profile.last_name}: ${handicapIndex}`
             );

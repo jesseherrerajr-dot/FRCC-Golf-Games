@@ -354,6 +354,19 @@ export interface Grouping {
 }
 
 // ============================================================
+// Handicap History Types
+// ============================================================
+
+/** A single handicap history record for trend tracking */
+export interface HandicapHistoryEntry {
+  id: string;
+  profile_id: string;
+  handicap_index: number;
+  source: 'ghin_sync' | 'manual';
+  recorded_at: string;
+}
+
+// ============================================================
 // Weather Forecast Types
 // ============================================================
 
