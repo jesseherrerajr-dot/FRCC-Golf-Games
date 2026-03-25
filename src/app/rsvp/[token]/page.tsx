@@ -31,7 +31,7 @@ export default async function RsvpPage({
     .from("rsvps")
     .select(
       `*,
-       profile:profiles(id, first_name, last_name),
+       profile:profiles(id, first_name, last_name, phone, ghin_number),
        schedule:event_schedules(
          id, game_date, capacity, status, admin_notes,
          event:events(*)
@@ -49,6 +49,12 @@ export default async function RsvpPage({
   const golferName = rsvp.profile?.first_name || "Golfer";
   const currentStatus = rsvp.status as RsvpStatus;
   const capacity = schedule?.capacity || event?.default_capacity || 16;
+
+  // Check if profile is missing key fields
+  const profileMissingFields: string[] = [];
+  if (!rsvp.profile?.phone) profileMissingFields.push("phone number");
+  if (!rsvp.profile?.ghin_number) profileMissingFields.push("GHIN number");
+  const isProfileIncomplete = profileMissingFields.length > 0;
 
   // Check cutoff (using Pacific Time — Vercel runs in UTC)
   let isPastCutoff = locked === "true";
@@ -133,6 +139,24 @@ export default async function RsvpPage({
             {updated === "waitlisted"
               ? "The game is full — you've been added to the waitlist. We'll let you know if a spot opens up."
               : `Got it! You're marked as "${statusLabels[updated as RsvpStatus] || updated}".`}
+          </div>
+        )}
+
+        {/* Profile completion nudge */}
+        {isProfileIncomplete && (
+          <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-center">
+            <p className="text-sm font-medium text-amber-800">
+              Please complete your profile
+            </p>
+            <p className="mt-1 text-xs text-amber-700">
+              Missing: {profileMissingFields.join(" and ")}. This information is only shared with event admins and the pro shop.
+            </p>
+            <Link
+              href="/profile"
+              className="mt-2 inline-block rounded-md bg-amber-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-amber-700 transition"
+            >
+              Update Profile
+            </Link>
           </div>
         )}
 

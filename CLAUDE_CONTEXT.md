@@ -25,6 +25,7 @@ A companion to CLAUDE.md. Where CLAUDE.md is the technical specification and imp
 - GHIN Handicap Sync — automated fetch from GHIN API (`api2.ghin.com`), per-event toggle, displayed on home page, profile, both golfer directories, golfer detail pages, and pro shop email
 - Admin Reports — super-admin-only reports page with Golfer Engagement, Platform Activity, Response Timing, and Profile Completeness reports
 - Activity Tracking — login and page view logging infrastructure (activity_log table, ActivityTracker component)
+- Profile Completion Nudge — RSVP token page detects missing phone/GHIN and shows amber banner with link to profile page
 
 **What's on the roadmap (see CLAUDE.md Roadmap for details):**
 1. Email template review
@@ -306,3 +307,17 @@ See the Roadmap section of CLAUDE.md for the current prioritized list. Key items
 - **Page paths are normalized** in the activity report — UUIDs and tokens are replaced with `[id]`/`[token]` for meaningful aggregation.
 - **Golfer engagement report uses 12-week lookback** — long enough for meaningful trends, short enough to reflect current behavior.
 - **Reports linked from admin dashboard** via a card in the global section.
+
+### Session: March 24, 2026
+
+**Context:** Profile data completion strategy — getting existing golfers to fill in missing phone and GHIN.
+
+**Changes made:**
+1. **Profile completion nudge on RSVP page** — Added an amber banner to `/rsvp/[token]` that detects missing profile fields (phone number, GHIN number) and prompts the golfer to complete their profile. Includes privacy reassurance and a direct "Update Profile" button linking to `/profile`. Disappears when profile is complete.
+
+**Key decisions:**
+- **RSVP token page is the highest-traffic touchpoint** — most golfers never log into the dashboard. The nudge belongs where golfers already are every week, not behind a login.
+- **Soft nudge now, hard gate later** — current implementation is a non-blocking prompt. Future option to gate RSVP submission behind profile completion is architecturally supported (one conditional change) but deferred.
+- **Extensible field list** — the `profileMissingFields` array can be extended with additional required fields (e.g., playing partner preferences) without restructuring.
+- **Privacy reassurance included** — "This information is only shared with event admins and the pro shop" addresses the likely reason golfers skip these fields.
+- **Rejected dashboard-only approach** — Gemini recommended an onboarding checklist on the dashboard, but that only reaches the small fraction of users who log in. The RSVP page has near-100% weekly reach.
