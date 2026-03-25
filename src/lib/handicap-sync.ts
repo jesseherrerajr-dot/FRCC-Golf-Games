@@ -147,6 +147,11 @@ async function fetchHandicapIndex(
   }
 
   const golfer = data.golfers[0];
+
+  // TEMPORARY: Log full GHIN response to discover available fields
+  // Remove after reviewing Vercel function logs
+  console.log(`GHIN_FULL_RESPONSE for ${ghinNumber}:`, JSON.stringify(golfer));
+
   const handicapIndex = golfer.handicap_index;
 
   if (handicapIndex === null || handicapIndex === undefined || handicapIndex === "NH") {
