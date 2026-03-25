@@ -34,7 +34,12 @@ CREATE POLICY "Admins can read all handicap history"
     EXISTS (
       SELECT 1 FROM profiles
       WHERE profiles.id = auth.uid()
-      AND profiles.role IN ('super_admin', 'event_admin')
+      AND profiles.is_super_admin = true
+    )
+    OR
+    EXISTS (
+      SELECT 1 FROM event_admins
+      WHERE event_admins.profile_id = auth.uid()
     )
   );
 
