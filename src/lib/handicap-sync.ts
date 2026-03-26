@@ -118,12 +118,14 @@ async function authenticateGhin(): Promise<string> {
 
 /**
  * Fetch the current handicap index for a single GHIN number.
- * Returns null if the golfer is not found or has no handicap.
+ * Returns { handicapIndex, rawResponse } — rawResponse is the full
+ * GHIN API golfer object (only captured when captureRaw is true).
  */
 async function fetchHandicapIndex(
   ghinNumber: string,
-  token: string
-): Promise<number | null> {
+  token: string,
+  captureRaw: boolean = false
+): Promise<{ handicapIndex: number | null; rawResponse?: Record<string, unknown> }> {
   const url = `${GHIN_API_BASE}/golfers/search.json?per_page=1&page=1&golfer_id=${encodeURIComponent(ghinNumber)}`;
 
   const response = await fetch(url, {
@@ -143,32 +145,28 @@ async function fetchHandicapIndex(
 
   if (!data.golfers || data.golfers.length === 0) {
     console.log(`GHIN lookup: No golfer found for GHIN# ${ghinNumber}`);
-    return null;
+    return { handicapIndex: null };
   }
 
   const golfer = data.golfers[0];
+  const rawResponse = captureRaw ? (golfer as unknown as Record<string, unknown>) : undefined;
+  const handicapIndexVal = golfer.handicap_index;
 
-  // TEMPORARY: Log full GHIN response to discover available fields
-  // Remove after reviewing Vercel function logs
-  console.log(`GHIN_FULL_RESPONSE for ${ghinNumber}:`, JSON.stringify(golfer));
-
-  const handicapIndex = golfer.handicap_index;
-
-  if (handicapIndex === null || handicapIndex === undefined || handicapIndex === "NH") {
+  if (handicapIndexVal === null || handicapIndexVal === undefined || handicapIndexVal === "NH") {
     console.log(`GHIN lookup: No handicap on file for GHIN# ${ghinNumber}`);
-    return null;
+    return { handicapIndex: null, rawResponse };
   }
 
-  const parsed = typeof handicapIndex === "string"
-    ? parseFloat(handicapIndex)
-    : handicapIndex;
+  const parsed = typeof handicapIndexVal === "string"
+    ? parseFloat(handicapIndexVal)
+    : handicapIndexVal;
 
   if (isNaN(parsed)) {
-    console.log(`GHIN lookup: Invalid handicap value "${handicapIndex}" for GHIN# ${ghinNumber}`);
-    return null;
+    console.log(`GHIN lookup: Invalid handicap value "${handicapIndexVal}" for GHIN# ${ghinNumber}`);
+    return { handicapIndex: null, rawResponse };
   }
 
-  return parsed;
+  return { handicapIndex: parsed, rawResponse };
 }
 
 /** Throttle helper */
@@ -334,9 +332,28 @@ export async function runHandicapSync(eventId: string): Promise<SyncResult> {
     let successCount = 0;
     let failureCount = 0;
 
+    // TEMPORARY: Capture the full GHIN API response for the first golfer
+    // and store it in the sync log so we can inspect available fields.
+    // Remove after reviewing the data in handicap_sync_log.error_message.
+    let capturedRawResponse = false;
+
     for (const profile of batch) {
       try {
-        const handicapIndex = await fetchHandicapIndex(profile.ghin_number, token);
+        const isFirstGolfer = !capturedRawResponse;
+        const result = await fetchHandicapIndex(profile.ghin_number, token, isFirstGolfer);
+        const handicapIndex = result.handicapIndex;
+
+        // Store raw response from first golfer in sync log for field discovery
+        if (isFirstGolfer && result.rawResponse && logId) {
+          capturedRawResponse = true;
+          const fieldKeys = Object.keys(result.rawResponse).join(", ");
+          await supabase
+            .from("handicap_sync_log")
+            .update({
+              error_message: `GHIN_FIELDS_DISCOVERY: keys=[${fieldKeys}] | full_response=${JSON.stringify(result.rawResponse).slice(0, 2000)}`,
+            })
+            .eq("id", logId);
+        }
 
         if (handicapIndex !== null) {
           const now = new Date().toISOString();
@@ -398,20 +415,25 @@ export async function runHandicapSync(eventId: string): Promise<SyncResult> {
     const status = failureCount > 0 && successCount === 0 ? "failed" : "completed";
 
     if (logId) {
+      // TEMPORARY: Build update payload, preserving GHIN_FIELDS_DISCOVERY if captured
+      const logUpdate: Record<string, unknown> = {
+        status,
+        completed_at: new Date().toISOString(),
+        total_golfers: totalGolfers,
+        success_count: successCount,
+        failure_count: failureCount,
+        skipped_count: skippedCount,
+      };
+      // Only overwrite error_message if there were failures (otherwise keep discovery data)
+      if (failureCount > 0) {
+        logUpdate.error_message = `${failureCount} of ${batch.length} lookups failed`;
+      } else if (!capturedRawResponse) {
+        logUpdate.error_message = null;
+      }
+
       await supabase
         .from("handicap_sync_log")
-        .update({
-          status,
-          completed_at: new Date().toISOString(),
-          total_golfers: totalGolfers,
-          success_count: successCount,
-          failure_count: failureCount,
-          skipped_count: skippedCount,
-          error_message:
-            failureCount > 0
-              ? `${failureCount} of ${batch.length} lookups failed`
-              : null,
-        })
+        .update(logUpdate)
         .eq("id", logId);
     }
 
