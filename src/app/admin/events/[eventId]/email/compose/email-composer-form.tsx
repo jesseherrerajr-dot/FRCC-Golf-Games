@@ -20,12 +20,6 @@ const TEMPLATES: {
   body: string;
 }[] = [
   {
-    key: "game_cancelled",
-    label: "Game Cancelled",
-    subject: "[EVENT] for [DATE] has been cancelled",
-    body: "Unfortunately, the game scheduled for [DATE] has been cancelled due to [reason].\n\nThe next scheduled game is [NEXT DATE].\n\nWe apologize for the inconvenience.",
-  },
-  {
     key: "extra_spots",
     label: "Extra Spots Available",
     subject: "[EVENT] - Extra Spots Available for [DATE]!",
@@ -112,11 +106,6 @@ export function EmailComposerForm({
     if (!tmpl || templateKey === "custom") return;
 
     // Replace placeholders
-    const nextDate = schedules.length > 1 ? schedules[1]?.gameDate : "TBD";
-    const nextFormatted = nextDate && nextDate !== "TBD"
-      ? formatGameDate(nextDate)
-      : "TBD";
-
     setSubject(
       tmpl.subject
         .replace("[EVENT]", eventName)
@@ -125,7 +114,6 @@ export function EmailComposerForm({
     setBody(
       tmpl.body
         .replace(/\[DATE\]/g, formattedDate)
-        .replace("[NEXT DATE]", nextFormatted)
         .replace("[EVENT]", eventName)
     );
   };

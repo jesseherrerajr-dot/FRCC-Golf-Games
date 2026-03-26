@@ -14,7 +14,6 @@ export type EmailTarget =
   | "everyone";
 
 export type EmailTemplate =
-  | "game_cancelled"
   | "extra_spots"
   | "weather_advisory"
   | "course_update"

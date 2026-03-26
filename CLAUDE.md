@@ -423,7 +423,6 @@ Admin → Events → [Event] → Schedule shows:
 Admin → Events → [Event] → Emails → Compose allows:
 - Compose and send targeted emails to specific RSVP categories (all "In," all "Not Sure" + no response, everyone, etc.).
 - Pre-built templates for common scenarios (can be added over time):
-  - **Game Cancelled**: "[Event] for [Date] has been cancelled due to [reason]. Next game: [Date]." (Note: This template is also sent automatically when an admin toggles a game to "No Game" on the schedule page. The admin is prompted for an optional reason via confirmation modal.)
   - **Extra Spots Available**: "We still have [X] spots open for [Date]! Update your RSVP."
   - **Weather Advisory**: "Weather update for [Date]: [details]. Game is still on."
   - **Course Update**: "Update for [Date]: [details]."

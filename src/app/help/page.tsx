@@ -401,8 +401,8 @@ export default async function HelpPage() {
                     From your event card on the Admin Dashboard, tap{" "}
                     <strong>Emails &amp; Comms</strong> to see the email status page.
                     From there, tap <strong>Message Golfers</strong> to compose a
-                    custom email. You can choose a template (Game Cancelled, Extra
-                    Spots, Weather Advisory, Course Update) or write a custom message.
+                    custom email. You can choose a template (Extra Spots,
+                    Weather Advisory, Course Update) or write a custom message.
                     Select the recipients by RSVP status (all confirmed, all not sure,
                     everyone, etc.) and send.
                   </p>
