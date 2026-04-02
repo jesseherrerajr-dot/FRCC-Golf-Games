@@ -95,14 +95,14 @@ function formatHours(hours: number): string {
 }
 
 function rateColor(rate: number): string {
-  if (rate >= 80) return "text-teal-700";
-  if (rate >= 50) return "text-amber-700";
+  if (rate >= 50) return "text-teal-700";
+  if (rate >= 20) return "text-amber-700";
   return "text-red-700";
 }
 
 function rateBgColor(rate: number): string {
-  if (rate >= 80) return "bg-teal-50";
-  if (rate >= 50) return "bg-amber-50";
+  if (rate >= 50) return "bg-teal-50";
+  if (rate >= 20) return "bg-amber-50";
   return "bg-red-50";
 }
 
@@ -164,8 +164,8 @@ function GolferEngagementReport({ data }: { data: EngagementData }) {
 
   const filtered = data.golfers.filter((g) => {
     if (filter === "ghosts") return g.consecutiveNoReplies >= 3;
-    if (filter === "low") return g.responseRate < 50;
-    if (filter === "active") return g.responseRate >= 80;
+    if (filter === "low") return g.responseRate < 20;
+    if (filter === "active") return g.responseRate >= 50;
     return true;
   });
 
@@ -181,7 +181,7 @@ function GolferEngagementReport({ data }: { data: EngagementData }) {
       count={data.totalGolfers}
       defaultOpen={true}
       badge={{
-        label: `${data.golfers.filter((g) => g.responseRate >= 80).length} Active`,
+        label: `${data.golfers.filter((g) => g.responseRate >= 50).length} Active`,
         className: "bg-teal-100 text-teal-700",
       }}
     >
@@ -192,8 +192,8 @@ function GolferEngagementReport({ data }: { data: EngagementData }) {
       {/* Summary tiles */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div className="rounded-lg border border-gray-200 bg-teal-50 p-3">
-          <p className="text-xs font-medium uppercase tracking-wide text-teal-700">Active (80%+)</p>
-          <p className="mt-1 text-2xl font-bold text-teal-700">{data.golfers.filter((g) => g.responseRate >= 80).length}</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-teal-700">Active (50%+)</p>
+          <p className="mt-1 text-2xl font-bold text-teal-700">{data.golfers.filter((g) => g.responseRate >= 50).length}</p>
         </div>
         <div className="rounded-lg border border-gray-200 bg-teal-50 p-3">
           <p className="text-xs font-medium uppercase tracking-wide text-teal-700">Avg Response Rate</p>
@@ -216,8 +216,8 @@ function GolferEngagementReport({ data }: { data: EngagementData }) {
             <div className="flex gap-1.5">
               {([
                 { key: "all", label: "All", count: data.totalGolfers },
-                { key: "active", label: "Active (80%+)", count: data.golfers.filter((g) => g.responseRate >= 80).length },
-                { key: "low", label: "Low (<50%)", count: data.golfers.filter((g) => g.responseRate < 50).length },
+                { key: "active", label: "Active (50%+)", count: data.golfers.filter((g) => g.responseRate >= 50).length },
+                { key: "low", label: "Low (<20%)", count: data.golfers.filter((g) => g.responseRate < 20).length },
                 { key: "ghosts", label: "Ghosts", count: data.ghostCount },
               ] as const).map((f) => (
                 <button
@@ -296,8 +296,8 @@ function GolferEngagementReport({ data }: { data: EngagementData }) {
                   <div className="h-2 w-16 overflow-hidden rounded-full bg-gray-100">
                     <div
                       className={`h-2 rounded-full transition-all ${
-                        golfer.responseRate >= 80 ? "bg-teal-500" :
-                        golfer.responseRate >= 50 ? "bg-amber-400" : "bg-red-400"
+                        golfer.responseRate >= 50 ? "bg-teal-500" :
+                        golfer.responseRate >= 20 ? "bg-amber-400" : "bg-red-400"
                       }`}
                       style={{ width: `${golfer.responseRate}%` }}
                     />
