@@ -35,6 +35,8 @@ export function CreateEventForm({
   const [numReminders, setNumReminders] = useState(1);
   const [reminderEnabled, setReminderEnabled] = useState(true);
   const [proShopEnabled, setProShopEnabled] = useState(false);
+  const [slug, setSlug] = useState("");
+  const [nameValue, setNameValue] = useState("");
 
   const handleSubmit = (formData: FormData) => {
     setError(null);
@@ -67,6 +69,16 @@ export function CreateEventForm({
           <input
             name="name"
             required
+            value={nameValue}
+            onChange={(e) => {
+              setNameValue(e.target.value);
+              // Auto-generate slug from name if slug hasn't been manually edited
+              const generated = e.target.value
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, "-")
+                .replace(/^-|-$/g, "");
+              setSlug(generated);
+            }}
             placeholder="e.g., FRCC Saturday Morning Group"
             className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
           />
@@ -82,6 +94,22 @@ export function CreateEventForm({
             placeholder="Brief description shown in dashboards and emails"
             className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
           />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700">
+            URL Slug
+          </label>
+          <input
+            name="slug"
+            value={slug}
+            onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
+            placeholder="e.g., thursday-league"
+            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
+          />
+          <p className="mt-1 text-xs text-gray-500">
+            Auto-generated from the event name. Used for the self-registration link (e.g., frccgolfgames.com/join/{slug || "your-slug"}).
+          </p>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-3">

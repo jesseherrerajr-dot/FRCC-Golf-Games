@@ -28,6 +28,15 @@ export async function updateEventBasicSettings(
   const description = formData.get("description") as string;
   updates.description = description?.trim() || null;
 
+  const slug = formData.get("slug") as string;
+  if (slug !== null) {
+    const sanitized = slug
+      .toLowerCase()
+      .replace(/[^a-z0-9-]/g, "")
+      .replace(/^-|-$/g, "");
+    updates.slug = sanitized || null;
+  }
+
   const frequency = formData.get("frequency") as string;
   if (frequency) updates.frequency = frequency;
 

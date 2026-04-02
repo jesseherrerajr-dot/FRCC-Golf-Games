@@ -90,6 +90,7 @@ function snapToNearest45(time: string | undefined | null): string {
 export function BasicSettingsForm({ event }: { event: any }) {
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
+  const [slug, setSlug] = useState<string>(event.slug || "");
 
   const handleSubmit = (formData: FormData) => {
     startTransition(async () => {
@@ -98,6 +99,12 @@ export function BasicSettingsForm({ event }: { event: any }) {
       if (!result.error) setTimeout(() => setMessage(null), 3000);
     });
   };
+
+  const generateSlug = (name: string) =>
+    name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "");
 
   return (
     <form action={handleSubmit} className="space-y-4">
@@ -124,6 +131,33 @@ export function BasicSettingsForm({ event }: { event: any }) {
             rows={2}
             className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
           />
+        </div>
+
+        <div className="sm:col-span-2">
+          <label className="block text-sm font-medium text-gray-700">
+            URL Slug
+          </label>
+          <div className="mt-1 flex items-center gap-2">
+            <input
+              name="slug"
+              value={slug}
+              onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
+              placeholder="e.g., thursday-league"
+              className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
+            />
+            {!slug && (
+              <button
+                type="button"
+                onClick={() => setSlug(generateSlug(event.name || ""))}
+                className="shrink-0 rounded-md bg-gray-100 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200"
+              >
+                Generate
+              </button>
+            )}
+          </div>
+          <p className="mt-1 text-xs text-gray-500">
+            Used for the golfer self-registration link (e.g., frccgolfgames.com/join/<strong>{slug || "your-slug"}</strong>). Letters, numbers, and hyphens only.
+          </p>
         </div>
 
         <div>

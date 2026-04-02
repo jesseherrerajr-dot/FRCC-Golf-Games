@@ -12,9 +12,16 @@ export async function createEvent(formData: FormData) {
   const name = (formData.get("name") as string)?.trim();
   if (!name) return { error: "Event name is required" };
 
+  // Generate slug
+  const rawSlug = (formData.get("slug") as string)?.trim();
+  const slug = rawSlug
+    ? rawSlug.toLowerCase().replace(/[^a-z0-9-]/g, "").replace(/^-|-$/g, "")
+    : name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+
   // Build event row
   const eventData: Record<string, unknown> = {
     name,
+    slug: slug || null,
     description: (formData.get("description") as string)?.trim() || null,
     frequency: formData.get("frequency") as string,
     day_of_week: parseInt(formData.get("day_of_week") as string),
