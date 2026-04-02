@@ -109,7 +109,7 @@ export default function JoinEventForm({
                 autoComplete="given-name"
                 onBlur={(e) => handleBlur("firstName", e.target.value)}
                 className={`mt-1 block w-full rounded-lg border bg-white px-4 py-3 text-gray-900 shadow-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 ${fieldBorderClass(errors.firstName, touched.firstName)}`}
-                placeholder="Jesse"
+                placeholder="First name"
               />
               <FieldError error={errors.firstName} touched={touched.firstName} />
             </div>
@@ -127,7 +127,7 @@ export default function JoinEventForm({
                 autoComplete="family-name"
                 onBlur={(e) => handleBlur("lastName", e.target.value)}
                 className={`mt-1 block w-full rounded-lg border bg-white px-4 py-3 text-gray-900 shadow-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 ${fieldBorderClass(errors.lastName, touched.lastName)}`}
-                placeholder="Herrera"
+                placeholder="Last name"
               />
               <FieldError error={errors.lastName} touched={touched.lastName} />
             </div>
