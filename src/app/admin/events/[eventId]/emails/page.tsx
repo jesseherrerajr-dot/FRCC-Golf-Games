@@ -32,11 +32,13 @@ export default async function EventEmailsPage({
   const today = getTodayPacific();
 
   // Fetch next upcoming game for this event
+  // Respect event start_date — don't show games before the event officially begins
+  const earliestDate = event.start_date && event.start_date > today ? event.start_date : today;
   const { data: schedule } = await supabase
     .from("event_schedules")
     .select("*")
     .eq("event_id", eventId)
-    .gte("game_date", today)
+    .gte("game_date", earliestDate)
     .order("game_date", { ascending: true })
     .limit(1)
     .single();

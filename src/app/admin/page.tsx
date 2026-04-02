@@ -27,11 +27,13 @@ export default async function AdminDashboard() {
   const eventCards = await Promise.all(
     (events || []).map(async (event) => {
       // Get next upcoming game for this event
+      // Respect event start_date — don't show games before the event officially begins
+      const earliestDate = event.start_date && event.start_date > today ? event.start_date : today;
       const { data: nextGame } = await supabase
         .from("event_schedules")
         .select("*")
         .eq("event_id", event.id)
-        .gte("game_date", today)
+        .gte("game_date", earliestDate)
         .order("game_date", { ascending: true })
         .limit(1)
         .single();
