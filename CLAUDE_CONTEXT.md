@@ -325,3 +325,19 @@ See the Roadmap section of CLAUDE.md for the current prioritized list. Key items
 - **Rejected dashboard-only approach** — Gemini recommended an onboarding checklist on the dashboard, but that only reaches the small fraction of users who log in. The RSVP page has near-100% weekly reach.
 - **Handicap history records every sync, not just changes** — Jesse wants a complete timeline for group trending. Recording every fetch (even unchanged values) lets you see stability vs. movement. The data volume is trivial (~30 rows/week for current roster, ~1,500/year).
 - **History only written on successful GHIN fetch** — if GHIN returns null/NH or the API errors, no history row is inserted. This keeps the history clean — every row represents a real GHIN-issued handicap index.
+
+### Session: April 1, 2026
+
+**Context:** Second event onboarding (FRCC Thursday League) — discovered missing UI features and display bugs during setup.
+
+**Changes made:**
+1. **Added URL slug field to admin UI** — The `slug` column existed in the database (migration 009) but was never exposed in the Event Settings or Create Event forms. Added an editable slug input to Basic Settings (with "Generate" button) and auto-generation from event name on the Create Event form. Input restricted to lowercase letters, numbers, and hyphens. Without this, new events had no self-registration join link.
+
+2. **Fixed "next game" display for events with future start_date** — Events showing schedule rows before their `start_date` (e.g., Thursday League showing April 2 when it starts April 16). Updated queries on admin dashboard, event dashboard, and emails page to filter by the later of today or `event.start_date`.
+
+3. **Fixed hardcoded placeholder names on join forms** — Registration forms (`/join` and `/join/[slug]`) had "Jesse" and "Herrera" as placeholder text, which looked like pre-populated data. Changed to generic "First name" and "Last name".
+
+**Key decisions:**
+- **No database migration needed for slug UI** — the column already existed, just needed the form fields and server action updates.
+- **Start date filtering applied at query level, not schedule generation** — even if stale schedule rows exist before the start date, they won't display. This is more resilient than trying to prevent/clean up early rows.
+- **Second event onboarding revealed gaps** — the slug field and start_date display bug were only discovered when actually setting up a new event, reinforcing the value of real-world testing.
