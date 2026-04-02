@@ -111,6 +111,7 @@ function rateBgColor(rate: number): string {
 function pageLabel(path: string): string {
   const labels: Record<string, string> = {
     "/home": "Home",
+    "/dashboard": "Home",
     "/profile": "Profile",
     "/help": "Help",
     "/login": "Login",
@@ -122,7 +123,7 @@ function pageLabel(path: string): string {
   if (labels[path]) return labels[path];
   if (path.startsWith("/admin/events/[id]/settings")) return "Event Settings";
   if (path.startsWith("/admin/events/[id]/golfers")) return "Event Golfers";
-  if (path.startsWith("/admin/events/[id]/rsvp")) return "RSVP Management";
+  if (path.startsWith("/admin/rsvp/") || path.startsWith("/admin/events/[id]/rsvp")) return "RSVP Management";
   if (path.startsWith("/admin/events/[id]/emails")) return "Emails & Comms";
   if (path.startsWith("/admin/events/[id]/schedule")) return "Event Schedule";
   if (path.startsWith("/admin/events/[id]")) return "Event Dashboard";
