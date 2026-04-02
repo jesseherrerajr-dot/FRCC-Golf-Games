@@ -33,6 +33,7 @@ interface EngagementData {
   avgResponseRate: number;
   avgParticipationRate: number;
   ghostCount: number;
+  events: { id: string; name: string }[];
 }
 
 interface ActivityData {
@@ -161,8 +162,22 @@ export function ReportsClient({
 function GolferEngagementReport({ data }: { data: EngagementData }) {
   const [filter, setFilter] = useState<"all" | "ghosts" | "low" | "active">("all");
   const [sortBy, setSortBy] = useState<"responseRate" | "participationRate" | "consecutiveNoReplies">("responseRate");
+  const [eventFilter, setEventFilter] = useState<string>("all");
 
-  const filtered = data.golfers.filter((g) => {
+  // Filter by event first, then by status filter
+  const eventFiltered = eventFilter === "all"
+    ? data.golfers
+    : data.golfers.filter((g) => g.eventId === eventFilter);
+
+  // Recalculate aggregate stats based on event filter
+  const totalGolfers = eventFiltered.length;
+  const avgResponseRate = totalGolfers > 0
+    ? Math.round(eventFiltered.reduce((sum, g) => sum + g.responseRate, 0) / totalGolfers)
+    : 0;
+  const ghostCount = eventFiltered.filter((g) => g.consecutiveNoReplies >= 3).length;
+  const activeCount = eventFiltered.filter((g) => g.responseRate >= 50).length;
+
+  const filtered = eventFiltered.filter((g) => {
     if (filter === "ghosts") return g.consecutiveNoReplies >= 3;
     if (filter === "low") return g.responseRate < 20;
     if (filter === "active") return g.responseRate >= 50;
@@ -178,47 +193,63 @@ function GolferEngagementReport({ data }: { data: EngagementData }) {
   return (
     <CollapsibleSection
       title="Golfer Engagement"
-      count={data.totalGolfers}
+      count={totalGolfers}
       defaultOpen={true}
       badge={{
-        label: `${data.golfers.filter((g) => g.responseRate >= 50).length} Active`,
+        label: `${activeCount} Active`,
         className: "bg-teal-100 text-teal-700",
       }}
     >
       <p className="text-xs text-gray-500 mb-3">
-        RSVP response rates and participation trends over the last 12 weeks across all events.
+        RSVP response rates and participation trends over the last 12 weeks.
       </p>
+
+      {/* Event filter */}
+      {data.events.length > 1 && (
+        <div className="mb-3">
+          <select
+            value={eventFilter}
+            onChange={(e) => { setEventFilter(e.target.value); setFilter("all"); }}
+            className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 shadow-sm focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
+          >
+            <option value="all">All Events</option>
+            {data.events.map((ev) => (
+              <option key={ev.id} value={ev.id}>{ev.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {/* Summary tiles */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div className="rounded-lg border border-gray-200 bg-teal-50 p-3">
           <p className="text-xs font-medium uppercase tracking-wide text-teal-700">Active (50%+)</p>
-          <p className="mt-1 text-2xl font-bold text-teal-700">{data.golfers.filter((g) => g.responseRate >= 50).length}</p>
+          <p className="mt-1 text-2xl font-bold text-teal-700">{activeCount}</p>
         </div>
         <div className="rounded-lg border border-gray-200 bg-teal-50 p-3">
           <p className="text-xs font-medium uppercase tracking-wide text-teal-700">Avg Response Rate</p>
-          <p className={`mt-1 text-2xl font-bold ${rateColor(data.avgResponseRate)}`}>{data.avgResponseRate}%</p>
+          <p className={`mt-1 text-2xl font-bold ${rateColor(avgResponseRate)}`}>{avgResponseRate}%</p>
         </div>
         <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
           <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Total Golfers</p>
-          <p className="mt-1 text-2xl font-bold text-gray-900">{data.totalGolfers}</p>
+          <p className="mt-1 text-2xl font-bold text-gray-900">{totalGolfers}</p>
         </div>
         <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
           <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Ghosts (3+ wks)</p>
-          <p className="mt-1 text-2xl font-bold text-gray-500">{data.ghostCount}</p>
+          <p className="mt-1 text-2xl font-bold text-gray-500">{ghostCount}</p>
         </div>
       </div>
 
-      {data.golfers.length > 0 && (
+      {eventFiltered.length > 0 && (
         <>
           {/* Filter + sort controls */}
           <div className="mt-4 flex flex-wrap items-center gap-2">
             <div className="flex gap-1.5">
               {([
-                { key: "all", label: "All", count: data.totalGolfers },
-                { key: "active", label: "Active (50%+)", count: data.golfers.filter((g) => g.responseRate >= 50).length },
-                { key: "low", label: "Low (<20%)", count: data.golfers.filter((g) => g.responseRate < 20).length },
-                { key: "ghosts", label: "Ghosts", count: data.ghostCount },
+                { key: "all", label: "All", count: totalGolfers },
+                { key: "active", label: "Active (50%+)", count: activeCount },
+                { key: "low", label: "Low (<20%)", count: eventFiltered.filter((g) => g.responseRate < 20).length },
+                { key: "ghosts", label: "Ghosts", count: ghostCount },
               ] as const).map((f) => (
                 <button
                   key={f.key}
@@ -329,14 +360,14 @@ function ActivityReport({ data }: { data: ActivityData }) {
       emptyMessage="No activity data yet. Login and page view tracking has been enabled — data will appear after users start using the app."
       badge={
         hasData
-          ? { label: "Last 30 Days", className: "bg-blue-100 text-blue-700" }
+          ? { label: "Last 12 Weeks", className: "bg-blue-100 text-blue-700" }
           : { label: "New", className: "bg-gray-100 text-gray-500" }
       }
     >
       {hasData && (
         <>
           <p className="text-xs text-gray-500 mb-3">
-            Login and page view activity over the last 30 days.
+            Login and page view activity over the last 12 weeks.
           </p>
 
           {/* Summary tiles */}

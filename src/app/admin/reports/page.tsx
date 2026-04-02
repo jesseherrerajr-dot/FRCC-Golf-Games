@@ -161,20 +161,20 @@ export default async function AdminReportsPage() {
   // ============================================================
   // 2. Activity Log (logins & page views)
   // ============================================================
-  // Fetch login counts per golfer (last 30 days)
-  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  // Fetch login counts per golfer (last 12 weeks = 84 days)
+  const twelveWeeksAgoMs = new Date(Date.now() - 84 * 24 * 60 * 60 * 1000).toISOString();
 
   const { data: recentLogins } = await supabase
     .from("activity_log")
     .select("profile_id, created_at")
     .eq("activity_type", "login")
-    .gte("created_at", thirtyDaysAgo);
+    .gte("created_at", twelveWeeksAgoMs);
 
   const { data: recentPageViews } = await supabase
     .from("activity_log")
     .select("profile_id, page_path, created_at")
     .eq("activity_type", "page_view")
-    .gte("created_at", thirtyDaysAgo);
+    .gte("created_at", twelveWeeksAgoMs);
 
   // Aggregate logins per golfer
   const loginsByGolfer: Record<string, number> = {};
@@ -419,6 +419,7 @@ export default async function AdminReportsPage() {
             avgResponseRate,
             avgParticipationRate,
             ghostCount,
+            events: (allEvents || []).map((e) => ({ id: e.id, name: e.name })),
           }}
           activity={activityData}
           responseTiming={responseTimingData}
