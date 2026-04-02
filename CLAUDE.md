@@ -3,6 +3,7 @@
 ## Project Overview
 An automated golf participation tracker for recurring games at Fairbanks Ranch Country Club (FRCC). The platform manages weekly invites, RSVP tracking, waitlists, guest requests, and automated communications — minimizing human intervention while keeping admins in control of key decisions.
 
+- **Production Launch:** February 24, 2026 (v1.0 — first invite emails sent to the full group for the February 28 game)
 - Tech Stack: Next.js (App Router), TypeScript, Tailwind CSS, Supabase (Auth/DB), Resend (Email)
 - Hosting: Vercel (Free tier)
 - Database: Supabase (Free tier)

@@ -10,7 +10,7 @@ A companion to CLAUDE.md. Where CLAUDE.md is the technical specification and imp
 
 **The goal:** Minimize human intervention in weekly game coordination while keeping admins in control of key decisions (waitlist management, guest approvals, cancellations). Replace the manual email/spreadsheet workflow the group was using previously.
 
-**Current status:** Production. 50+ active users across the first event (FRCC Saturday Morning Group). A second event is being onboarded with new users expected in the coming weeks. The platform has been running reliably through multiple weekly RSVP cycles.
+**Current status:** Production since February 24, 2026 (v1.0 launch). 50+ active users across the first event (FRCC Saturday Morning Group). A second event (FRCC Thursday League) is being onboarded. The platform has been running reliably through multiple weekly RSVP cycles.
 
 **What's complete:**
 - Phases 1–2 (Foundation + Weekly RSVP Cycle) — fully shipped
