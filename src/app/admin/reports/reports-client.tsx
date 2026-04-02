@@ -170,8 +170,8 @@ function GolferEngagementReport({ data }: { data: EngagementData }) {
   });
 
   const sorted = [...filtered].sort((a, b) => {
-    if (sortBy === "responseRate") return a.responseRate - b.responseRate;
-    if (sortBy === "participationRate") return a.participationRate - b.participationRate;
+    if (sortBy === "responseRate") return b.responseRate - a.responseRate;
+    if (sortBy === "participationRate") return b.participationRate - a.participationRate;
     return b.consecutiveNoReplies - a.consecutiveNoReplies;
   });
 
@@ -180,11 +180,10 @@ function GolferEngagementReport({ data }: { data: EngagementData }) {
       title="Golfer Engagement"
       count={data.totalGolfers}
       defaultOpen={true}
-      badge={
-        data.ghostCount > 0
-          ? { label: `${data.ghostCount} Ghost${data.ghostCount !== 1 ? "s" : ""}`, className: "bg-red-100 text-red-700" }
-          : { label: "Healthy", className: "bg-teal-100 text-teal-700" }
-      }
+      badge={{
+        label: `${data.golfers.filter((g) => g.responseRate >= 80).length} Active`,
+        className: "bg-teal-100 text-teal-700",
+      }}
     >
       <p className="text-xs text-gray-500 mb-3">
         RSVP response rates and participation trends over the last 12 weeks across all events.
@@ -193,20 +192,20 @@ function GolferEngagementReport({ data }: { data: EngagementData }) {
       {/* Summary tiles */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div className="rounded-lg border border-gray-200 bg-teal-50 p-3">
-          <p className="text-xs font-medium uppercase tracking-wide text-teal-700">Avg Response Rate</p>
-          <p className={`mt-1 text-2xl font-bold ${rateColor(data.avgResponseRate)}`}>{data.avgResponseRate}%</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-teal-700">Active (80%+)</p>
+          <p className="mt-1 text-2xl font-bold text-teal-700">{data.golfers.filter((g) => g.responseRate >= 80).length}</p>
         </div>
         <div className="rounded-lg border border-gray-200 bg-teal-50 p-3">
-          <p className="text-xs font-medium uppercase tracking-wide text-teal-700">Avg Participation</p>
-          <p className={`mt-1 text-2xl font-bold ${rateColor(data.avgParticipationRate)}`}>{data.avgParticipationRate}%</p>
-        </div>
-        <div className="rounded-lg border border-gray-200 bg-red-50 p-3">
-          <p className="text-xs font-medium uppercase tracking-wide text-red-700">Ghosts (3+ wks)</p>
-          <p className="mt-1 text-2xl font-bold text-red-900">{data.ghostCount}</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-teal-700">Avg Response Rate</p>
+          <p className={`mt-1 text-2xl font-bold ${rateColor(data.avgResponseRate)}`}>{data.avgResponseRate}%</p>
         </div>
         <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
           <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Total Golfers</p>
           <p className="mt-1 text-2xl font-bold text-gray-900">{data.totalGolfers}</p>
+        </div>
+        <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+          <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Ghosts (3+ wks)</p>
+          <p className="mt-1 text-2xl font-bold text-gray-500">{data.ghostCount}</p>
         </div>
       </div>
 
@@ -217,9 +216,9 @@ function GolferEngagementReport({ data }: { data: EngagementData }) {
             <div className="flex gap-1.5">
               {([
                 { key: "all", label: "All", count: data.totalGolfers },
-                { key: "ghosts", label: "Ghosts", count: data.ghostCount },
-                { key: "low", label: "Low (<50%)", count: data.golfers.filter((g) => g.responseRate < 50).length },
                 { key: "active", label: "Active (80%+)", count: data.golfers.filter((g) => g.responseRate >= 80).length },
+                { key: "low", label: "Low (<50%)", count: data.golfers.filter((g) => g.responseRate < 50).length },
+                { key: "ghosts", label: "Ghosts", count: data.ghostCount },
               ] as const).map((f) => (
                 <button
                   key={f.key}
