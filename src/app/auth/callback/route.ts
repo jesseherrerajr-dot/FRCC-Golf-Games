@@ -29,26 +29,46 @@ export async function GET(request: Request) {
         if (user) {
           const { data: profile } = await supabase
             .from("profiles")
-            .select("id, first_name, last_name, email, status")
+            .select("id, first_name, last_name, email, status, registration_event_id")
             .eq("id", user.id)
             .single();
 
           if (profile?.status === "pending_approval") {
-            // Get all active events to notify their admins
-            const { data: events } = await supabase
-              .from("events")
-              .select("id, name")
-              .eq("is_active", true);
+            if (profile.registration_event_id) {
+              // Event-specific registration — notify that event's admins only
+              const { data: event } = await supabase
+                .from("events")
+                .select("id, name")
+                .eq("id", profile.registration_event_id)
+                .single();
 
-            for (const event of events || []) {
-              sendAdminAlert("new_registration", {
-                eventId: event.id,
-                eventName: event.name,
-                golferName: `${profile.first_name} ${profile.last_name}`,
-                golferEmail: profile.email,
-              }).catch((err) =>
-                console.error("New registration alert error:", err)
-              );
+              if (event) {
+                sendAdminAlert("new_registration", {
+                  eventId: event.id,
+                  eventName: event.name,
+                  golferName: `${profile.first_name} ${profile.last_name}`,
+                  golferEmail: profile.email,
+                }).catch((err) =>
+                  console.error("New registration alert error:", err)
+                );
+              }
+            } else {
+              // Generic registration — notify all active events
+              const { data: events } = await supabase
+                .from("events")
+                .select("id, name")
+                .eq("is_active", true);
+
+              for (const event of events || []) {
+                sendAdminAlert("new_registration", {
+                  eventId: event.id,
+                  eventName: event.name,
+                  golferName: `${profile.first_name} ${profile.last_name}`,
+                  golferEmail: profile.email,
+                }).catch((err) =>
+                  console.error("New registration alert error:", err)
+                );
+              }
             }
           }
         }

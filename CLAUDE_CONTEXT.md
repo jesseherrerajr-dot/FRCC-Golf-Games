@@ -26,6 +26,8 @@ A companion to CLAUDE.md. Where CLAUDE.md is the technical specification and imp
 - Admin Reports — super-admin-only reports page with Golfer Engagement, Platform Activity, Response Timing, and Profile Completeness reports
 - Activity Tracking — login and page view logging infrastructure (activity_log table, ActivityTracker component)
 - Profile Completion Nudge — RSVP token page detects missing phone/GHIN and shows amber banner with link to profile page
+- Admin "Add Golfer to Game" — RSVP management page lets admins add subscribed golfers who missed the invite cycle (e.g., recently approved)
+- Registration event scoping fix — golfers registering via event-specific join links are now correctly subscribed to only that event on approval
 
 **What's on the roadmap (see CLAUDE.md Roadmap for details):**
 1. Email template review
@@ -341,3 +343,19 @@ See the Roadmap section of CLAUDE.md for the current prioritized list. Key items
 - **No database migration needed for slug UI** — the column already existed, just needed the form fields and server action updates.
 - **Start date filtering applied at query level, not schedule generation** — even if stale schedule rows exist before the start date, they won't display. This is more resilient than trying to prevent/clean up early rows.
 - **Second event onboarding revealed gaps** — the slug field and start_date display bug were only discovered when actually setting up a new event, reinforcing the value of real-world testing.
+
+### Session: April 3, 2026
+
+**Context:** New golfer registration exposed two bugs — dual-event subscription and missing RSVP for recently approved golfers.
+
+**Changes made:**
+1. **Fixed dual-event subscription bug** — Root cause: the `handle_new_user()` database trigger (from migration 001) never extracted `registration_event_id` from user metadata, even though the column was added in migration 009. As a result, event-specific join links (`/join/[slug]`) produced NULL `registration_event_id`, which made the approval flow call `subscribeToAllActiveEvents()` instead of `subscribeToEvent()`. Three-layer fix: (a) new migration 022 updates the trigger, (b) `verifyEventJoinOtp` sets the field after OTP verification as belt-and-suspenders, (c) auth callback now checks `registration_event_id` for scoped admin alerts.
+
+2. **Fixed auth callback admin alerts** — `/auth/callback/route.ts` was always notifying all events' admins for pending registrations. Now checks `registration_event_id` and only alerts the relevant event's admins.
+
+3. **Added "Add Golfer to Game" admin feature** — New component on the RSVP management page (`add-golfer-to-game.tsx`) that lets admins add subscribed golfers who don't have an RSVP row for a specific game (e.g., golfers approved after the invite was sent). Searchable dropdown, option to add as "In" or "No Reply". Available on all non-cancelled games.
+
+**Key decisions:**
+- **Three-layer fix for registration_event_id** — trigger fix handles new users, OTP verification handles existing users re-registering, and the callback fix prevents duplicate admin alerts. Belt-and-suspenders approach because a NULL registration_event_id causes silent mis-behavior (subscribes to all events instead of one).
+- **Add Golfer to Game available at all times** — not just past cutoff. Admins may need to add a golfer mid-week for any reason.
+- **RSVP history logged for manually added golfers** — maintains participation tracking accuracy even for admin overrides.

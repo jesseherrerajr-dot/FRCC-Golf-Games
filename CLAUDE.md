@@ -116,6 +116,7 @@ Every page (except the landing page and login) **must** have a `<Breadcrumbs>` c
 - `events/[eventId]/rsvp/[scheduleId]/page.tsx` — Event-scoped RSVP management redirect
 - `events/[eventId]/rsvp/[scheduleId]/rsvp-controls.tsx` — RSVP override controls (post-cutoff admin changes)
 - `events/[eventId]/rsvp/[scheduleId]/guest-controls.tsx` — Guest request approve/deny controls
+- `events/[eventId]/rsvp/[scheduleId]/add-golfer-to-game.tsx` — Client component for adding subscribed golfers to a game (searchable dropdown)
 - `events/[eventId]/rsvp/[scheduleId]/actions.ts` — RSVP management server actions
 - `events/[eventId]/rsvp/[scheduleId]/guest-actions.ts` — Guest approval server actions
 - `events/new/` — Create new event page (email settings with Reminder and Pro Shop Detail toggles, matching Event Settings UI)
@@ -166,7 +167,7 @@ Every page (except the landing page and login) **must** have a `<Breadcrumbs>` c
 - `src/components/manual-handicap-field.tsx` — Shared admin-only manual handicap inline editor (used on global and event-scoped golfer detail pages)
 - `scripts/import-golfers.ts` — Batch import golfers from Excel
 - `scripts/delete-user.ts` — Delete a user script
-- `supabase/migrations/` — Database schema migrations (001–019)
+- `supabase/migrations/` — Database schema migrations (001–022)
 - `vercel.json` — Vercel config (cron schedules)
 
 ---
@@ -400,6 +401,7 @@ Admin → Events → [Event] → RSVP → [Week] shows:
 - Pending guest requests.
 - Admin override controls (post-cutoff changes).
 - Guest approval/denial controls.
+- Admin "Add Golfer to Game" — searchable dropdown to add subscribed golfers who don't have an RSVP row (e.g., recently approved golfers who missed the invite cycle). Can add as "In" or "No Reply".
 
 ### Golfer Directory (Global and Event-Scoped)
 Golfer directories use a **card-based list layout** (not a table). Each golfer is displayed as a full-width tappable row showing name, email (subtitle), and status badge. Tapping the row navigates to the golfer detail page. Inline action buttons (Approve/Deny, Deactivate, Reactivate) appear alongside the row for quick actions. Sort options: Name and Status.
@@ -497,6 +499,9 @@ Security hardening (migrations 015–016):
 - `push_subscriptions` table has RLS enabled with policies scoped to `profile_id = auth.uid()`.
 - All database functions have `search_path` pinned to `public` to prevent schema-shadowing attacks.
 - `email_log` INSERT policy restricted to admin users only (was previously `WITH CHECK (true)`).
+
+Registration fix (migration 022):
+- Updated `handle_new_user()` trigger to extract `registration_event_id` from user metadata. Fixes a bug where golfers registering via event-specific join links (`/join/[slug]`) had NULL `registration_event_id`, causing them to be subscribed to all events on approval instead of just the registration event.
 
 ### Authentication: Supabase Auth
 - Magic link (OTP) for passwordless login.
@@ -682,7 +687,7 @@ The following is fully implemented and running in production:
 - **Foundation:** Project scaffold (Next.js, Tailwind, Supabase, Resend), registration pages (global + event-specific /join/[slug]) with URL slug field on both Create Event and Event Settings forms (auto-generated from event name), magic link login, auth callbacks, golfer home page, admin dashboard, profile settings.
 - **Weekly RSVP Cycle:** Tokenized RSVP links, automated invite/reminder/confirmation/pro shop emails (configurable per event), evite-style "In" list visibility, capacity and waitlist management, admin RSVP override (post-cutoff).
 - **Preferences:** Playing partner preferences (ranked 1–10, per-event, searchable dropdown with reordering). Tee time preferences (per-week on RSVP page).
-- **Admin Tools:** Schedule management (8-week rolling view, Game On/No Game toggle with cancellation emails), custom email composer with templates, action items/task summary, golfer directory with search/filter (global + event-scoped), golfer detail pages with subscription management, admin "Add Golfer" (direct add), configurable email schedules (6 Vercel cron slots), admin notification emails (new_registration, capacity_reached, spot_opened, low_response), event-centric admin dashboard with summary cards, per-event admin scoping, help page with Golfer + Admin FAQ. Next-game display respects event `start_date` — events with a future start date don't show games before that date.
+- **Admin Tools:** Schedule management (8-week rolling view, Game On/No Game toggle with cancellation emails), custom email composer with templates, action items/task summary, golfer directory with search/filter (global + event-scoped), golfer detail pages with subscription management, admin "Add Golfer" (direct add), admin "Add Golfer to Game" on RSVP management page (add subscribed golfers who missed the invite cycle), configurable email schedules (6 Vercel cron slots), admin notification emails (new_registration, capacity_reached, spot_opened, low_response), event-centric admin dashboard with summary cards, per-event admin scoping, help page with Golfer + Admin FAQ. Next-game display respects event `start_date` — events with a future start date don't show games before that date.
 - **Grouping Engine:** Five grouping methods: (1) Harmony — greedy heuristic with weighted partner preferences, tee time constraints, shuffle randomization; (2) Flight Foursomes — sorted by handicap, grouped by skill level; (3) Balanced ABCD Foursomes — round-robin tier distribution (one from each quartile per group); (4) Flight 2-Person Teams — adjacent handicap pairs, with similar or random foursome pairing; (5) Balanced 2-Person Teams — outside-in pairing (best+worst) for equal team totals. Handicap methods override partner/tee time preferences (with admin warning banner). Manual handicap entry on admin golfer detail pages (global + event-scoped). Handicap resolution: manual_handicap_index → handicap_index → 25.0 default. Guest-host pairing, group variety with 8-week lookback, configurable partner/tee time modes. 50+ unit tests. DB layer with team_number support, cron integration, pro shop email with grouped roster. See `docs/GROUPING_ENGINE_SPEC.md`.
 - **Admin Reports:** Super-admin-only reports page (`/admin/reports`) with four reports: (1) **Golfer Engagement** — per-golfer RSVP response rates, participation rates, consecutive no-replies, ghost detection (3+ weeks unresponsive) across all events over the last 12 weeks, with filter/sort controls; (2) **Platform Activity** — login counts, page view counts, most visited pages, most active users over the last 30 days, powered by a new `activity_log` table and client-side `ActivityTracker` component; (3) **Response Timing** — distribution of how quickly golfers respond after invite emails, with median/average stats and bucket bar chart (within 1 hour, 1–4 hours, etc.) over the last 8 weeks; (4) **Profile Completeness** — identifies golfers missing GHIN numbers, phone numbers, or handicap data, with filter controls. Reports linked from admin dashboard.
 - **Activity Tracking Infrastructure:** `activity_log` table (migration 020) with RLS policies. Login events logged on both OTP verification and magic link callback. Page views logged via client-side `ActivityTracker` component in root layout → `/api/activity` POST endpoint. Lightweight fire-and-forget — never blocks auth or navigation.

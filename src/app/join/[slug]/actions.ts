@@ -79,9 +79,10 @@ export async function joinEvent(
     return { error: "Something went wrong. Please try again.", step: "form" };
   }
 
-  // For existing users, update their registration_event_id
-  // (New users get it set via the handle_new_user trigger from metadata)
-  // We also set it directly in case the user already exists
+  // Best-effort: For existing users who might re-register, attempt to update
+  // registration_event_id before OTP verification. This may not succeed due to RLS
+  // if there's no auth session yet, but the belt-and-suspenders code in
+  // verifyEventJoinOtp will catch it after OTP verification succeeds.
   const { data: existingProfile } = await supabase
     .from("profiles")
     .select("id")
@@ -89,10 +90,15 @@ export async function joinEvent(
     .maybeSingle();
 
   if (existingProfile) {
-    await supabase
-      .from("profiles")
-      .update({ registration_event_id: eventId })
-      .eq("id", existingProfile.id);
+    try {
+      await supabase
+        .from("profiles")
+        .update({ registration_event_id: eventId })
+        .eq("id", existingProfile.id);
+    } catch {
+      // Expected to fail for new users due to RLS before OTP verification
+      console.debug("Pre-OTP registration_event_id update skipped (expected for new users)");
+    }
   }
 
   return { success: true, step: "otp", email: email.trim().toLowerCase() };
@@ -124,6 +130,26 @@ export async function verifyEventJoinOtp(
       step: "otp",
       email,
     };
+  }
+
+  // Belt-and-suspenders: set registration_event_id from user metadata if not already set
+  // This covers cases where the handle_new_user trigger didn't set it (e.g., existing
+  // user re-registering for an event, or metadata was lost in an edge case).
+  try {
+    const {
+      data: { user: verifiedUser },
+    } = await supabase.auth.getUser();
+    if (verifiedUser) {
+      const regEventId = verifiedUser.user_metadata?.registration_event_id;
+      if (regEventId) {
+        await supabase
+          .from("profiles")
+          .update({ registration_event_id: regEventId })
+          .eq("id", verifiedUser.id);
+      }
+    }
+  } catch (err) {
+    console.error("Failed to set registration_event_id:", err);
   }
 
   // Send admin alert for new registration pending approval

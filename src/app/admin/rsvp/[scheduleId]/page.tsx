@@ -7,6 +7,7 @@ import {
   StatusDropdown,
   PromoteButton,
 } from "./rsvp-controls";
+import { AddGolferToGame } from "./add-golfer-to-game";
 import { GuestApprovalButton, GuestDenialButton } from "./guest-controls";
 import { formatPhoneDisplay, formatGameDate, formatDateTime, formatInitialLastName } from "@/lib/format";
 import { isPastCutoffPacific, calculateSendDateString } from "@/lib/timezone";
@@ -296,6 +297,13 @@ export default async function AdminRsvpPage({
             <p className={`mt-1 text-2xl font-bold ${waitlistCount > 0 ? "text-orange-600" : "text-gray-400"}`}>{waitlistCount}</p>
           </div>
         </div>
+
+        {/* Add Golfer to Game — available for any active game */}
+        {schedule.status !== "cancelled" && event && (
+          <div className="mt-4">
+            <AddGolferToGame scheduleId={scheduleId} eventId={event.id} />
+          </div>
+        )}
 
         {/* RSVP Detail Sections — order matches tiles: In, Out, Not Sure, No Reply, Waitlist */}
 

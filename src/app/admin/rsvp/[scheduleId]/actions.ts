@@ -204,3 +204,149 @@ export async function adminRemoveFromGame(
 ) {
   return adminUpdateRsvpStatus(rsvpId, "out", scheduleId);
 }
+
+/**
+ * Fetch active, subscribed golfers who don't already have an RSVP row
+ * for this schedule. Used by the "Add Golfer to Game" feature.
+ */
+export async function getEligibleGolfersForGame(
+  scheduleId: string,
+  eventId: string
+) {
+  try {
+    const { supabase } = await requireAdminAccess();
+
+    // Get all active, subscribed golfers for this event
+    const { data: subscribers } = await supabase
+      .from("event_subscriptions")
+      .select("profile_id, profiles(id, first_name, last_name, email, status, is_guest)")
+      .eq("event_id", eventId)
+      .eq("is_active", true);
+
+    if (!subscribers) return { golfers: [] };
+
+    const activeSubscribers = subscribers.filter(
+      (s: Record<string, unknown>) => {
+        const profile = s.profiles as { status: string; is_guest: boolean } | null;
+        return profile && profile.status === "active" && !profile.is_guest;
+      }
+    );
+
+    // Get existing RSVPs for this schedule
+    const { data: existingRsvps } = await supabase
+      .from("rsvps")
+      .select("profile_id")
+      .eq("schedule_id", scheduleId);
+
+    const existingIds = new Set(
+      (existingRsvps || []).map((r: { profile_id: string }) => r.profile_id)
+    );
+
+    // Return golfers who don't have an RSVP row yet
+    const eligible = activeSubscribers
+      .filter((s: { profile_id: string }) => !existingIds.has(s.profile_id))
+      .map((s: Record<string, unknown>) => {
+        const profile = s.profiles as {
+          id: string;
+          first_name: string;
+          last_name: string;
+          email: string;
+        };
+        return {
+          id: profile.id,
+          first_name: profile.first_name,
+          last_name: profile.last_name,
+          email: profile.email,
+        };
+      })
+      .sort((a: { last_name: string }, b: { last_name: string }) =>
+        a.last_name.localeCompare(b.last_name)
+      );
+
+    return { golfers: eligible };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    return { golfers: [], error: message };
+  }
+}
+
+/**
+ * Admin adds a golfer to a game by creating an RSVP row with status "in".
+ * Used for golfers who registered/were approved after the invite was sent.
+ */
+export async function adminAddGolferToGame(
+  profileId: string,
+  scheduleId: string,
+  status: "in" | "no_response" = "in"
+) {
+  try {
+    const { supabase, adminId } = await requireAdminAccess();
+
+    // Verify the schedule exists
+    const { data: schedule, error: schedError } = await supabase
+      .from("event_schedules")
+      .select("id, event_id")
+      .eq("id", scheduleId)
+      .single();
+
+    if (schedError || !schedule) {
+      return { error: "Schedule not found" };
+    }
+
+    // Verify golfer is subscribed and active
+    const { data: sub } = await supabase
+      .from("event_subscriptions")
+      .select("id")
+      .eq("profile_id", profileId)
+      .eq("event_id", schedule.event_id)
+      .eq("is_active", true)
+      .maybeSingle();
+
+    if (!sub) {
+      return { error: "Golfer is not subscribed to this event" };
+    }
+
+    // Check if RSVP already exists
+    const { data: existing } = await supabase
+      .from("rsvps")
+      .select("id")
+      .eq("profile_id", profileId)
+      .eq("schedule_id", scheduleId)
+      .maybeSingle();
+
+    if (existing) {
+      return { error: "Golfer already has an RSVP for this game" };
+    }
+
+    // Create the RSVP row
+    const { error: insertError } = await supabase
+      .from("rsvps")
+      .insert({
+        schedule_id: scheduleId,
+        profile_id: profileId,
+        status,
+        responded_at: new Date().toISOString(),
+      });
+
+    if (insertError) {
+      console.error("Add golfer to game error:", insertError);
+      return { error: "Failed to add golfer to game" };
+    }
+
+    // Log to history
+    await supabase.from("rsvp_history").insert({
+      rsvp_id: null, // We don't have the new RSVP ID easily
+      schedule_id: scheduleId,
+      profile_id: profileId,
+      old_status: null,
+      new_status: status,
+      changed_by: adminId,
+    });
+
+    revalidatePath(`/admin/rsvp/${scheduleId}`);
+    return { success: true };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    return { error: message };
+  }
+}
