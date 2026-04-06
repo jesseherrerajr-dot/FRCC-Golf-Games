@@ -273,7 +273,7 @@ The first event is **"FRCC Saturday Morning Group"**. The platform is designed f
 
 All email types, days, and times below are **configurable per event** via the `email_schedules` table. Each event defines its own invite day/time, reminder day/time, cutoff day/time, and confirmation day/time using `send_day_offset` (relative to game day) and `send_time`. The sequence below describes the logical flow — not fixed days of the week.
 
-> **Example (FRCC Saturday Morning Group's current config):** Invite on Monday, reminder on Thursday, cutoff Friday 10 AM, confirmations Friday 1 PM. Other events may use entirely different schedules.
+> **Note:** Each event's email schedule is fully configurable by admins. Days and times will vary across events and may change over time. Do not hardcode or assume specific days/times in documentation or code — always reference the event's configured settings.
 
 ### Step 1 — Invite Email
 - Automated email sent to all active, subscribed golfers.
@@ -456,7 +456,7 @@ Admin → Events → [Event] → Emails → Compose allows:
 - Every RSVP response is timestamped and stored permanently.
 - Queryable by golfer, event, and date range.
 - Future use cases:
-  - League qualification tracking (e.g., minimum rounds for prizes in Thursday league).
+  - League qualification tracking (e.g., minimum rounds for prizes).
   - Admin reporting on inactive members (registered but never responds).
   - Attendance statistics per golfer.
 

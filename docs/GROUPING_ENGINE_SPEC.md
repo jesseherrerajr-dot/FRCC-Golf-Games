@@ -14,11 +14,11 @@ Generate suggested foursome groupings for each weekly event after RSVP cutoff. G
 
 ## 2. Trigger & Workflow
 
-1. RSVP cutoff time arrives (configurable per event, e.g., Friday 10:00 AM PT).
+1. RSVP cutoff time arrives (configurable per event via admin settings).
 2. Self-service RSVP locks. Admin can still make manual overrides.
 3. **Grouping engine runs automatically at cutoff time** — generates suggested groupings for all confirmed ("in") golfers.
 4. Groupings are stored in the `groupings` table.
-5. At the scheduled confirmation email time (e.g., Friday 1:00 PM PT):
+5. At the scheduled confirmation email time (configurable per event):
    - **Golfer confirmation email** — unchanged. Roster only (list of who's in). No groupings.
    - **Pro shop email** — reorganized to show players organized by suggested group in tee order. Labeled "Suggested Groupings" with a note that the pro shop may adjust.
 6. Pro shop uses the suggestions to set up Golf Genius, makes final adjustments, and sends tee times to players through their own system.
