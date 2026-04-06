@@ -134,6 +134,16 @@ export function formatGameDateMonthDay(dateStr: string): string {
 }
 
 /**
+ * Extract just the day-of-week name from a game date string (e.g., "Thursday").
+ * Useful for email templates that reference the day dynamically.
+ */
+export function formatGameDayName(dateStr: string): string {
+  const [year, month, day] = dateStr.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+  return date.toLocaleDateString("en-US", { weekday: "long" });
+}
+
+/**
  * @deprecated Use formatGameDate() instead. Kept for backward compatibility.
  */
 export function formatDate(dateStr: string): string {

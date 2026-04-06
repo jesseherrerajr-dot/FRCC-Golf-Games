@@ -1,6 +1,6 @@
 import { Resend } from "resend";
 import type { StoredGrouping, StoredGroupGolfer } from "./grouping-db";
-import { formatPhoneDisplay, formatInitialLastName, formatFullName, formatSponsorName, formatGameDate, getSiteUrl } from "./format";
+import { formatPhoneDisplay, formatInitialLastName, formatFullName, formatSponsorName, formatGameDate, formatGameDayName, getSiteUrl } from "./format";
 import { formatCutoffDayTime } from "./timezone";
 import { generateWeatherEmailHtml } from "./weather";
 import type { GameWeatherForecast } from "@/types/events";
@@ -59,7 +59,7 @@ function emailHeader(title: string, subtitle?: string) {
 }
 
 /**
- * Generate the Monday invite email HTML
+ * Generate the invite email HTML
  */
 export function generateInviteEmail({
   golferName,
@@ -96,7 +96,7 @@ export function generateInviteEmail({
       ${emailHeader(eventName, formattedDate)}
 
       <p style="color: #374151;">Hey ${golferName},</p>
-      <p style="color: #374151;">Are you playing this Saturday? Tap one of the buttons below to let us know.</p>
+      <p style="color: #374151;">Are you playing this ${formatGameDayName(gameDate)}? Tap one of the buttons below to let us know.</p>
 
       ${adminNoteHtml}
 
@@ -115,7 +115,7 @@ export function generateInviteEmail({
 }
 
 /**
- * Generate the Thursday reminder email HTML
+ * Generate the reminder email HTML
  */
 export function generateReminderEmail({
   golferName,
@@ -148,7 +148,7 @@ export function generateReminderEmail({
       ${emailHeader(eventName, formattedDate)}
 
       <p style="color: #374151;">Hey ${golferName},</p>
-      <p style="color: #374151;">We haven't heard from you yet for this Saturday's game. ${
+      <p style="color: #374151;">We haven't heard from you yet for this ${formatGameDayName(gameDate)}'s game. ${
         spotsRemaining > 0
           ? `There are still <strong>${spotsRemaining} spots</strong> available.`
           : "The game is currently full, but you can join the waitlist."
@@ -172,7 +172,7 @@ export function generateReminderEmail({
 }
 
 /**
- * Generate the Friday golfer confirmation email HTML
+ * Generate the golfer confirmation email HTML
  */
 export function generateConfirmationEmail({
   eventName,
@@ -203,7 +203,7 @@ export function generateConfirmationEmail({
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
       ${emailHeader(eventName, `${formattedDate} — Registration Confirmation`)}
 
-      <p style="color: #374151;">The following ${confirmedPlayers.length} players are confirmed for this Saturday:</p>
+      <p style="color: #374151;">The following ${confirmedPlayers.length} players are confirmed for this ${formatGameDayName(gameDate)}:</p>
 
       ${adminNote ? `<div style="background: #f0f3f7; border-left: 4px solid #3d7676; padding: 12px 16px; margin: 16px 0; border-radius: 4px;">
         <p style="margin: 0; font-size: 14px; color: #1b2a4a;"><strong>Note from admin:</strong> ${adminNote}</p>
@@ -223,7 +223,7 @@ export function generateConfirmationEmail({
 }
 
 /**
- * Generate the Friday pro shop detail email HTML.
+ * Generate the pro shop detail email HTML.
  *
  * When groupings are available, renders a single consolidated list
  * organized by suggested groups. When no groupings, falls back to
