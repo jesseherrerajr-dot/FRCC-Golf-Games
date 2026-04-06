@@ -109,6 +109,15 @@ export async function GET(request: Request) {
       const gameDateString = getUpcomingGameDatePacific(event.day_of_week);
       const nowPT = getNowPacific();
 
+      // Skip events whose start_date hasn't arrived yet
+      // This prevents sending invite emails for games before the event officially begins
+      if (event.start_date && gameDateString < event.start_date) {
+        console.log(
+          `Skipping event ${event.name} — game date ${gameDateString} is before event start date ${event.start_date}`
+        );
+        continue;
+      }
+
       // Get enabled email schedules for this event
       const { data: emailSchedules, error: schedulesError } = await supabase
         .from("email_schedules")
