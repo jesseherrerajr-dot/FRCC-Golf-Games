@@ -69,10 +69,17 @@ export default async function DashboardPage() {
     .eq("profile_id", user.id);
 
   // Filter to upcoming games only and sort by date
+  // Also skip games before the event's start_date (e.g., new events not yet launched)
   const upcoming = (upcomingRsvps || [])
     .filter((rsvp: Record<string, unknown>) => {
-      const schedule = rsvp.schedule as { game_date: string; status: string } | null;
-      return schedule && schedule.game_date >= today && schedule.status !== "cancelled";
+      const schedule = rsvp.schedule as { game_date: string; status: string; event: { id: string } | null } | null;
+      if (!schedule || schedule.game_date < today || schedule.status === "cancelled") return false;
+      // Check event start_date — skip games before the event officially begins
+      if (schedule.event) {
+        const evt = (allEvents || []).find((e) => e.id === schedule.event!.id);
+        if (evt?.start_date && schedule.game_date < evt.start_date) return false;
+      }
+      return true;
     })
     .sort((a: Record<string, unknown>, b: Record<string, unknown>) => {
       const dateA = (a.schedule as { game_date: string })?.game_date || "";
