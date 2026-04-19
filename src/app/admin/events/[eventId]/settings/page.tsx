@@ -5,7 +5,7 @@ import {
   BasicSettingsForm,
   EmailScheduleForm,
   AlertSettingsForm,
-  ProShopContactsForm,
+  ProShopContactsSection,
   AdminAssignmentsForm,
   GroupingPreferencesForm,
   HandicapSyncForm,
@@ -43,12 +43,18 @@ export default async function EventSettingsPage({
     .select("*")
     .eq("event_id", eventId);
 
-  // Fetch pro shop contacts
-  const { data: proShopContacts } = await supabase
-    .from("pro_shop_contacts")
-    .select("*")
+  // Fetch pro shop contacts linked to this event (via global directory)
+  const { data: eventContactLinks } = await supabase
+    .from("event_pro_shop_contact_links")
+    .select("id, contact_id, contact:pro_shop_contacts_directory(id, name, email)")
     .eq("event_id", eventId)
     .order("created_at");
+
+  // Fetch all global pro shop contacts (for the picker dropdown)
+  const { data: allGlobalContacts } = await supabase
+    .from("pro_shop_contacts_directory")
+    .select("id, name, email")
+    .order("name");
 
   // Fetch event admins with profiles
   const { data: eventAdmins } = await supabase
@@ -143,12 +149,14 @@ export default async function EventSettingsPage({
             Pro Shop Contacts
           </h2>
           <p className="mt-1 text-sm text-gray-500">
-            Email addresses that receive the Friday pro shop detail email.
+            Pro shop contacts who can receive the suggested groupings email.
           </p>
           <div className="mt-3 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-            <ProShopContactsForm
+            <ProShopContactsSection
               eventId={eventId}
-              contacts={proShopContacts || []}
+              linkedContacts={eventContactLinks || []}
+              allGlobalContacts={allGlobalContacts || []}
+              isSuperAdmin={isSuperAdmin}
             />
           </div>
         </section>

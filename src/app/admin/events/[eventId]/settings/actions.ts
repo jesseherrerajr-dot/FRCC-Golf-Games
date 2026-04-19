@@ -398,53 +398,141 @@ export async function updateAlertSetting(
 }
 
 // ============================================================
-// Pro Shop Contacts
+// Pro Shop Contacts (Global Directory + Event Links)
 // ============================================================
 
-export async function addProShopContact(eventId: string, email: string, name?: string) {
-  const { profile, adminEvents, supabase } = await requireAdmin();
-  if (!hasEventAccess(profile, adminEvents, eventId)) {
-    return { error: "Not authorized for this event" };
-  }
+/** Add a new contact to the global pro shop directory (super admin only) */
+export async function addGlobalProShopContact(email: string, name?: string) {
+  await requireSuperAdmin();
+  const { supabase } = await requireAdmin();
 
   const trimmedEmail = email.trim().toLowerCase();
-  // Use provided name, or derive from email prefix (e.g., "proshop" from "proshop@frcc.com")
   const contactName = name?.trim() || trimmedEmail.split("@")[0];
 
   try {
-    const { error } = await supabase
-      .from("pro_shop_contacts")
-      .insert({ event_id: eventId, email: trimmedEmail, name: contactName });
+    const { data, error } = await supabase
+      .from("pro_shop_contacts_directory")
+      .insert({ email: trimmedEmail, name: contactName })
+      .select("id")
+      .single();
 
-    if (error) throw error;
+    if (error) {
+      if (error.code === "23505") {
+        return { error: "A contact with that email already exists" };
+      }
+      throw error;
+    }
 
-    revalidatePath(`/admin/events/${eventId}/settings`);
-    return { success: true };
+    revalidatePath("/admin");
+    return { success: true, contactId: data.id };
   } catch (error) {
-    console.error("Add pro shop contact error:", error);
+    console.error("Add global pro shop contact error:", error);
     return { error: "Failed to add pro shop contact" };
   }
 }
 
-export async function removeProShopContact(contactId: string, eventId: string) {
-  const { profile, adminEvents, supabase } = await requireAdmin();
-  if (!hasEventAccess(profile, adminEvents, eventId)) {
-    return { error: "Not authorized for this event" };
-  }
+/** Remove a contact from the global directory (super admin only). Also removes all event links. */
+export async function removeGlobalProShopContact(contactId: string) {
+  await requireSuperAdmin();
+  const { supabase } = await requireAdmin();
 
   try {
     const { error } = await supabase
-      .from("pro_shop_contacts")
+      .from("pro_shop_contacts_directory")
       .delete()
       .eq("id", contactId);
 
     if (error) throw error;
 
+    revalidatePath("/admin");
+    return { success: true };
+  } catch (error) {
+    console.error("Remove global pro shop contact error:", error);
+    return { error: "Failed to remove pro shop contact" };
+  }
+}
+
+/** Link an existing global contact to an event */
+export async function linkProShopContactToEvent(eventId: string, contactId: string) {
+  const { profile, adminEvents, supabase } = await requireAdmin();
+  if (!hasEventAccess(profile, adminEvents, eventId)) {
+    return { error: "Not authorized for this event" };
+  }
+
+  try {
+    const { error } = await supabase
+      .from("event_pro_shop_contact_links")
+      .insert({ event_id: eventId, contact_id: contactId });
+
+    if (error) {
+      if (error.code === "23505") {
+        return { error: "Contact already linked to this event" };
+      }
+      throw error;
+    }
+
     revalidatePath(`/admin/events/${eventId}/settings`);
     return { success: true };
   } catch (error) {
-    console.error("Remove pro shop contact error:", error);
-    return { error: "Failed to remove pro shop contact" };
+    console.error("Link pro shop contact error:", error);
+    return { error: "Failed to link pro shop contact to event" };
+  }
+}
+
+/** Unlink a global contact from an event (does not delete the global contact) */
+export async function unlinkProShopContactFromEvent(eventId: string, contactId: string) {
+  const { profile, adminEvents, supabase } = await requireAdmin();
+  if (!hasEventAccess(profile, adminEvents, eventId)) {
+    return { error: "Not authorized for this event" };
+  }
+
+  try {
+    const { error } = await supabase
+      .from("event_pro_shop_contact_links")
+      .delete()
+      .eq("event_id", eventId)
+      .eq("contact_id", contactId);
+
+    if (error) throw error;
+
+    revalidatePath(`/admin/events/${eventId}/settings`);
+    return { success: true };
+  } catch (error) {
+    console.error("Unlink pro shop contact error:", error);
+    return { error: "Failed to remove pro shop contact from event" };
+  }
+}
+
+// ============================================================
+// Suggested Groupings Email Recipient Settings
+// ============================================================
+
+export async function updateGroupingEmailRecipients(
+  eventId: string,
+  settings: {
+    grouping_email_send_to_proshop?: boolean;
+    grouping_email_send_to_admins?: boolean;
+    grouping_email_send_to_golfers?: boolean;
+  }
+) {
+  const { profile, adminEvents, supabase } = await requireAdmin();
+  if (!hasEventAccess(profile, adminEvents, eventId)) {
+    return { error: "Not authorized for this event" };
+  }
+
+  try {
+    const { error } = await supabase
+      .from("events")
+      .update(settings)
+      .eq("id", eventId);
+
+    if (error) throw error;
+
+    revalidatePath(`/admin/events/${eventId}/settings`);
+    return { success: true };
+  } catch (error) {
+    console.error("Update grouping email recipients error:", error);
+    return { error: "Failed to update recipient settings" };
   }
 }
 
@@ -710,6 +798,7 @@ export async function permanentlyDeleteEvent(eventId: string, confirmName: strin
     await supabase.from("event_alert_settings").delete().eq("event_id", eventId);
     await supabase.from("playing_partner_preferences").delete().eq("event_id", eventId);
     await supabase.from("pro_shop_contacts").delete().eq("event_id", eventId);
+    await supabase.from("event_pro_shop_contact_links").delete().eq("event_id", eventId);
     await supabase.from("event_admins").delete().eq("event_id", eventId);
     await supabase.from("email_log").delete().eq("event_id", eventId);
     await supabase.from("weather_cache").delete().eq("event_id", eventId);

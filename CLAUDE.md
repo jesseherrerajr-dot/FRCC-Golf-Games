@@ -119,8 +119,8 @@ Every page (except the landing page and login) **must** have a `<Breadcrumbs>` c
 - `events/[eventId]/rsvp/[scheduleId]/add-golfer-to-game.tsx` — Client component for adding subscribed golfers to a game (searchable dropdown)
 - `events/[eventId]/rsvp/[scheduleId]/actions.ts` — RSVP management server actions
 - `events/[eventId]/rsvp/[scheduleId]/guest-actions.ts` — Guest approval server actions
-- `events/new/` — Create new event page (email settings with Reminder and Pro Shop Detail toggles, matching Event Settings UI)
-- `events/[eventId]/settings/` — Event settings (Event Details [including URL slug field for join link generation], Automated Email Settings with on/off toggles for Reminder and Pro Shop Detail emails, Admin Alerts, Pro Shop Contacts, Grouping Engine [super admin only — grouping method selector (harmony/flight foursomes/balanced foursomes/flight teams/balanced teams), playing partner on/off + mode, tee time on/off + mode, group variety toggle; handicap methods override partner/tee time prefs with warning banner], Event Admins [super admin only], Feature Flags [super admin only — guest requests], Danger Zone [super admin only — deactivate/reactivate + permanently delete with name confirmation])
+- `events/new/` — Create new event page (email settings with Reminder and Suggested Groupings toggles, matching Event Settings UI)
+- `events/[eventId]/settings/` — Event settings (Event Details [including URL slug field for join link generation], Automated Email Settings with on/off toggles for Reminder and Suggested Groupings emails [with configurable recipients: pro shop contacts, event admins, confirmed golfers], Admin Alerts, Pro Shop Contacts [select from global directory, super admin can add/remove global contacts], Grouping Engine [super admin only — grouping method selector (harmony/flight foursomes/balanced foursomes/flight teams/balanced teams), playing partner on/off + mode, tee time on/off + mode, group variety toggle; handicap methods override partner/tee time prefs with warning banner], Event Admins [super admin only], Feature Flags [super admin only — guest requests], Danger Zone [super admin only — deactivate/reactivate + permanently delete with name confirmation])
 - `events/[eventId]/schedule/` — 8-week rolling schedule (Game On/No Game toggle, capacity override)
 - `events/[eventId]/emails/page.tsx` — Emails & Communications page (email status panel with send/resend, link to custom compose)
 - `events/[eventId]/email/compose/` — Custom email composer with templates
@@ -308,11 +308,10 @@ All email types, days, and times below are **configurable per event** via the `e
 - Body: Event name, date, list of confirmed player names (first initial + last name). Guests shown with their sponsoring member.
 - Purpose: Anyone can "Reply All" to share game details, tee times, course conditions, etc. "Reply" goes to primary event admin.
 
-**Email 2 — Pro Shop Detail (optional, toggled on/off per event, default OFF):**
-- TO: Pro shop contacts
-- CC: Super admin, event admins
-- Body: Golfer full names, contact info (email, phone), and GHIN numbers. Includes guest info.
-- Purpose: Pro shop uses this for Golf Genius setup and contacting players if needed.
+**Email 2 — Suggested Groupings (optional, toggled on/off per event, default OFF):**
+- TO: Configurable per event — any combination of pro shop contacts, event admins, and/or confirmed golfers for that week. Controlled by three checkboxes in Automated Email Settings.
+- Body: Golfer full names, contact info (email, phone), GHIN numbers, and suggested groupings (if grouping engine is enabled). Includes guest info.
+- Purpose: Share player details and suggested foursomes with the pro shop, admins, and/or golfers.
 - Can be enabled/disabled via the toggle switch in Automated Email Settings on the event settings page.
 
 ### RSVP Visibility (Evite-Style)
@@ -465,7 +464,7 @@ Admin → Events → [Event] → Emails → Compose allows:
 ## Technical Architecture
 
 ### Database: Supabase (PostgreSQL)
-Key tables: profiles, events, event_admins, event_subscriptions, event_schedules, rsvps, guest_requests, playing_partner_preferences, pro_shop_contacts, email_templates, email_log, event_email_schedules, event_alert_settings, groupings, weather_cache, handicap_sync_log, activity_log.
+Key tables: profiles, events, event_admins, event_subscriptions, event_schedules, rsvps, guest_requests, playing_partner_preferences, pro_shop_contacts (legacy), pro_shop_contacts_directory (global), event_pro_shop_contact_links (junction), email_templates, email_log, event_email_schedules, event_alert_settings, groupings, weather_cache, handicap_sync_log, activity_log.
 
 Notable columns added post-initial schema:
 - `events.slug` — URL-friendly identifier for join links (e.g., `saturday-morning`).
@@ -503,13 +502,21 @@ Security hardening (migrations 015–016):
 Registration fix (migration 022):
 - Updated `handle_new_user()` trigger to extract `registration_event_id` from user metadata. Fixes a bug where golfers registering via event-specific join links (`/join/[slug]`) had NULL `registration_event_id`, causing them to be subscribed to all events on approval instead of just the registration event.
 
+Global pro shop contacts & suggested groupings email (migration 023):
+- `pro_shop_contacts_directory` table: global (platform-level) contact list with unique email constraint. Replaces per-event `pro_shop_contacts` for new code paths.
+- `event_pro_shop_contact_links` junction table: links events to global contacts. Each event selects which contacts receive emails.
+- `events.grouping_email_send_to_proshop` — boolean, default true. Whether the suggested groupings email is sent to pro shop contacts.
+- `events.grouping_email_send_to_admins` — boolean, default true. Whether the suggested groupings email is sent to event admins.
+- `events.grouping_email_send_to_golfers` — boolean, default false. Whether the suggested groupings email is sent to confirmed golfers for that week.
+- Existing per-event `pro_shop_contacts` data migrated into global directory + junction. Old table retained for backward compatibility.
+
 ### Authentication: Supabase Auth
 - Magic link (OTP) for passwordless login.
 - Tokenized RSVP links for one-tap weekly responses (no login required).
 - Session management via Supabase SSR middleware.
 
 ### Email: Resend
-- Automated scheduled emails (invite, reminder, golfer confirmation, pro shop detail) — timing is configurable per event.
+- Automated scheduled emails (invite, reminder, golfer confirmation, suggested groupings) — timing is configurable per event.
 - Custom admin-triggered emails.
 - Default sending domain for now; custom domain possible later.
 
@@ -685,63 +692,50 @@ Admin-facing RSVP status labels **must** be consistent across all surfaces — s
 The following is fully implemented and running in production:
 
 - **Foundation:** Project scaffold (Next.js, Tailwind, Supabase, Resend), registration pages (global + event-specific /join/[slug]) with URL slug field on both Create Event and Event Settings forms (auto-generated from event name), magic link login, auth callbacks, golfer home page, admin dashboard, profile settings.
-- **Weekly RSVP Cycle:** Tokenized RSVP links, automated invite/reminder/confirmation/pro shop emails (configurable per event), evite-style "In" list visibility, capacity and waitlist management, admin RSVP override (post-cutoff).
+- **Weekly RSVP Cycle:** Tokenized RSVP links, automated invite/reminder/confirmation/suggested groupings emails (configurable per event), evite-style "In" list visibility, capacity and waitlist management, admin RSVP override (post-cutoff).
 - **Preferences:** Playing partner preferences (ranked 1–10, per-event, searchable dropdown with reordering). Tee time preferences (per-week on RSVP page).
 - **Admin Tools:** Schedule management (8-week rolling view, Game On/No Game toggle with cancellation emails), custom email composer with templates, action items/task summary, golfer directory with search/filter (global + event-scoped), golfer detail pages with subscription management, admin "Add Golfer" (direct add), admin "Add Golfer to Game" on RSVP management page (add subscribed golfers who missed the invite cycle), configurable email schedules (6 Vercel cron slots), admin notification emails (new_registration, capacity_reached, spot_opened, low_response), event-centric admin dashboard with summary cards, per-event admin scoping, help page with Golfer + Admin FAQ. Next-game display respects event `start_date` — events with a future start date don't show games before that date.
-- **Grouping Engine:** Five grouping methods: (1) Harmony — greedy heuristic with weighted partner preferences, tee time constraints, shuffle randomization; (2) Flight Foursomes — sorted by handicap, grouped by skill level; (3) Balanced ABCD Foursomes — round-robin tier distribution (one from each quartile per group); (4) Flight 2-Person Teams — adjacent handicap pairs, with similar or random foursome pairing; (5) Balanced 2-Person Teams — outside-in pairing (best+worst) for equal team totals. Handicap methods override partner/tee time preferences (with admin warning banner). Manual handicap entry on admin golfer detail pages (global + event-scoped). Handicap resolution: manual_handicap_index → handicap_index → 25.0 default. Guest-host pairing, group variety with 8-week lookback, configurable partner/tee time modes. 50+ unit tests. DB layer with team_number support, cron integration, pro shop email with grouped roster. See `docs/GROUPING_ENGINE_SPEC.md`.
+- **Grouping Engine:** Five grouping methods: (1) Harmony — greedy heuristic with weighted partner preferences, tee time constraints, shuffle randomization; (2) Flight Foursomes — sorted by handicap, grouped by skill level; (3) Balanced ABCD Foursomes — round-robin tier distribution (one from each quartile per group); (4) Flight 2-Person Teams — adjacent handicap pairs, with similar or random foursome pairing; (5) Balanced 2-Person Teams — outside-in pairing (best+worst) for equal team totals. Handicap methods override partner/tee time preferences (with admin warning banner). Manual handicap entry on admin golfer detail pages (global + event-scoped). Handicap resolution: manual_handicap_index → handicap_index → 25.0 default. Guest-host pairing, group variety with 8-week lookback, configurable partner/tee time modes. 50+ unit tests. DB layer with team_number support, cron integration, suggested groupings email with grouped roster. See `docs/GROUPING_ENGINE_SPEC.md`.
 - **Admin Reports:** Super-admin-only reports page (`/admin/reports`) with four reports: (1) **Golfer Engagement** — per-golfer RSVP response rates, participation rates, consecutive no-replies, ghost detection (3+ weeks unresponsive) across all events over the last 12 weeks, with filter/sort controls; (2) **Platform Activity** — login counts, page view counts, most visited pages, most active users over the last 30 days, powered by a new `activity_log` table and client-side `ActivityTracker` component; (3) **Response Timing** — distribution of how quickly golfers respond after invite emails, with median/average stats and bucket bar chart (within 1 hour, 1–4 hours, etc.) over the last 8 weeks; (4) **Profile Completeness** — identifies golfers missing GHIN numbers, phone numbers, or handicap data, with filter controls. Reports linked from admin dashboard.
 - **Activity Tracking Infrastructure:** `activity_log` table (migration 020) with RLS policies. Login events logged on both OTP verification and magic link callback. Page views logged via client-side `ActivityTracker` component in root layout → `/api/activity` POST endpoint. Lightweight fire-and-forget — never blocks auth or navigation.
-- **GHIN Handicap Sync:** Automated system to fetch current Handicap Index from GHIN for all golfers with a GHIN number. Uses unofficial GHIN mobile app API (`api2.ghin.com`) directly via HTTP — no npm dependency, fully patchable. Auth uses `email_or_ghin` + `password` + `token` fields. Syncs within 24 hours of each scheduled event via email-scheduler cron. Features: per-event toggle (`handicap_sync_enabled`), 20-golfer batch cap per cron run (stalest-first), 24-hour freshness window (shared across events for multi-event golfers), `handicap_sync_log` table for health monitoring, auto-alert on auth/total failure, status indicator in Event Settings. Handicap displayed on: golfer home page (My Profile section), golfer profile/edit page, admin golfer detail pages (global + event-scoped), both golfer directories (global + event-scoped, as HCP line on each row), and pro shop email (HCP column). Env vars: `GHIN_EMAIL`, `GHIN_PASSWORD` (must be set at the **Vercel project level**, not team level). Handicap history: every GHIN-synced value is recorded in the `handicap_history` table for per-golfer and group-level trend analysis. See `docs/HANDICAP_SYNC_SPEC.md`.
+- **GHIN Handicap Sync:** Automated system to fetch current Handicap Index from GHIN for all golfers with a GHIN number. Uses unofficial GHIN mobile app API (`api2.ghin.com`) directly via HTTP — no npm dependency, fully patchable. Auth uses `email_or_ghin` + `password` + `token` fields. Syncs within 24 hours of each scheduled event via email-scheduler cron. Features: per-event toggle (`handicap_sync_enabled`), 20-golfer batch cap per cron run (stalest-first), 24-hour freshness window (shared across events for multi-event golfers), `handicap_sync_log` table for health monitoring, auto-alert on auth/total failure, status indicator in Event Settings. Handicap displayed on: golfer home page (My Profile section), golfer profile/edit page, admin golfer detail pages (global + event-scoped), both golfer directories (global + event-scoped, as HCP line on each row), and suggested groupings email (HCP column). Env vars: `GHIN_EMAIL`, `GHIN_PASSWORD` (must be set at the **Vercel project level**, not team level). Handicap history: every GHIN-synced value is recorded in the `handicap_history` table for per-golfer and group-level trend analysis. See `docs/HANDICAP_SYNC_SPEC.md`.
 - **Profile Completion Nudge:** RSVP token page (`/rsvp/[token]`) detects missing profile fields (phone number, GHIN number) and displays an amber banner prompting the golfer to complete their profile. Includes privacy reassurance ("only shared with event admins and the pro shop") and a direct link to `/profile`. Disappears automatically once all required fields are filled. Designed for extensibility — additional required fields can be added to the check array. Future consideration: gate RSVP submission behind profile completion.
+- **Global Pro Shop Contact Directory & Suggested Groupings Email:** Renamed "Pro Shop Detail Email" to "Suggested Groupings Email" across the entire platform (UI labels, email subjects, help docs, admin controls). Built a global pro shop contacts directory (`pro_shop_contacts_directory` table) so contacts are added once and linked to events via a junction table (`event_pro_shop_contact_links`). Admins configure email recipients per event with three checkboxes: Pro Shop Contacts, Event Admins, and Confirmed Golfers — any combination can be selected. The email scheduler and manual send flows dynamically build TO/CC lists based on these settings. Migration 023 handles schema changes, data migration (deduplication of existing contacts), and RLS policies.
 
 ---
 
 ## Roadmap
 
-### 1. ~~Grouping Engine Enhancements~~ ✅ COMPLETE
-All sub-items built: repeat foursome prevention, tee time preference limits, partner preference weighting, admin partner avoidance.
+### ~~Grouping Engine Enhancements~~ ✅ COMPLETE
+### ~~Admin Reports~~ ✅ COMPLETE
+### ~~Weather Integration~~ ✅ COMPLETE
 
-### 2. ~~Admin Reports~~ ✅ COMPLETE
-Super-admin-only reports page with four reports: Golfer Engagement (RSVP response/participation rates, ghost detection), Platform Activity (logins, page views, most active users), Response Timing (invite-to-response distribution), Profile Completeness (missing GHIN/phone). Includes activity_log infrastructure for login and page view tracking.
+### 1. League Leaderboard & Season Scoring
+Build a season-long scoring and leaderboard system for league-format events (e.g., Thursday 9-hole league). Core concept: each week's round is scored using Stableford points, and the platform maintains a cumulative leaderboard across the season. Since not all golfers can play every week, only a subset of each golfer's best rounds count toward the final standings (e.g., best 8 of 12 weeks, with a minimum play requirement to qualify). Specific scoring algorithm and detailed requirements TBD — placeholder for now.
 
-### 3. Email Template Review
-Review all automated email templates (invite, reminder, golfer confirmation, pro shop detail, cancellation, admin alerts, registration notifications) to ensure copy, formatting, and links are all hitting the mark. May involve tweaks to tone, layout, or information included.
+**Known requirements so far:**
+- **Score entry:** Admin uploads a Golf Genius PDF with final Stableford scores for each golfer each week (not hole-by-hole). Exact PDF format TBD — need a sample to define the parsing/entry workflow.
+- **Two views:** (1) Weekly results — individual week's scores for all golfers who played that round. (2) Cumulative season leaderboard — running standings based on best N rounds with qualification minimum.
+- **Leaderboard access:** Visible to all golfers subscribed to the Thursday league event (logged in). No public/shareable link needed.
+- **Leaderboard links in emails:** Add leaderboard link to invite, reminder, and confirmation emails for the Thursday league event only (not other events).
+- **Season definition:** Admin-defined date range (specific dates TBD once the league schedule is finalized).
+- **Tie-breaking:** Rules TBD.
+- **Historical seasons:** Support viewing past season results (scope TBD).
 
-### 4. Guest Workflow
+### 2. Email Template Review
+Review all automated email templates (invite, reminder, golfer confirmation, suggested groupings, cancellation, admin alerts, registration notifications) to ensure copy, formatting, and links are all hitting the mark. May involve tweaks to tone, layout, or information included.
+
+### 3. Guest Workflow
 Complete the guest request system. Architecture and DB schema exist (feature-flagged OFF). Remaining work: guest request UI for golfers, admin approval/denial flow, guest confirmation emails, guest visibility in RSVP management. Guest requests table and types are already in place.
 
-### 5. Priority Email Batching
-When the distribution list approaches the Resend free-tier limit (100 emails/day), implement priority-based batching — send to the most active/likely-to-respond golfers first, remainder on the following day. Not urgent now but will be needed as events and membership grow.
-
-### 6. Public "Who's Playing" View
-Create a publicly accessible (but unlisted) page showing the current week's "In" list for an event. Unlike the existing evite-style visibility (which requires opting "In" to see the list), this would let any golfer — even before responding or after responding "Out" — see who's already committed. Uses the same first-initial-last-name format (e.g., "J. Herrera") with no sensitive data exposed. Could be a shareable link golfers text to each other when coordinating. No login required.
-
-### 7. Weather Integration ✅ BUILT
-Hyper-localized weather forecasts for game time windows, displayed on RSVP pages, Home page, and in automated emails.
-
-**Implementation Details:**
-- **API:** Open-Meteo (free, no API key, no rate limits). Endpoint: `https://api.open-meteo.com/v1/forecast`
-- **Location:** FRCC exact coordinates — latitude 32.9881, longitude -117.1935 (15150 San Dieguito Rd, Rancho Santa Fe, CA 92067)
-- **Game Window:** Derived from event settings: `first_tee_time` minus 30 min buffer through `first_tee_time` + game duration + 30 min buffer. 18 holes = 4.5 hours, 9 holes = 2.5 hours.
-- **Event Settings Added:** `game_type` (enum: `9_holes` | `18_holes`, default `18_holes`) and `first_tee_time` (text, default `07:30`) on the events table.
-- **Golfability Score:** 1–5 scale based on temperature, wind speed, precipitation probability, and severe weather codes. Labels: "Perfect Golf Weather" (5), "Great Conditions" (4), "Fair — Playable" (3), "Challenging Conditions" (2), "Severe Weather" (1).
-- **Confidence Labels:** "Early Look" (5+ days out), "Updated Forecast" (3–4 days), "Game Day Forecast" (1–2 days), "Current Conditions" (game day).
-- **Caching:** `weather_cache` table keyed by (event_id, game_date). Stale after 3 hours → re-fetched from API. Cache checked first on every call.
-- **UI Variants:** "full" on RSVP page (golfability badge, summary stats, hourly timeline for ≤3 days out). "compact" on Home page event cards (single-row badge with temp/wind).
-- **Email Integration:** Weather HTML included in invite, reminder, and golfer confirmation emails. NOT included in pro shop detail email. Non-fatal — if Open-Meteo is down, emails send without weather.
-- **Key Files:** `src/lib/weather.ts` (service), `src/components/weather-forecast.tsx` (UI), `supabase/migrations/017_game_time_weather.sql` (schema), plus updates to RSVP page, Home page, email templates, cron scheduler, event settings, and create event form.
-
-### 8. Golfer Engagement & Gamification Stats
+### 4. Golfer Engagement & Gamification Stats
 Build a golfer-facing engagement system that incentivizes consistent RSVP responses and app usage. Ideas include: participation streaks ("You've played 8 of the last 12 weeks"), response rate scores (similar to an Uber-style rating — e.g., "Your response rate: 95%"), and badges or milestones. This data also serves an admin purpose: identifying disengaged golfers who haven't responded in X weeks so admins can reach out or eventually remove them from the distribution list. The engagement score could factor into future waitlist priority decisions.
 
-### 9. Waitlist End-to-End Testing & Refinement
+### 5. Waitlist End-to-End Testing & Refinement
 The waitlist system (capacity overflow, ranked by response time, admin manual promotion) has been built but has not been exercised in production yet. Before it sees real use, conduct a thorough end-to-end review: verify correct ordering, test admin pull-from-waitlist flow, confirm notification emails fire correctly, test edge cases (golfer switches from "In" to "Out" freeing a spot, capacity override changes mid-week, etc.). Address any gaps found.
 
-### 10. Invite-a-Friend / Referral Registration
-Allow golfers to share an event registration link that pre-identifies them as the referring golfer. When the referred person registers through this link, the admin approval screen shows who recommended them (e.g., "Referred by J. Herrera"), giving admins useful context for their approval decision. The referred golfer still goes through the standard registration and approval flow — this just adds a social trust signal. Could be as simple as appending a referral parameter to the existing `/join/[slug]` URL.
-
-### 11. SMS / Text Notifications
-Add opt-in SMS notifications alongside email for key moments in the RSVP cycle — particularly a cutoff-day text to non-responders ("RSVP closes in 2 hours — tap here to respond"). SMS has significantly higher open rates than email and could meaningfully improve response rates. Primary concern is cost. **Before building:** evaluate SMS provider pricing (Twilio, AWS SNS, etc.) for the expected volume (~30 golfers × 1-2 texts/week per event) to confirm it's manageable. If cost-effective, start with a single high-value SMS touchpoint (cutoff reminder) before expanding to other notifications.
+### 6. SMS / WhatsApp Notifications
+Add opt-in push notifications alongside email for key moments in the RSVP cycle — particularly a cutoff-day message to non-responders ("RSVP closes in 2 hours — tap here to respond"). SMS and WhatsApp both have significantly higher open rates than email and could meaningfully improve response rates. Either or both channels may be implemented. Primary concern for SMS is cost. **Before building:** evaluate delivery channel(s) — SMS providers (Twilio, AWS SNS, etc.) and/or WhatsApp Business API — for the expected volume (~30 golfers × 1-2 messages/week per event) to confirm it's manageable. If cost-effective, start with a single high-value touchpoint (cutoff reminder) before expanding to other notifications.
 
 ---
 

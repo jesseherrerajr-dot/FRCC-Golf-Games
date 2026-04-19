@@ -188,11 +188,30 @@ export interface EventAdminAssignment {
   };
 }
 
+/** @deprecated Use ProShopDirectoryContact + EventProShopContactLink instead */
 export interface ProShopContact {
   id: string;
   event_id: string;
   email: string;
   created_at: string;
+}
+
+/** Global pro shop contact (platform-level, not event-scoped) */
+export interface ProShopDirectoryContact {
+  id: string;
+  name: string;
+  email: string;
+  created_at: string;
+}
+
+/** Junction linking a global pro shop contact to a specific event */
+export interface EventProShopContactLink {
+  id: string;
+  event_id: string;
+  contact_id: string;
+  created_at: string;
+  // Joined from pro_shop_contacts_directory
+  contact?: ProShopDirectoryContact;
 }
 
 // ============================================================

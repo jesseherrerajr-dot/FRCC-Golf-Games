@@ -106,8 +106,8 @@ export default async function HelpPage() {
                   <strong>RSVP Cutoff / Golfer Confirmation</strong> — RSVP deadline
                   and confirmation email sent to all confirmed players. After cutoff,
                   only admins can change responses.{" "}
-                  <strong>Pro Shop Detail</strong> — optional email with player details
-                  sent to the pro shop (if enabled by the admin). Check your invite
+                  <strong>Suggested Groupings</strong> — optional email with player details
+                  and suggested groupings (if enabled by the admin). Check your invite
                   email for the specific cutoff time for your event.
                 </p>
               </FAQ>
@@ -301,10 +301,10 @@ export default async function HelpPage() {
                     per event.{" "}
                     <strong>RSVP Cutoff / Golfer Confirmation</strong> — sent to all
                     confirmed players with the player list.{" "}
-                    <strong>Pro Shop Detail</strong> — sent to pro shop contacts
-                    with full player details (names, phones, GHIN) and suggested
-                    foursome groupings. This email can be toggled on or off per event
-                    (off by default). You can customize the send day, time, and
+                    <strong>Suggested Groupings</strong> — sent to configured
+                    recipients (pro shop contacts, admins, and/or confirmed golfers)
+                    with full player details and suggested foursome groupings. This
+                    email can be toggled on or off per event (off by default). You can customize the send day, time, and
                     on/off toggles for each email in{" "}
                     <strong>Event Settings → Automated Email Settings</strong>.
                     To see the status of each email, use the{" "}
@@ -445,8 +445,8 @@ export default async function HelpPage() {
                     events — if a golfer plays in multiple events, one sync covers
                     them all. You can see each golfer&apos;s handicap and last-updated
                     date in the <strong>Golfer Directory</strong> and on individual
-                    golfer detail pages. Handicaps are also included in the Pro Shop
-                    Detail email. If the GHIN API becomes unavailable, the system
+                    golfer detail pages. Handicaps are also included in the Suggested
+                    Groupings email. If the GHIN API becomes unavailable, the system
                     auto-disables and alerts the super admin — the rest of the app
                     continues working normally.
                   </p>

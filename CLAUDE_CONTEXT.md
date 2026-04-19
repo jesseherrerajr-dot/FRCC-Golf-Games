@@ -15,14 +15,15 @@ A companion to CLAUDE.md. Where CLAUDE.md is the technical specification and imp
 **What's complete:**
 - Phases 1–2 (Foundation + Weekly RSVP Cycle) — fully shipped
 - Phase 4 (Admin Tools & Communication) — mostly complete, powering the production workflow
-- Grouping engine — 5 methods (harmony + 4 handicap-based: flight foursomes, balanced ABCD foursomes, flight 2-person teams, balanced 2-person teams). 50+ unit tests, cron integration, pro shop email integration, repeat foursome prevention, tee time preference limits, partner preference weighting, manual handicap admin entry
+- Grouping engine — 5 methods (harmony + 4 handicap-based: flight foursomes, balanced ABCD foursomes, flight 2-person teams, balanced 2-person teams). 50+ unit tests, cron integration, suggested groupings email integration, repeat foursome prevention, tee time preference limits, partner preference weighting, manual handicap admin entry
 - Playing partner preferences — ranked 1–10 with per-event scoping
 - Tee time preferences — per-week on RSVP page
 - Multi-event architecture — designed and implemented, second event being onboarded
 - PWA install flow with push notification support
 - Configurable email schedules per event (6 Vercel cron slots)
 - Weather integration — Open-Meteo API, golfability scoring, displayed on RSVP pages, home page, and in emails
-- GHIN Handicap Sync — automated fetch from GHIN API (`api2.ghin.com`), per-event toggle, displayed on home page, profile, both golfer directories, golfer detail pages, and pro shop email. Handicap history recorded in `handicap_history` table for trend tracking.
+- GHIN Handicap Sync — automated fetch from GHIN API (`api2.ghin.com`), per-event toggle, displayed on home page, profile, both golfer directories, golfer detail pages, and suggested groupings email. Handicap history recorded in `handicap_history` table for trend tracking.
+- Global Pro Shop Contact Directory — contacts added once globally, linked per-event. "Suggested Groupings Email" (renamed from "Pro Shop Detail") with configurable recipients (pro shop contacts, event admins, confirmed golfers).
 - Admin Reports — super-admin-only reports page with Golfer Engagement, Platform Activity, Response Timing, and Profile Completeness reports
 - Activity Tracking — login and page view logging infrastructure (activity_log table, ActivityTracker component)
 - Profile Completion Nudge — RSVP token page detects missing phone/GHIN and shows amber banner with link to profile page
@@ -68,7 +69,7 @@ These are final decisions reflected in the codebase and not open for reconsidera
 - Reply-To is always the primary event admin's email.
 - All admin-targeted emails CC secondary admins and super admins.
 - Resend's default sending domain for now. Custom domain deferred.
-- Golfer confirmation email shows first-initial-last-name (e.g., "J. Herrera"). Pro shop email shows full details.
+- Golfer confirmation email shows first-initial-last-name (e.g., "J. Herrera"). Suggested groupings email shows full details.
 - Email footer links say "Go to FRCC Golf Games" (not "Go to Dashboard" or technical URLs).
 
 **RSVP Flow:**
@@ -85,7 +86,7 @@ These are final decisions reflected in the codebase and not open for reconsidera
 - Handicap methods use GHIN-synced or manual handicap index (resolution: manual → synced → 25.0 default). Override partner/tee time preferences when active.
 - Pure function design — no DB calls in the algorithm. DB layer is separate (`grouping-db.ts`).
 - Runs automatically at cutoff time via existing email-scheduler cron (no separate cron entry).
-- Feature-flagged per event (`allow_auto_grouping`). When disabled, pro shop gets alphabetical roster.
+- Feature-flagged per event (`allow_auto_grouping`). When disabled, suggested groupings email gets alphabetical roster.
 
 **Code Standards:**
 - TypeScript everywhere. Centralized formatters in `src/lib/format.ts` — never define local formatting functions.
@@ -168,7 +169,7 @@ See the Roadmap section of CLAUDE.md for the current prioritized list. Key items
 | **Golf Genius** | Third-party software the pro shop uses for tee time management. FRCC Golf Games generates suggestions; Golf Genius is the final authority. |
 | **PWA** | Progressive Web App. Users can install FRCC Golf Games to their home screen for app-like experience and push notifications. |
 | **Game On / No Game** | Admin toggle on the schedule. "No Game" cancels a week and triggers cancellation emails. |
-| **Email Cycle** | The weekly automated sequence: Invite → Reminder(s) → Cutoff/Confirmation → Pro Shop Detail. |
+| **Email Cycle** | The weekly automated sequence: Invite → Reminder(s) → Cutoff/Confirmation → Suggested Groupings. |
 | **Feature Flag** | Per-event boolean toggle (super admin only) controlling whether a feature is active. Currently: guest requests, tee time prefs, partner prefs, auto-grouping. |
 
 ---
@@ -271,7 +272,7 @@ See the Roadmap section of CLAUDE.md for the current prioritized list. Key items
 
 4. **Added manual handicap entry** — Shared `ManualHandicapField` component used on both global and event-scoped admin golfer detail pages. Inline edit with save/cancel/clear. Validates range -10 to 54.
 
-5. **Updated cron/email integration** — When a handicap method is active, cron forces partner/tee time prefs off. Pro shop email description reflects the active method.
+5. **Updated cron/email integration** — When a handicap method is active, cron forces partner/tee time prefs off. Suggested groupings email description reflects the active method.
 
 6. **Updated DB layer** — `fetchConfirmedGolfers` resolves handicap (manual → synced → 25.0 default). `storeGroupings` writes `team_number` for team methods.
 

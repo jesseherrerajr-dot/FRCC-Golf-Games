@@ -129,15 +129,15 @@ export async function GET(request: Request) {
 
     const uniqueAdminEmails = [...new Set(adminEmails)];
 
-    // Get pro shop contacts
-    const { data: proShopContacts } = await supabase
-      .from("pro_shop_contacts")
-      .select("email")
+    // Get pro shop contacts (from global directory via junction)
+    const { data: proShopLinks } = await supabase
+      .from("event_pro_shop_contact_links")
+      .select("contact:pro_shop_contacts_directory(email)")
       .eq("event_id", event.id);
 
-    const proShopEmails = (proShopContacts || []).map(
-      (c: { email: string }) => c.email
-    );
+    const proShopEmails = (proShopLinks || [])
+      .map((link: Record<string, unknown>) => (link.contact as { email: string })?.email)
+      .filter((e): e is string => !!e);
 
     // All CC recipients (admins + pro shop)
     const ccEmails = [...new Set([...uniqueAdminEmails, ...proShopEmails])];
@@ -209,7 +209,7 @@ export async function GET(request: Request) {
                 event_id: event.id,
                 schedule_id: schedule.id,
                 email_type: "confirmation_proshop" as const,
-                subject: `${event.name}: Pro Shop Detail`,
+                subject: `${event.name}: Suggested Groupings`,
                 recipient_count: proShopEmails.length,
               },
             ]

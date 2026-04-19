@@ -84,7 +84,7 @@ export async function approveGuestRequest(
 
           <p style="color: #374151;">Great news, ${golferProfile.first_name}!</p>
           <p style="color: #374151;">Your guest request for <strong>${guestName}</strong> has been approved for ${formattedDate}.</p>
-          <p style="color: #374151;">Your guest will be included in the confirmation email and pro shop details.</p>
+          <p style="color: #374151;">Your guest will be included in the confirmation email and suggested groupings.</p>
 
           <p style="color: #9ca3af; font-size: 12px;">See you on the course!</p>
         </div>

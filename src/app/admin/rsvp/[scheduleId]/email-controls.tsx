@@ -40,21 +40,21 @@ const emailLabels: Record<EmailType, string> = {
   invite: "Invite",
   reminder: "Reminder",
   golfer_confirmation: "Golfer Confirmation",
-  pro_shop: "Pro Shop Detail",
+  pro_shop: "Suggested Groupings",
 };
 
 const emailRecipientLabels: Record<EmailType, string> = {
   invite: "all subscribers",
   reminder: "Not Sure + No Response",
   golfer_confirmation: "confirmed players",
-  pro_shop: "pro shop contacts",
+  pro_shop: "configured recipients",
 };
 
 const emailDescriptions: Record<EmailType, (props: EmailControlsProps) => string> = {
   invite: (p) => `Send invite emails to all ${p.totalSubscribers} subscribers?`,
   reminder: (p) => `Send reminder to ${p.pendingCount} golfer(s) who haven't responded?`,
   golfer_confirmation: (p) => `Send confirmation email to ${p.confirmedCount} confirmed golfer(s)?`,
-  pro_shop: (p) => `Send pro shop detail email with player info and suggested groups?`,
+  pro_shop: (p) => `Send suggested groupings email with player info and suggested groups?`,
 };
 
 const emailLogKeys: Record<EmailType, string> = {

@@ -340,12 +340,14 @@ export async function sendGolferConfirmationNow(scheduleId: string) {
       ),
     ].filter((e): e is string => !!e);
 
-    const { data: proShopContacts } = await supabase
-      .from("pro_shop_contacts")
-      .select("email")
+    const { data: proShopLinks } = await supabase
+      .from("event_pro_shop_contact_links")
+      .select("contact:pro_shop_contacts_directory(email)")
       .eq("event_id", event.id);
 
-    const proShopEmails = (proShopContacts || []).map((c: { email: string }) => c.email);
+    const proShopEmails = (proShopLinks || [])
+      .map((link: Record<string, unknown>) => (link.contact as { email: string })?.email)
+      .filter((e): e is string => !!e);
     const ccEmails = Array.from(new Set([...adminEmails, ...proShopEmails]));
 
     const golferEmails = allPlayers.map((p) => p.email).filter(Boolean);
@@ -467,19 +469,27 @@ export async function sendProShopDetailNow(scheduleId: string) {
       a.last_name.localeCompare(b.last_name) || a.first_name.localeCompare(b.first_name)
     );
 
-    // Get pro shop contacts
-    const { data: proShopContacts } = await supabase
-      .from("pro_shop_contacts")
-      .select("email")
-      .eq("event_id", event.id);
+    // Build recipient list based on event's grouping email settings
+    const sendToProshop = event.grouping_email_send_to_proshop ?? true;
+    const sendToAdmins = event.grouping_email_send_to_admins ?? true;
+    const sendToGolfers = event.grouping_email_send_to_golfers ?? false;
 
-    const proShopEmails = (proShopContacts || []).map((c: { email: string }) => c.email);
+    const toEmails: string[] = [];
 
-    if (proShopEmails.length === 0) {
-      return { error: "No pro shop contacts configured" };
+    // Pro shop contacts (from global directory via junction)
+    if (sendToProshop) {
+      const { data: proShopLinks } = await supabase
+        .from("event_pro_shop_contact_links")
+        .select("contact:pro_shop_contacts_directory(email)")
+        .eq("event_id", event.id);
+
+      const proShopEmails = (proShopLinks || [])
+        .map((link: Record<string, unknown>) => (link.contact as { email: string })?.email)
+        .filter((e): e is string => !!e);
+      toEmails.push(...proShopEmails);
     }
 
-    // Get admin emails for CC
+    // Event admins + super admins
     const { data: eventAdmins } = await supabase
       .from("event_admins")
       .select("role, profile:profiles(email)")
@@ -493,14 +503,27 @@ export async function sendProShopDetailNow(scheduleId: string) {
     const primaryAdmin = eventAdmins?.find((a: Record<string, unknown>) => a.role === "primary");
     const primaryAdminEmail = (primaryAdmin?.profile as unknown as { email: string })?.email;
 
-    const adminEmails = [
-      ...(superAdmins || []).map((a: { email: string }) => a.email),
-      ...(eventAdmins || []).map((a: Record<string, unknown>) =>
-        (a.profile as unknown as { email: string })?.email
-      ),
-    ].filter((e): e is string => !!e);
+    if (sendToAdmins) {
+      const adminEmails = [
+        ...(superAdmins || []).map((a: { email: string }) => a.email),
+        ...(eventAdmins || []).map((a: Record<string, unknown>) =>
+          (a.profile as unknown as { email: string })?.email
+        ),
+      ].filter((e): e is string => !!e);
+      toEmails.push(...adminEmails);
+    }
 
-    const uniqueAdminEmails = Array.from(new Set(adminEmails));
+    // Confirmed golfers for this week
+    if (sendToGolfers) {
+      const golferEmails = allPlayers.map((p) => p.email).filter(Boolean);
+      toEmails.push(...golferEmails);
+    }
+
+    const uniqueToEmails = [...new Set(toEmails)];
+
+    if (uniqueToEmails.length === 0) {
+      return { error: "No recipients configured for the suggested groupings email" };
+    }
 
     // Fetch stored groupings if auto-grouping is enabled
     const groupings = event.allow_auto_grouping
@@ -517,8 +540,7 @@ export async function sendProShopDetailNow(scheduleId: string) {
     const formattedDate = formatGameDateMonthDay(schedule.game_date);
 
     await sendEmail({
-      to: proShopEmails,
-      cc: uniqueAdminEmails,
+      to: uniqueToEmails,
       replyTo: primaryAdminEmail,
       subject: `${event.name}: ${formattedDate}: Player Details & Suggested Groups`,
       html: proShopHtml,
@@ -534,12 +556,12 @@ export async function sendProShopDetailNow(scheduleId: string) {
       event_id: event.id,
       schedule_id: schedule.id,
       email_type: "confirmation_proshop",
-      subject: `${event.name}: Pro Shop Detail (manual)`,
-      recipient_count: proShopEmails.length,
+      subject: `${event.name}: Suggested Groupings (manual)`,
+      recipient_count: uniqueToEmails.length,
     });
 
     revalidatePath(`/admin/rsvp/${scheduleId}`);
-    return { success: true, sent: proShopEmails.length };
+    return { success: true, sent: uniqueToEmails.length };
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Unknown error" };
   }

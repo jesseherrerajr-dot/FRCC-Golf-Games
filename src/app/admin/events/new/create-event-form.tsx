@@ -346,13 +346,13 @@ export function CreateEventForm({
         {/* Cutoff / Golfer Confirmation */}
         <DayTimeInput label="RSVP Cutoff / Golfer Confirmation" dayName="cutoff_day" timeName="cutoff_time" dayDefault={5} timeDefault="04:45" />
 
-        {/* Pro Shop Detail Email with Toggle */}
+        {/* Suggested Groupings Email with Toggle */}
         <div className="space-y-4 rounded-md border border-gray-200 p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-900">Send Pro Shop Detail Email</p>
+              <p className="text-sm font-medium text-gray-900">Send Suggested Groupings Email</p>
               <p className="text-xs text-gray-500">
-                Send player details and contact info to the pro shop
+                Send player details and suggested groupings after cutoff
               </p>
             </div>
             <button

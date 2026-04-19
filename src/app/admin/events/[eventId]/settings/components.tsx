@@ -7,8 +7,11 @@ import {
   updateEmailScheduleSettings,
   updateEmailTypeEnabled,
   updateAlertSetting,
-  addProShopContact,
-  removeProShopContact,
+  addGlobalProShopContact,
+  removeGlobalProShopContact,
+  linkProShopContactToEvent,
+  unlinkProShopContactFromEvent,
+  updateGroupingEmailRecipients,
   assignEventAdmin,
   removeEventAdmin,
   updateFeatureFlags,
@@ -514,13 +517,13 @@ export function EmailScheduleForm({
         timeDefault={event.cutoff_time?.slice(0, 5)}
       />
 
-      {/* Pro Shop Detail Email with Toggle */}
+      {/* Suggested Groupings Email with Toggle */}
       <div className="space-y-4 rounded-md border border-gray-200 p-4">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-gray-900">Send Pro Shop Detail Email</p>
+            <p className="text-sm font-medium text-gray-900">Send Suggested Groupings Email</p>
             <p className="text-xs text-gray-500">
-              Send player details and contact info to the pro shop
+              Send player details and suggested groupings after cutoff
             </p>
           </div>
           <button
@@ -540,13 +543,18 @@ export function EmailScheduleForm({
         </div>
 
         {proShopEnabled && (
-          <DayTimeRow
-            label="Send Time"
-            dayName="confirmation_day"
-            timeName="confirmation_time"
-            dayDefault={event.confirmation_day}
-            timeDefault={event.confirmation_time?.slice(0, 5)}
-          />
+          <>
+            <DayTimeRow
+              label="Send Time"
+              dayName="confirmation_day"
+              timeName="confirmation_time"
+              dayDefault={event.confirmation_day}
+              timeDefault={event.confirmation_time?.slice(0, 5)}
+            />
+
+            {/* Recipient Checkboxes */}
+            <GroupingEmailRecipients eventId={event.id} event={event} />
+          </>
         )}
       </div>
 
@@ -621,6 +629,83 @@ function DayTimeRow({
           ))}
         </select>
       </div>
+    </div>
+  );
+}
+
+// ============================================================
+// Grouping Email Recipient Checkboxes
+// ============================================================
+
+function GroupingEmailRecipients({ eventId, event }: { eventId: string; event: any }) {
+  const [isPending, startTransition] = useTransition();
+  const [sendToProshop, setSendToProshop] = useState<boolean>(event.grouping_email_send_to_proshop ?? true);
+  const [sendToAdmins, setSendToAdmins] = useState<boolean>(event.grouping_email_send_to_admins ?? true);
+  const [sendToGolfers, setSendToGolfers] = useState<boolean>(event.grouping_email_send_to_golfers ?? false);
+
+  const handleToggle = (
+    key: "grouping_email_send_to_proshop" | "grouping_email_send_to_admins" | "grouping_email_send_to_golfers",
+    newValue: boolean,
+    setter: (v: boolean) => void
+  ) => {
+    setter(newValue);
+    startTransition(async () => {
+      await updateGroupingEmailRecipients(eventId, { [key]: newValue });
+    });
+  };
+
+  const recipientOptions = [
+    {
+      key: "grouping_email_send_to_proshop" as const,
+      label: "Pro Shop Contacts",
+      description: "Send to pro shop contacts linked to this event",
+      checked: sendToProshop,
+      setter: setSendToProshop,
+    },
+    {
+      key: "grouping_email_send_to_admins" as const,
+      label: "Event Admins",
+      description: "Send to all admins assigned to this event",
+      checked: sendToAdmins,
+      setter: setSendToAdmins,
+    },
+    {
+      key: "grouping_email_send_to_golfers" as const,
+      label: "Confirmed Golfers",
+      description: "Send to all golfers confirmed for that week",
+      checked: sendToGolfers,
+      setter: setSendToGolfers,
+    },
+  ];
+
+  return (
+    <div className="space-y-2">
+      <p className="text-xs font-medium text-gray-700">Send to:</p>
+      {recipientOptions.map((opt) => (
+        <label
+          key={opt.key}
+          className={`flex cursor-pointer items-center gap-3 rounded-md border px-3 py-2 transition-colors ${
+            opt.checked ? "border-teal-200 bg-teal-50" : "border-gray-200 bg-white"
+          } ${isPending ? "opacity-50" : ""}`}
+        >
+          <input
+            type="checkbox"
+            checked={opt.checked}
+            onChange={() => handleToggle(opt.key, !opt.checked, opt.setter)}
+            disabled={isPending}
+            className="h-4 w-4 rounded border-gray-300 text-teal-600 focus:ring-teal-500"
+          />
+          <div>
+            <p className="text-sm font-medium text-gray-900">{opt.label}</p>
+            <p className="text-xs text-gray-500">{opt.description}</p>
+          </div>
+        </label>
+      ))}
+      {!sendToProshop && !sendToAdmins && !sendToGolfers && (
+        <p className="rounded-md bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-700">
+          No recipients selected. The email won&apos;t be sent to anyone even if the toggle is on.
+        </p>
+      )}
     </div>
   );
 }
@@ -790,113 +875,205 @@ function LowResponseConfig({
 }
 
 // ============================================================
-// Pro Shop Contacts Form
+// Pro Shop Contacts Section (Global Directory + Event Links)
 // ============================================================
 
-export function ProShopContactsForm({
+export function ProShopContactsSection({
   eventId,
-  contacts,
+  linkedContacts,
+  allGlobalContacts,
+  isSuperAdmin,
 }: {
   eventId: string;
-  contacts: any[];
+  linkedContacts: any[];
+  allGlobalContacts: any[];
+  isSuperAdmin: boolean;
 }) {
   const [isPending, startTransition] = useTransition();
-  const [email, setEmail] = useState("");
-  const [name, setName] = useState("");
+  const [selectedContactId, setSelectedContactId] = useState("");
+  const [newName, setNewName] = useState("");
+  const [newEmail, setNewEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [showAddNew, setShowAddNew] = useState(false);
 
-  const handleAdd = () => {
-    if (!email.trim()) return;
+  // Contacts already linked to this event (by contact_id)
+  const linkedContactIds = new Set(
+    linkedContacts.map((lc: any) => lc.contact_id)
+  );
+
+  // Available contacts to add (not already linked)
+  const availableContacts = allGlobalContacts.filter(
+    (c: any) => !linkedContactIds.has(c.id)
+  );
+
+  const handleLink = () => {
+    if (!selectedContactId) return;
     setError(null);
     startTransition(async () => {
-      const result = await addProShopContact(eventId, email, name || undefined);
+      const result = await linkProShopContactToEvent(eventId, selectedContactId);
       if (result.error) {
         setError(result.error);
       } else {
-        setEmail("");
-        setName("");
+        setSelectedContactId("");
       }
     });
   };
 
-  return (
-    <div className="space-y-3">
-      {contacts.length === 0 ? (
-        <p className="text-sm text-gray-500">No pro shop contacts added.</p>
-      ) : (
-        <ul className="space-y-2">
-          {contacts.map((contact: any) => (
-            <ProShopContactRow
-              key={contact.id}
-              contact={contact}
-              eventId={eventId}
-            />
-          ))}
-        </ul>
-      )}
-      {error && (
-        <p className="text-sm text-red-600">{error}</p>
-      )}
-      <div className="flex flex-wrap gap-2">
-        <input
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Contact name (optional)"
-          className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm sm:w-auto sm:flex-1"
-        />
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="proshop@example.com"
-          className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm sm:w-auto sm:flex-1"
-        />
-        <button
-          onClick={handleAdd}
-          disabled={isPending || !email.trim()}
-          className="rounded-md bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-500 disabled:opacity-50"
-        >
-          {isPending ? "..." : "Add"}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function ProShopContactRow({
-  contact,
-  eventId,
-}: {
-  contact: any;
-  eventId: string;
-}) {
-  const [isPending, startTransition] = useTransition();
-
-  const handleRemove = () => {
-    if (confirm(`Remove ${contact.email}?`)) {
+  const handleUnlink = (contactId: string, contactName: string) => {
+    if (confirm(`Remove ${contactName} from this event?`)) {
       startTransition(async () => {
-        await removeProShopContact(contact.id, eventId);
+        const result = await unlinkProShopContactFromEvent(eventId, contactId);
+        if (result.error) setError(result.error);
+      });
+    }
+  };
+
+  const handleAddNewGlobal = () => {
+    if (!newEmail.trim()) return;
+    setError(null);
+    startTransition(async () => {
+      const result = await addGlobalProShopContact(newEmail, newName || undefined);
+      if (result.error) {
+        setError(result.error);
+      } else if (result.contactId) {
+        // Also link to this event immediately
+        await linkProShopContactToEvent(eventId, result.contactId);
+        setNewName("");
+        setNewEmail("");
+        setShowAddNew(false);
+      }
+    });
+  };
+
+  const handleDeleteGlobal = (contactId: string, contactName: string) => {
+    if (confirm(`Permanently delete ${contactName} from all events? This cannot be undone.`)) {
+      startTransition(async () => {
+        const result = await removeGlobalProShopContact(contactId);
+        if (result.error) setError(result.error);
       });
     }
   };
 
   return (
-    <li className="flex items-center justify-between rounded-md border border-gray-100 bg-gray-50 px-3 py-2">
-      <div>
-        {contact.name && (
-          <span className="text-sm font-medium text-gray-900">{contact.name} — </span>
-        )}
-        <span className="text-sm text-gray-700">{contact.email}</span>
-      </div>
-      <button
-        onClick={handleRemove}
-        disabled={isPending}
-        className="ml-2 text-xs text-red-600 hover:text-red-800 disabled:opacity-50"
-      >
-        {isPending ? "..." : "Remove"}
-      </button>
-    </li>
+    <div className="space-y-4">
+      {/* Currently linked contacts */}
+      {linkedContacts.length === 0 ? (
+        <p className="text-sm text-gray-500">No pro shop contacts linked to this event.</p>
+      ) : (
+        <ul className="space-y-2">
+          {linkedContacts.map((link: any) => {
+            const contact = link.contact;
+            if (!contact) return null;
+            return (
+              <li key={link.id} className="flex items-center justify-between rounded-md border border-gray-100 bg-gray-50 px-3 py-2">
+                <div>
+                  <span className="text-sm font-medium text-gray-900">{contact.name}</span>
+                  <span className="ml-1 text-sm text-gray-500">— {contact.email}</span>
+                </div>
+                <div className="ml-2 flex items-center gap-2">
+                  <button
+                    onClick={() => handleUnlink(contact.id, contact.name)}
+                    disabled={isPending}
+                    className="text-xs text-red-600 hover:text-red-800 disabled:opacity-50"
+                  >
+                    {isPending ? "..." : "Remove"}
+                  </button>
+                  {isSuperAdmin && (
+                    <button
+                      onClick={() => handleDeleteGlobal(contact.id, contact.name)}
+                      disabled={isPending}
+                      className="text-xs text-gray-400 hover:text-red-600 disabled:opacity-50"
+                      title="Delete from all events"
+                    >
+                      Delete
+                    </button>
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      {error && <p className="text-sm text-red-600">{error}</p>}
+
+      {/* Add from existing global contacts */}
+      {availableContacts.length > 0 && (
+        <div className="flex flex-wrap gap-2 border-t border-gray-100 pt-3">
+          <select
+            value={selectedContactId}
+            onChange={(e) => setSelectedContactId(e.target.value)}
+            className="block flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm"
+          >
+            <option value="">Select a contact to add...</option>
+            {availableContacts.map((c: any) => (
+              <option key={c.id} value={c.id}>
+                {c.name} ({c.email})
+              </option>
+            ))}
+          </select>
+          <button
+            onClick={handleLink}
+            disabled={isPending || !selectedContactId}
+            className="rounded-md bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-500 disabled:opacity-50"
+          >
+            {isPending ? "..." : "Add to Event"}
+          </button>
+        </div>
+      )}
+
+      {/* Add a new global contact (super admin only) */}
+      {isSuperAdmin && (
+        <div className="border-t border-gray-100 pt-3">
+          {!showAddNew ? (
+            <button
+              onClick={() => setShowAddNew(true)}
+              className="text-sm font-medium text-teal-600 hover:text-teal-500"
+            >
+              + New Pro Shop Contact
+            </button>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-gray-700">Add a new pro shop contact</p>
+              <div className="flex flex-wrap gap-2">
+                <input
+                  type="text"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  placeholder="Contact name"
+                  className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm sm:w-auto sm:flex-1"
+                />
+                <input
+                  type="email"
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  placeholder="email@example.com"
+                  className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm sm:w-auto sm:flex-1"
+                />
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleAddNewGlobal}
+                  disabled={isPending || !newEmail.trim()}
+                  className="rounded-md bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-500 disabled:opacity-50"
+                >
+                  {isPending ? "..." : "Add & Link to Event"}
+                </button>
+                <button
+                  onClick={() => { setShowAddNew(false); setNewName(""); setNewEmail(""); setError(null); }}
+                  className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+              </div>
+              <p className="text-xs text-gray-500">
+                This contact will be added to the global directory and linked to this event. It can be reused across other events.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 

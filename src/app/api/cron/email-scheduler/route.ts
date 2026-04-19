@@ -777,15 +777,15 @@ async function handleGolferConfirmation(
 
   const uniqueAdminEmails = [...new Set(adminEmails)];
 
-  // Get pro shop contacts for CC
-  const { data: proShopContacts } = await supabase
-    .from("pro_shop_contacts")
-    .select("email")
+  // Get pro shop contacts for CC (from global directory via junction)
+  const { data: proShopLinks } = await supabase
+    .from("event_pro_shop_contact_links")
+    .select("contact:pro_shop_contacts_directory(email)")
     .eq("event_id", event.id);
 
-  const proShopEmails = (proShopContacts || []).map(
-    (c: { email: string }) => c.email
-  );
+  const proShopEmails = (proShopLinks || [])
+    .map((link: Record<string, unknown>) => (link.contact as { email: string })?.email)
+    .filter((e): e is string => !!e);
   const ccEmails = [...new Set([...uniqueAdminEmails, ...proShopEmails])];
 
   // Generate confirmation email
@@ -963,21 +963,27 @@ async function handleProShopDetail(
     a.last_name.localeCompare(b.last_name) || a.first_name.localeCompare(b.first_name)
   );
 
-  // Get pro shop contacts
-  const { data: proShopContacts } = await supabase
-    .from("pro_shop_contacts")
-    .select("email")
-    .eq("event_id", event.id);
+  // Build recipient list based on event's grouping email settings
+  const sendToProshop = (event.grouping_email_send_to_proshop as boolean) ?? true;
+  const sendToAdmins = (event.grouping_email_send_to_admins as boolean) ?? true;
+  const sendToGolfers = (event.grouping_email_send_to_golfers as boolean) ?? false;
 
-  const proShopEmails = (proShopContacts || []).map(
-    (c: { email: string }) => c.email
-  );
+  const toEmails: string[] = [];
 
-  if (proShopEmails.length === 0) {
-    return { message: "No pro shop contacts configured", sent: 0 };
+  // Pro shop contacts (from global directory via junction)
+  if (sendToProshop) {
+    const { data: proShopLinks } = await supabase
+      .from("event_pro_shop_contact_links")
+      .select("contact:pro_shop_contacts_directory(email)")
+      .eq("event_id", event.id);
+
+    const proShopEmails = (proShopLinks || [])
+      .map((link: Record<string, unknown>) => (link.contact as { email: string })?.email)
+      .filter((e): e is string => !!e);
+    toEmails.push(...proShopEmails);
   }
 
-  // Get admin emails for CC
+  // Get admin emails (always needed for reply-to, conditionally for TO)
   const { data: eventAdmins } = await supabase
     .from("event_admins")
     .select("role, profile:profiles(email)")
@@ -994,15 +1000,28 @@ async function handleProShopDetail(
   const primaryAdminEmail = (primaryAdmin?.profile as unknown as { email: string })
     ?.email;
 
-  const adminEmails = [
-    ...(superAdmins || []).map((a: { email: string }) => a.email),
-    ...(eventAdmins || []).map(
-      (a: Record<string, unknown>) =>
-        (a.profile as unknown as { email: string })?.email
-    ),
-  ].filter((e): e is string => !!e);
+  if (sendToAdmins) {
+    const adminEmails = [
+      ...(superAdmins || []).map((a: { email: string }) => a.email),
+      ...(eventAdmins || []).map(
+        (a: Record<string, unknown>) =>
+          (a.profile as unknown as { email: string })?.email
+      ),
+    ].filter((e): e is string => !!e);
+    toEmails.push(...adminEmails);
+  }
 
-  const uniqueAdminEmails = [...new Set(adminEmails)];
+  // Confirmed golfers for this week
+  if (sendToGolfers) {
+    const golferEmails = allPlayers.map((p) => p.email).filter(Boolean);
+    toEmails.push(...golferEmails);
+  }
+
+  const uniqueToEmails = [...new Set(toEmails)];
+
+  if (uniqueToEmails.length === 0) {
+    return { message: "No recipients configured for suggested groupings email", sent: 0 };
+  }
 
   // Fetch stored groupings if auto-grouping is enabled
   const groupings = event.allow_auto_grouping
@@ -1022,8 +1041,7 @@ async function handleProShopDetail(
   try {
     if (!isTest) {
       await sendEmail({
-        to: proShopEmails,
-        cc: uniqueAdminEmails,
+        to: uniqueToEmails,
         replyTo: primaryAdminEmail,
         subject: `${event.name}: ${formattedDate}: Player Details & Suggested Groups`,
         html: proShopHtml,
@@ -1038,23 +1056,23 @@ async function handleProShopDetail(
         event_id: event.id,
         schedule_id: schedule.id,
         email_type: "confirmation_proshop",
-        subject: `${event.name}: Pro Shop Detail`,
-        recipient_count: proShopEmails.length,
+        subject: `${event.name}: Suggested Groupings`,
+        recipient_count: uniqueToEmails.length,
       });
     }
 
     console.log(
-      `${isTest ? "[TEST] Would send" : "Sent"} pro shop detail to ${proShopEmails.join(", ")}`
+      `${isTest ? "[TEST] Would send" : "Sent"} suggested groupings email to ${uniqueToEmails.join(", ")}`
     );
 
     return {
-      message: `Pro shop email ${isTest ? "would be" : ""} sent`,
-      sent: proShopEmails.length,
+      message: `Suggested groupings email ${isTest ? "would be" : ""} sent`,
+      sent: uniqueToEmails.length,
     };
   } catch (err) {
-    console.error("Failed to send pro shop email:", err);
+    console.error("Failed to send suggested groupings email:", err);
     return {
-      message: "Failed to send pro shop email",
+      message: "Failed to send suggested groupings email",
       sent: 0,
       error: err instanceof Error ? err.message : "Unknown error",
     };
