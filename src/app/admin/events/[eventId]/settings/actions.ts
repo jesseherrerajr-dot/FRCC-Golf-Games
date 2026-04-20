@@ -351,7 +351,9 @@ export async function updateEmailTypeEnabled(
 
     if (error) throw error;
 
-    revalidatePath(`/admin/events/${eventId}/settings`);
+    // NOTE: No revalidatePath here — the toggle uses optimistic local state.
+    // Calling revalidatePath can cause the server component to re-render and
+    // reset client component state before the optimistic update settles.
     return { success: true };
   } catch (error) {
     console.error("Update email type enabled error:", error);
@@ -528,7 +530,9 @@ export async function updateGroupingEmailRecipients(
 
     if (error) throw error;
 
-    revalidatePath(`/admin/events/${eventId}/settings`);
+    // NOTE: No revalidatePath here — checkboxes use optimistic local state.
+    // Calling revalidatePath can cause the server component to re-render and
+    // reset client component state before the optimistic update settles.
     return { success: true };
   } catch (error) {
     console.error("Update grouping email recipients error:", error);

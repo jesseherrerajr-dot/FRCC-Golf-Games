@@ -408,7 +408,11 @@ export function EmailScheduleForm({
   ) => {
     setter(newValue);
     startTransition(async () => {
-      await updateEmailTypeEnabled(event.id, emailType, newValue);
+      const result = await updateEmailTypeEnabled(event.id, emailType, newValue);
+      if (result?.error) {
+        // Revert on failure
+        setter(!newValue);
+      }
     });
   };
 
