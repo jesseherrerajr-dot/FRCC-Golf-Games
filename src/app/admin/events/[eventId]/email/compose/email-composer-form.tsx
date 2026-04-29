@@ -3,8 +3,10 @@
 import { useState, useTransition } from "react";
 import {
   sendTargetedEmail,
+  sendProfileCompletionEmail,
   type EmailTarget,
   type EmailTemplate,
+  type ProfileField,
 } from "./actions";
 import { formatGameDate, formatGameDateShort } from "@/lib/format";
 
@@ -38,6 +40,12 @@ const TEMPLATES: {
     body: "Quick update regarding course conditions for [DATE]:\n\n[Course details here]\n\nSee you on the course!",
   },
   {
+    key: "complete_profile",
+    label: "Complete Your Profile",
+    subject: "Action Required: Complete Your FRCC Golf Games Profile",
+    body: "Hi [FIRST_NAME],\n\nWe noticed your FRCC Golf Games profile is missing some information. Completing your profile helps us organize groups, contact you about games, and set up playing partner preferences.\n\nIt only takes a minute — please visit your profile page to fill in the missing details.\n\nSee you on the course!",
+  },
+  {
     key: "custom",
     label: "Custom Message",
     subject: "",
@@ -45,7 +53,38 @@ const TEMPLATES: {
   },
 ];
 
-const TARGET_OPTIONS: { key: EmailTarget; label: string; description: string }[] = [
+const PROFILE_FIELDS: {
+  key: ProfileField;
+  label: string;
+  description: string;
+}[] = [
+  {
+    key: "phone",
+    label: "Phone Number",
+    description: "Golfers missing a phone number",
+  },
+  {
+    key: "ghin",
+    label: "GHIN Number",
+    description: "Golfers missing a GHIN number",
+  },
+  {
+    key: "playing_partners",
+    label: "Playing Partner Preferences",
+    description: "Golfers with no partner preferences set for this event",
+  },
+  {
+    key: "handicap",
+    label: "Handicap Index",
+    description: "Golfers with no handicap on file (manual or synced)",
+  },
+];
+
+const TARGET_OPTIONS: {
+  key: EmailTarget;
+  label: string;
+  description: string;
+}[] = [
   {
     key: "in",
     label: "Confirmed (In)",
@@ -88,6 +127,11 @@ export function EmailComposerForm({
   );
   const [target, setTarget] = useState<EmailTarget>("everyone");
   const [template, setTemplate] = useState<EmailTemplate>("custom");
+  const [profileFields, setProfileFields] = useState<ProfileField[]>([
+    "phone",
+    "ghin",
+    "playing_partners",
+  ]);
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [showPreview, setShowPreview] = useState(false);
@@ -97,15 +141,16 @@ export function EmailComposerForm({
     recipientCount?: number;
   } | null>(null);
 
+  const isProfileMode = template === "complete_profile";
   const selectedDate = schedules.find((s) => s.id === selectedSchedule)?.gameDate;
   const formattedDate = selectedDate ? formatGameDate(selectedDate) : "";
 
   const applyTemplate = (templateKey: EmailTemplate) => {
     setTemplate(templateKey);
+    setResult(null);
     const tmpl = TEMPLATES.find((t) => t.key === templateKey);
     if (!tmpl || templateKey === "custom") return;
 
-    // Replace placeholders
     setSubject(
       tmpl.subject
         .replace("[EVENT]", eventName)
@@ -118,34 +163,48 @@ export function EmailComposerForm({
     );
   };
 
-  const handleSend = () => {
-    if (!selectedSchedule || !subject.trim() || !body.trim()) return;
-
-    startTransition(async () => {
-      const res = await sendTargetedEmail(
-        eventId,
-        selectedSchedule,
-        target,
-        subject,
-        body
-      );
-      setResult(res);
-      if (res.success) {
-        setShowPreview(false);
-      }
-    });
+  const toggleProfileField = (field: ProfileField) => {
+    setProfileFields((prev) =>
+      prev.includes(field) ? prev.filter((f) => f !== field) : [...prev, field]
+    );
   };
 
-  if (schedules.length === 0) {
-    return (
-      <div className="rounded-lg border border-gray-200 bg-white p-8 text-center shadow-sm">
-        <p className="text-gray-500">
-          No upcoming games scheduled. Generate schedules first before sending
-          emails.
-        </p>
-      </div>
-    );
-  }
+  const handleSend = () => {
+    if (!subject.trim() || !body.trim()) return;
+
+    if (isProfileMode) {
+      if (profileFields.length === 0) return;
+      startTransition(async () => {
+        const res = await sendProfileCompletionEmail(
+          eventId,
+          profileFields,
+          subject,
+          body
+        );
+        setResult(res);
+        if (res.success) setShowPreview(false);
+      });
+    } else {
+      if (!selectedSchedule) return;
+      startTransition(async () => {
+        const res = await sendTargetedEmail(
+          eventId,
+          selectedSchedule,
+          target,
+          subject,
+          body
+        );
+        setResult(res);
+        if (res.success) setShowPreview(false);
+      });
+    }
+  };
+
+  const canSend =
+    !isPending &&
+    !!subject.trim() &&
+    !!body.trim() &&
+    (isProfileMode ? profileFields.length > 0 : !!selectedSchedule);
 
   return (
     <div className="space-y-6">
@@ -164,62 +223,10 @@ export function EmailComposerForm({
         </div>
       )}
 
-      {/* Step 1: Select Week */}
+      {/* Step 1: Choose Template */}
       <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
         <label className="block text-sm font-semibold text-gray-700">
-          1. Select Game Week
-        </label>
-        <select
-          value={selectedSchedule}
-          onChange={(e) => setSelectedSchedule(e.target.value)}
-          className="mt-2 block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm"
-        >
-          {schedules.map((s) => (
-            <option key={s.id} value={s.id}>
-              {formatGameDateShort(s.gameDate)}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {/* Step 2: Target Audience */}
-      <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
-        <label className="block text-sm font-semibold text-gray-700">
-          2. Target Audience
-        </label>
-        <div className="mt-3 space-y-2">
-          {TARGET_OPTIONS.map((opt) => (
-            <label
-              key={opt.key}
-              className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition ${
-                target === opt.key
-                  ? "border-teal-500 bg-navy-50"
-                  : "border-gray-200 hover:bg-gray-50"
-              }`}
-            >
-              <input
-                type="radio"
-                name="target"
-                value={opt.key}
-                checked={target === opt.key}
-                onChange={() => setTarget(opt.key)}
-                className="text-teal-600 focus:ring-teal-500"
-              />
-              <div>
-                <p className="text-sm font-medium text-gray-900">
-                  {opt.label}
-                </p>
-                <p className="text-xs text-gray-500">{opt.description}</p>
-              </div>
-            </label>
-          ))}
-        </div>
-      </div>
-
-      {/* Step 3: Template */}
-      <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
-        <label className="block text-sm font-semibold text-gray-700">
-          3. Choose Template (optional)
+          1. Choose Template
         </label>
         <div className="mt-3 flex flex-wrap gap-2">
           {TEMPLATES.map((tmpl) => (
@@ -238,11 +245,126 @@ export function EmailComposerForm({
         </div>
       </div>
 
-      {/* Step 4: Compose */}
+      {/* Step 2a: Game Week (standard templates) */}
+      {!isProfileMode && (
+        <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+          <label className="block text-sm font-semibold text-gray-700">
+            2. Select Game Week
+          </label>
+          {schedules.length === 0 ? (
+            <p className="mt-2 text-sm text-gray-500">
+              No upcoming games scheduled. Generate schedules first before
+              sending emails.
+            </p>
+          ) : (
+            <select
+              value={selectedSchedule}
+              onChange={(e) => setSelectedSchedule(e.target.value)}
+              className="mt-2 block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm"
+            >
+              {schedules.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {formatGameDateShort(s.gameDate)}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+      )}
+
+      {/* Step 2b: Profile Fields (complete_profile template) */}
+      {isProfileMode && (
+        <div className="rounded-lg border border-teal-200 bg-teal-50 p-5 shadow-sm">
+          <label className="block text-sm font-semibold text-gray-700">
+            2. Profile Fields to Check
+          </label>
+          <p className="mt-1 text-xs text-gray-500">
+            Active subscribers missing any checked field will receive this
+            email.
+          </p>
+          <div className="mt-3 space-y-2">
+            {PROFILE_FIELDS.map((field) => (
+              <label
+                key={field.key}
+                className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition ${
+                  profileFields.includes(field.key)
+                    ? "border-teal-500 bg-white"
+                    : "border-gray-200 bg-white hover:bg-gray-50"
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={profileFields.includes(field.key)}
+                  onChange={() => toggleProfileField(field.key)}
+                  className="text-teal-600 focus:ring-teal-500"
+                />
+                <div>
+                  <p className="text-sm font-medium text-gray-900">
+                    {field.label}
+                  </p>
+                  <p className="text-xs text-gray-500">{field.description}</p>
+                </div>
+              </label>
+            ))}
+          </div>
+          {profileFields.length === 0 && (
+            <p className="mt-2 text-xs text-red-500">
+              Select at least one field.
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Step 3: Target Audience (standard templates only) */}
+      {!isProfileMode && (
+        <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+          <label className="block text-sm font-semibold text-gray-700">
+            3. Target Audience
+          </label>
+          <div className="mt-3 space-y-2">
+            {TARGET_OPTIONS.map((opt) => (
+              <label
+                key={opt.key}
+                className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition ${
+                  target === opt.key
+                    ? "border-teal-500 bg-navy-50"
+                    : "border-gray-200 hover:bg-gray-50"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="target"
+                  value={opt.key}
+                  checked={target === opt.key}
+                  onChange={() => setTarget(opt.key)}
+                  className="text-teal-600 focus:ring-teal-500"
+                />
+                <div>
+                  <p className="text-sm font-medium text-gray-900">
+                    {opt.label}
+                  </p>
+                  <p className="text-xs text-gray-500">{opt.description}</p>
+                </div>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Step 3/4: Compose */}
       <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
         <label className="block text-sm font-semibold text-gray-700">
-          4. Compose Message
+          {isProfileMode ? "3" : "4"}. Compose Message
         </label>
+        {isProfileMode && (
+          <p className="mt-1 text-xs text-gray-500">
+            Use{" "}
+            <code className="rounded bg-gray-100 px-1 font-mono">
+              [FIRST_NAME]
+            </code>{" "}
+            to personalize each email with the golfer&apos;s name.
+          </p>
+        )}
 
         <div className="mt-3 space-y-3">
           <div>
@@ -285,9 +407,7 @@ export function EmailComposerForm({
 
         <button
           onClick={handleSend}
-          disabled={
-            isPending || !selectedSchedule || !subject.trim() || !body.trim()
-          }
+          disabled={!canSend}
           className="rounded-lg bg-teal-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-teal-500 disabled:opacity-50"
         >
           {isPending ? "Sending..." : "Send Email"}
@@ -303,8 +423,13 @@ export function EmailComposerForm({
           <div className="rounded bg-white p-4 shadow-sm">
             <p className="text-sm text-gray-500">
               <strong>To:</strong>{" "}
-              {TARGET_OPTIONS.find((t) => t.key === target)?.label} for{" "}
-              {formattedDate}
+              {isProfileMode
+                ? `Subscribers missing: ${profileFields
+                    .map(
+                      (f) => PROFILE_FIELDS.find((pf) => pf.key === f)?.label
+                    )
+                    .join(", ")}`
+                : `${TARGET_OPTIONS.find((t) => t.key === target)?.label} for ${formattedDate}`}
             </p>
             <p className="mt-1 text-sm text-gray-500">
               <strong>Subject:</strong> {subject}
@@ -316,6 +441,12 @@ export function EmailComposerForm({
             >
               {body}
             </div>
+            {isProfileMode && (
+              <p className="mt-3 text-xs text-gray-400">
+                [FIRST_NAME] will be replaced with each golfer&apos;s name when
+                sent.
+              </p>
+            )}
           </div>
         </div>
       )}
