@@ -85,7 +85,12 @@ export function useFieldValidation(
     [fields]
   );
 
-  return { errors, touched, handleBlur, validateField, validateAll };
+  const resetValidation = useCallback(() => {
+    setErrors({});
+    setTouched({});
+  }, []);
+
+  return { errors, touched, handleBlur, validateField, validateAll, resetValidation };
 }
 
 // ─── FieldError component ───────────────────────────────────────

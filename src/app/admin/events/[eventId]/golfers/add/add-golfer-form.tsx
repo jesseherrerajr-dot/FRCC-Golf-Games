@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useMemo } from "react";
+import { useActionState, useMemo, useState, useEffect, useRef } from "react";
 import { addEventGolfer, type AddEventGolferFormState } from "./actions";
 import Link from "next/link";
 import {
@@ -31,17 +31,34 @@ export function AddEventGolferForm({
     }),
     []
   );
-  const { errors, touched, handleBlur, validateAll } =
+  const { errors, touched, handleBlur, validateAll, resetValidation } =
     useFieldValidation(fieldDefs);
 
-  if (state.success) {
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [lastGolferName, setLastGolferName] = useState("");
+  const formRef = useRef<HTMLFormElement>(null);
+
+  useEffect(() => {
+    if (state.success && state.golferName) {
+      setLastGolferName(state.golferName);
+      setShowSuccess(true);
+    }
+  }, [state.success, state.golferName]);
+
+  function handleAddAnother() {
+    setShowSuccess(false);
+    resetValidation();
+    formRef.current?.reset();
+  }
+
+  if (showSuccess) {
     return (
       <div className="rounded-lg border border-teal-200 bg-teal-50 p-6">
         <h2 className="font-serif text-lg font-semibold text-teal-800">
           Golfer Added
         </h2>
         <p className="mt-2 text-sm text-teal-700">
-          <strong>{state.golferName}</strong> has been added to{" "}
+          <strong>{lastGolferName}</strong> has been added to{" "}
           <strong>{eventName}</strong> and will receive weekly invites starting
           immediately.
         </p>
@@ -55,12 +72,13 @@ export function AddEventGolferForm({
           >
             Back to Golfers
           </Link>
-          <Link
-            href={`/admin/events/${eventId}/golfers/add`}
+          <button
+            type="button"
+            onClick={handleAddAnother}
             className="rounded-md border border-teal-300 px-4 py-2 text-sm font-medium text-teal-700 hover:bg-teal-100"
           >
             Add Another
-          </Link>
+          </button>
         </div>
       </div>
     );
@@ -68,6 +86,7 @@ export function AddEventGolferForm({
 
   return (
     <form
+      ref={formRef}
       action={(formData) => {
         if (!validateAll(formData)) return;
         formAction(formData);
