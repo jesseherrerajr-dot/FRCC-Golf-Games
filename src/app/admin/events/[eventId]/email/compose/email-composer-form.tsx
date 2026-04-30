@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import {
   sendTargetedEmail,
   sendProfileCompletionEmail,
+  sendTestEmail,
   type EmailTarget,
   type EmailTemplate,
   type ProfileField,
@@ -129,7 +130,12 @@ export function EmailComposerForm({
   ]);
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
-  const [showPreview, setShowPreview] = useState(false);
+  const [isSendingTest, setIsSendingTest] = useState(false);
+  const [testResult, setTestResult] = useState<{
+    success?: boolean;
+    error?: string;
+    email?: string;
+  } | null>(null);
   const [result, setResult] = useState<{
     success?: boolean;
     error?: string;
@@ -164,8 +170,21 @@ export function EmailComposerForm({
     );
   };
 
+  const handleSendTest = async () => {
+    if (!subject.trim() || !body.trim()) return;
+    setIsSendingTest(true);
+    setTestResult(null);
+    try {
+      const res = await sendTestEmail(eventId, template, subject, body);
+      setTestResult(res);
+    } finally {
+      setIsSendingTest(false);
+    }
+  };
+
   const handleSend = () => {
     if (!subject.trim() || !body.trim()) return;
+    setTestResult(null);
 
     if (isProfileMode) {
       if (profileFields.length === 0) return;
@@ -177,7 +196,6 @@ export function EmailComposerForm({
           body
         );
         setResult(res);
-        if (res.success) setShowPreview(false);
       });
     } else {
       if (!selectedSchedule) return;
@@ -190,7 +208,6 @@ export function EmailComposerForm({
           body
         );
         setResult(res);
-        if (res.success) setShowPreview(false);
       });
     }
   };
@@ -390,14 +407,28 @@ export function EmailComposerForm({
         </div>
       </div>
 
-      {/* Preview + Send */}
+      {/* Test Result */}
+      {testResult?.success && (
+        <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+          <p className="text-sm font-medium text-blue-700">
+            Test email sent to {testResult.email}. Check your inbox!
+          </p>
+        </div>
+      )}
+      {testResult?.error && (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+          <p className="text-sm text-red-700">{testResult.error}</p>
+        </div>
+      )}
+
+      {/* Send Test + Send */}
       <div className="flex items-center gap-3">
         <button
-          onClick={() => setShowPreview(!showPreview)}
-          disabled={!subject.trim() || !body.trim()}
+          onClick={handleSendTest}
+          disabled={!subject.trim() || !body.trim() || isSendingTest || isPending}
           className="rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50"
         >
-          {showPreview ? "Hide Preview" : "Preview"}
+          {isSendingTest ? "Sending..." : "Send Test to Me"}
         </button>
 
         <button
@@ -408,60 +439,6 @@ export function EmailComposerForm({
           {isPending ? "Sending..." : "Send Email"}
         </button>
       </div>
-
-      {/* Preview Panel */}
-      {showPreview && (
-        <div className="rounded-lg border-2 border-dashed border-gray-300 p-6">
-          <p className="mb-2 text-xs font-medium uppercase text-gray-400">
-            Email Preview
-          </p>
-          <div className="rounded bg-white p-4 shadow-sm">
-            <p className="text-sm text-gray-500">
-              <strong>To:</strong>{" "}
-              {isProfileMode
-                ? `Subscribers missing: ${profileFields
-                    .map(
-                      (f) => PROFILE_FIELDS.find((pf) => pf.key === f)?.label
-                    )
-                    .join(", ")}`
-                : `${TARGET_OPTIONS.find((t) => t.key === target)?.label} for ${formattedDate}`}
-            </p>
-            <p className="mt-1 text-sm text-gray-500">
-              <strong>Subject:</strong> {subject}
-            </p>
-            <hr className="my-3" />
-            <div
-              className="prose prose-sm text-gray-700"
-              style={{ whiteSpace: "pre-wrap" }}
-            >
-              {body}
-            </div>
-            {isProfileMode && (
-              <>
-                <div className="mt-6 text-center">
-                  <span className="inline-block rounded-lg bg-[#3d7676] px-8 py-3 text-sm font-semibold text-white">
-                    Complete Your Profile
-                  </span>
-                </div>
-                <div className="mt-6 border-t border-gray-200 pt-4 text-center">
-                  <p className="text-xs text-gray-500">
-                    📱 <strong>Tip:</strong> Add FRCC Golf Games to your home screen for quick access.{" "}
-                    <span className="text-teal-600 underline">Learn how →</span>
-                  </p>
-                  <p className="mt-2 text-xs text-gray-400">
-                    FRCC Golf Games<br />
-                    Fairbanks Ranch Country Club
-                  </p>
-                </div>
-                <p className="mt-3 text-xs text-gray-400">
-                  [FIRST_NAME] will be replaced with each golfer&apos;s name when
-                  sent.
-                </p>
-              </>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
