@@ -320,9 +320,33 @@ export default function ProfilePage() {
           </button>
         </form>
 
+        {/* Scroll nudge to Playing Partner Preferences */}
+        {subscribedEvents.some((e) => e.allow_playing_partner_preferences) && (
+          <button
+            type="button"
+            onClick={() =>
+              document
+                .getElementById("playing-partner-preferences")
+                ?.scrollIntoView({ behavior: "smooth" })
+            }
+            className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 transition hover:bg-amber-100"
+          >
+            <span>Don&apos;t forget to set your playing partner preferences below</span>
+            <svg
+              className="h-4 w-4 flex-shrink-0"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={2}
+              stroke="currentColor"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 13.5 12 21m0 0-7.5-7.5M12 21V3" />
+            </svg>
+          </button>
+        )}
+
         {/* Playing Partner Preferences Section */}
         {subscribedEvents.length > 0 && (
-          <div className="mt-12 border-t border-gray-200 pt-12">
+          <div id="playing-partner-preferences" className="mt-12 border-t border-gray-200 pt-12">
             <h2 className="mb-2 text-2xl font-serif uppercase tracking-wide font-bold text-navy-900">
               Playing Partner Preferences
             </h2>
