@@ -60,7 +60,7 @@ interface ResponseTimingData {
   medianHours: number | null;
 }
 
-interface IncompleteGolfer {
+interface ProfileGolfer {
   id: string;
   name: string;
   displayName: string;
@@ -68,6 +68,7 @@ interface IncompleteGolfer {
   missingGhin: boolean;
   missingPhone: boolean;
   hasHandicap: boolean;
+  eventIds: string[];
 }
 
 interface ProfileCompletenessData {
@@ -75,7 +76,9 @@ interface ProfileCompletenessData {
   missingGhinCount: number;
   missingPhoneCount: number;
   incompleteCount: number;
-  golfers: IncompleteGolfer[];
+  allGolfers: ProfileGolfer[];
+  golfers: ProfileGolfer[];
+  events: { id: string; name: string }[];
 }
 
 // ============================================================
@@ -550,12 +553,25 @@ function ResponseTimingReport({ data }: { data: ResponseTimingData }) {
 
 function ProfileCompletenessReport({ data }: { data: ProfileCompletenessData }) {
   const [filter, setFilter] = useState<"all" | "ghin" | "phone">("all");
+  const [eventFilter, setEventFilter] = useState<string>("all");
 
-  const completionRate = data.totalActive > 0
-    ? Math.round(((data.totalActive - data.incompleteCount) / data.totalActive) * 100)
+  // Filter all golfers by event first
+  const eventFilteredAll = eventFilter === "all"
+    ? data.allGolfers
+    : data.allGolfers.filter((g) => g.eventIds.includes(eventFilter));
+
+  // Recalculate stats based on event filter
+  const totalActive = eventFilteredAll.length;
+  const missingGhinCount = eventFilteredAll.filter((g) => g.missingGhin).length;
+  const missingPhoneCount = eventFilteredAll.filter((g) => g.missingPhone).length;
+  const incompleteGolfers = eventFilteredAll.filter((g) => g.missingGhin || g.missingPhone);
+  const incompleteCount = incompleteGolfers.length;
+
+  const completionRate = totalActive > 0
+    ? Math.round(((totalActive - incompleteCount) / totalActive) * 100)
     : 100;
 
-  const filtered = data.golfers.filter((g) => {
+  const filtered = incompleteGolfers.filter((g) => {
     if (filter === "ghin") return g.missingGhin;
     if (filter === "phone") return g.missingPhone;
     return true;
@@ -564,15 +580,31 @@ function ProfileCompletenessReport({ data }: { data: ProfileCompletenessData }) 
   return (
     <CollapsibleSection
       title="Profile Completeness"
-      count={data.incompleteCount}
-      defaultOpen={data.incompleteCount > 0}
+      count={incompleteCount}
+      defaultOpen={incompleteCount > 0}
       emptyMessage="All golfer profiles are complete."
       badge={
-        data.incompleteCount > 0
+        incompleteCount > 0
           ? { label: "Needs Attention", className: "bg-amber-100 text-amber-700" }
           : { label: "All Good", className: "bg-teal-100 text-teal-700" }
       }
     >
+      {/* Event filter */}
+      {data.events.length > 1 && (
+        <div className="mb-4">
+          <select
+            value={eventFilter}
+            onChange={(e) => { setEventFilter(e.target.value); setFilter("all"); }}
+            className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+          >
+            <option value="all">All Events</option>
+            {data.events.map((ev) => (
+              <option key={ev.id} value={ev.id}>{ev.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
       {/* Summary tiles */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div className="rounded-lg border border-gray-200 bg-teal-50 p-3">
@@ -581,25 +613,25 @@ function ProfileCompletenessReport({ data }: { data: ProfileCompletenessData }) 
         </div>
         <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
           <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Active Golfers</p>
-          <p className="mt-1 text-2xl font-bold text-gray-900">{data.totalActive}</p>
+          <p className="mt-1 text-2xl font-bold text-gray-900">{totalActive}</p>
         </div>
         <div className="rounded-lg border border-gray-200 bg-amber-50 p-3">
           <p className="text-xs font-medium uppercase tracking-wide text-amber-700">Missing GHIN</p>
-          <p className="mt-1 text-2xl font-bold text-amber-900">{data.missingGhinCount}</p>
+          <p className="mt-1 text-2xl font-bold text-amber-900">{missingGhinCount}</p>
         </div>
         <div className="rounded-lg border border-gray-200 bg-amber-50 p-3">
           <p className="text-xs font-medium uppercase tracking-wide text-amber-700">Missing Phone</p>
-          <p className="mt-1 text-2xl font-bold text-amber-900">{data.missingPhoneCount}</p>
+          <p className="mt-1 text-2xl font-bold text-amber-900">{missingPhoneCount}</p>
         </div>
       </div>
 
-      {data.incompleteCount > 0 && (
+      {incompleteCount > 0 && (
         <>
           {/* Filter buttons */}
           <div className="mt-4 flex gap-2">
             {(["all", "ghin", "phone"] as const).map((f) => {
               const labels = { all: "All Incomplete", ghin: "Missing GHIN", phone: "Missing Phone" };
-              const counts = { all: data.incompleteCount, ghin: data.missingGhinCount, phone: data.missingPhoneCount };
+              const counts = { all: incompleteCount, ghin: missingGhinCount, phone: missingPhoneCount };
               return (
                 <button
                   key={f}

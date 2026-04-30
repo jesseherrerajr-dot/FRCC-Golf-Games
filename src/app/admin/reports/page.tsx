@@ -367,32 +367,43 @@ export default async function AdminReportsPage() {
     .order("last_name")
     .order("first_name");
 
-  const missingGhin = (allProfiles || []).filter(
-    (p) => !p.ghin_number || p.ghin_number.trim() === ""
-  );
-  const missingPhone = (allProfiles || []).filter(
-    (p) => !p.phone || p.phone.trim() === ""
-  );
-  const incompleteGolfers = (allProfiles || []).filter(
-    (p) =>
-      (!p.ghin_number || p.ghin_number.trim() === "") ||
-      (!p.phone || p.phone.trim() === "")
+  // Fetch event subscriptions for all active profiles to enable per-event filtering
+  const { data: allSubscriptions } = await supabase
+    .from("event_subscriptions")
+    .select("profile_id, event_id")
+    .eq("is_active", true);
+
+  const subscriptionsByProfile: Record<string, string[]> = {};
+  for (const sub of allSubscriptions || []) {
+    if (!subscriptionsByProfile[sub.profile_id]) {
+      subscriptionsByProfile[sub.profile_id] = [];
+    }
+    subscriptionsByProfile[sub.profile_id].push(sub.event_id);
+  }
+
+  const allProfilesMapped = (allProfiles || []).map((p) => ({
+    id: p.id,
+    name: formatFullName(p.first_name, p.last_name),
+    displayName: formatInitialLastName(p.first_name, p.last_name),
+    email: p.email,
+    missingGhin: !p.ghin_number || p.ghin_number.trim() === "",
+    missingPhone: !p.phone || p.phone.trim() === "",
+    hasHandicap: p.handicap_index !== null,
+    eventIds: subscriptionsByProfile[p.id] || [],
+  }));
+
+  const incompleteGolfers = allProfilesMapped.filter(
+    (p) => p.missingGhin || p.missingPhone
   );
 
   const profileCompletenessData = {
-    totalActive: (allProfiles || []).length,
-    missingGhinCount: missingGhin.length,
-    missingPhoneCount: missingPhone.length,
+    totalActive: allProfilesMapped.length,
+    missingGhinCount: allProfilesMapped.filter((p) => p.missingGhin).length,
+    missingPhoneCount: allProfilesMapped.filter((p) => p.missingPhone).length,
     incompleteCount: incompleteGolfers.length,
-    golfers: incompleteGolfers.map((p) => ({
-      id: p.id,
-      name: formatFullName(p.first_name, p.last_name),
-      displayName: formatInitialLastName(p.first_name, p.last_name),
-      email: p.email,
-      missingGhin: !p.ghin_number || p.ghin_number.trim() === "",
-      missingPhone: !p.phone || p.phone.trim() === "",
-      hasHandicap: p.handicap_index !== null,
-    })),
+    allGolfers: allProfilesMapped,
+    golfers: incompleteGolfers,
+    events: (allEvents || []).map((e) => ({ id: e.id, name: e.name })),
   };
 
   return (
