@@ -43,3 +43,6 @@ next-env.d.ts
 
 # repomix (generated codebase snapshot for LLM context)
 repomix-output.xml
+
+# claude worktrees (may contain secrets)
+.claude/worktrees/

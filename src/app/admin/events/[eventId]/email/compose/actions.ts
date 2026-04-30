@@ -20,7 +20,7 @@ export type EmailTemplate =
   | "complete_profile"
   | "custom";
 
-export type ProfileField = "phone" | "ghin" | "playing_partners" | "handicap";
+export type ProfileField = "phone" | "ghin" | "playing_partners";
 
 /** Shared email header with FRCC branding (matches lib/email.ts) */
 function emailHeader(title: string, subtitle?: string) {
@@ -231,7 +231,7 @@ export async function sendProfileCompletionEmail(
   const { data: subscriptions } = await supabase
     .from("event_subscriptions")
     .select(
-      "profile_id, profile:profiles(id, email, first_name, phone, ghin_number, manual_handicap_index, handicap_index)"
+      "profile_id, profile:profiles(id, email, first_name, phone, ghin_number)"
     )
     .eq("event_id", eventId)
     .eq("status", "active");
@@ -260,8 +260,6 @@ export async function sendProfileCompletionEmail(
     first_name: string;
     phone: string | null;
     ghin_number: string | null;
-    manual_handicap_index: number | null;
-    handicap_index: number | null;
   };
 
   // Include golfer if missing ANY of the selected fields
@@ -273,8 +271,6 @@ export async function sendProfileCompletionEmail(
       if (field === "phone") return !p.phone || p.phone.trim() === "";
       if (field === "ghin") return !p.ghin_number || p.ghin_number.trim() === "";
       if (field === "playing_partners") return !profilesWithPartnerPrefs.has(p.id);
-      if (field === "handicap")
-        return p.manual_handicap_index === null && p.handicap_index === null;
       return false;
     });
   });
@@ -313,9 +309,16 @@ export async function sendProfileCompletionEmail(
             <a href="${profileUrl}" style="display: inline-block; background: #3d7676; color: white; text-align: center; padding: 12px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 15px;">Complete Your Profile</a>
           </div>
 
-          <p style="color: #9ca3af; font-size: 12px; text-align: center;">
-            <a href="${siteUrl}/home" style="color: #3d7676;">Go to FRCC Golf Games</a>
-          </p>
+          <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+            <p style="font-size: 12px; color: #6b7280; text-align: center; margin: 0 0 12px 0;">
+              📱 <strong>Tip:</strong> Add FRCC Golf Games to your home screen for quick access.
+              <a href="${siteUrl}/install" style="color: #0d9488; text-decoration: underline;">Learn how →</a>
+            </p>
+            <p style="font-size: 12px; color: #9ca3af; text-align: center; margin: 0;">
+              FRCC Golf Games<br>
+              Fairbanks Ranch Country Club
+            </p>
+          </div>
         </div>
       `;
 

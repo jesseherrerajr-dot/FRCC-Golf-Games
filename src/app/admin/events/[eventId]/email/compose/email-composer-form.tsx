@@ -43,7 +43,7 @@ const TEMPLATES: {
     key: "complete_profile",
     label: "Complete Your Profile",
     subject: "Action Required: Complete Your FRCC Golf Games Profile",
-    body: "Hi [FIRST_NAME],\n\nWe noticed your FRCC Golf Games profile is missing some information. Completing your profile helps us organize groups, contact you about games, and set up playing partner preferences.\n\nIt only takes a minute — please visit your profile page to fill in the missing details.\n\nSee you on the course!",
+    body: "Hi [FIRST_NAME],\n\nYour FRCC Golf Games profile isn't complete. Please take 30 seconds to fill in the missing information (e.g. phone number, GHIN, playing partner preferences) to assist the event administrator.\n\nThank you!",
   },
   {
     key: "custom",
@@ -72,11 +72,6 @@ const PROFILE_FIELDS: {
     key: "playing_partners",
     label: "Playing Partner Preferences",
     description: "Golfers with no partner preferences set for this event",
-  },
-  {
-    key: "handicap",
-    label: "Handicap Index",
-    description: "Golfers with no handicap on file (manual or synced)",
   },
 ];
 
@@ -442,10 +437,27 @@ export function EmailComposerForm({
               {body}
             </div>
             {isProfileMode && (
-              <p className="mt-3 text-xs text-gray-400">
-                [FIRST_NAME] will be replaced with each golfer&apos;s name when
-                sent.
-              </p>
+              <>
+                <div className="mt-6 text-center">
+                  <span className="inline-block rounded-lg bg-[#3d7676] px-8 py-3 text-sm font-semibold text-white">
+                    Complete Your Profile
+                  </span>
+                </div>
+                <div className="mt-6 border-t border-gray-200 pt-4 text-center">
+                  <p className="text-xs text-gray-500">
+                    📱 <strong>Tip:</strong> Add FRCC Golf Games to your home screen for quick access.{" "}
+                    <span className="text-teal-600 underline">Learn how →</span>
+                  </p>
+                  <p className="mt-2 text-xs text-gray-400">
+                    FRCC Golf Games<br />
+                    Fairbanks Ranch Country Club
+                  </p>
+                </div>
+                <p className="mt-3 text-xs text-gray-400">
+                  [FIRST_NAME] will be replaced with each golfer&apos;s name when
+                  sent.
+                </p>
+              </>
             )}
           </div>
         </div>
