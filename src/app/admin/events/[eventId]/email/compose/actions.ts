@@ -326,7 +326,7 @@ export async function sendProfileCompletionEmail(
       "profile_id, profile:profiles(id, email, first_name, phone, ghin_number)"
     )
     .eq("event_id", eventId)
-    .eq("status", "active");
+    .eq("is_active", true);
 
   if (!subscriptions || subscriptions.length === 0) {
     return { error: "No active subscribers found for this event" };
