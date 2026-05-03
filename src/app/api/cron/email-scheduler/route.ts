@@ -43,14 +43,15 @@ import type { GameType } from "@/types/events";
  * Architecture:
  *   - Vercel Hobby plan limits crons to once-per-day frequency.
  *   - 6 daily crons, each firing 15 min after its paired dropdown option:
- *       Dropdown    Cron (PST)   UTC
- *        4:45 AM →  5:00 AM  → 0 13 * * *
- *        5:45 AM →  6:00 AM  → 0 14 * * *
- *       10:45 AM → 11:00 AM  → 0 19 * * *
- *       11:45 AM → 12:00 PM  → 0 20 * * *
- *        4:45 PM →  5:00 PM  → 0  1 * * *
- *        5:45 PM →  6:00 PM  → 0  2 * * *
- *   - During PDT (Mar–Nov), crons fire 1 hour later in Pacific Time.
+ *       Dropdown    Cron (PDT)   UTC
+ *        4:45 AM →  5:00 AM  → 0 12 * * *
+ *        5:45 AM →  6:00 AM  → 0 13 * * *
+ *       10:45 AM → 11:00 AM  → 0 18 * * *
+ *       11:45 AM → 12:00 PM  → 0 19 * * *
+ *        4:45 PM →  5:00 PM  → 0  0 * * *
+ *        5:45 PM →  6:00 PM  → 0  1 * * *
+ *   - Crons are calibrated for PDT (UTC-7, Mar–Nov). In Nov when clocks fall
+ *     back to PST (UTC-8), shift each UTC hour +1 to restore correct timing.
  *     The 3-hour send window in isWithinSendWindow() still catches every slot.
  *   - Duplicate sends are prevented by "already sent" flags on each schedule
  *     (invite_sent, reminder_sent, etc.), NOT by the time window.

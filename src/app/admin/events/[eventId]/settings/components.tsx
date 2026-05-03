@@ -40,16 +40,16 @@ const DAY_NAMES = [
 // Clustered in pairs (early morning, midday, evening) so that staggered
 // emails (e.g., golfer confirmation + pro shop detail) stay in close proximity.
 //
-// Dropdown → Cron (PST) → UTC
-//   4:45 AM →  5:00 AM  → 0 13 * * *
-//   5:45 AM →  6:00 AM  → 0 14 * * *
-//  10:45 AM → 11:00 AM  → 0 19 * * *
-//  11:45 AM → 12:00 PM  → 0 20 * * *
-//   4:45 PM →  5:00 PM  → 0  1 * * *
-//   5:45 PM →  6:00 PM  → 0  2 * * *
+// Dropdown → Cron (PDT) → UTC
+//   4:45 AM →  5:00 AM  → 0 12 * * *
+//   5:45 AM →  6:00 AM  → 0 13 * * *
+//  10:45 AM → 11:00 AM  → 0 18 * * *
+//  11:45 AM → 12:00 PM  → 0 19 * * *
+//   4:45 PM →  5:00 PM  → 0  0 * * *
+//   5:45 PM →  6:00 PM  → 0  1 * * *
 //
-// Note: During PDT (Mar–Nov), crons fire 1 hour later in Pacific Time.
-// The 3-hour send window in isWithinSendWindow() still catches every slot.
+// Calibrated for PDT (UTC-7, Mar–Nov). In Nov when clocks fall back to PST
+// (UTC-8), shift each UTC hour +1 to restore correct timing.
 const TIME_OPTIONS = [
   { value: "04:45", label: "4:45 AM" },
   { value: "05:45", label: "5:45 AM" },
