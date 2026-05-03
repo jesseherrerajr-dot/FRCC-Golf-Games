@@ -102,17 +102,15 @@ Every page (except the landing page and login) **must** have a `<Breadcrumbs>` c
 - `admin-actions.tsx` — Admin action items component
 - `golfers/page.tsx` — Global golfer directory (super admin only). Shows all golfers across all events with event filter.
 - `golfers/golfer-search.tsx` — Golfer search component with event filter
-- `golfers/[golferId]/page.tsx` — Global golfer detail page (status, subscriptions to all events, manual handicap entry)
-- `golfers/[golferId]/manual-handicap.tsx` — Manual handicap field wrapper (global context)
-- `golfers/[golferId]/actions.ts` — Global golfer detail server actions (manual handicap update)
+- `golfers/[golferId]/page.tsx` — Global golfer detail page (status, subscriptions to all events)
+- `golfers/[golferId]/actions.ts` — Global golfer detail server actions
 - `golfers/add/` — Add golfer globally with multi-event subscription picker
 - `events/[eventId]/page.tsx` — Event dashboard. Shows event summary metrics, action items, upcoming games, quick links.
 - `events/[eventId]/golfers/page.tsx` — Event-scoped golfer directory (includes "Add New Golfer" section at top)
 - `events/[eventId]/golfers/golfer-search.tsx` — Event-scoped golfer search
 - `events/[eventId]/golfers/add/` — Add golfer to specific event (auto-subscribes)
-- `events/[eventId]/golfers/[golferId]/page.tsx` — Event-scoped golfer detail (status, subscriptions for this event only, manual handicap entry)
-- `events/[eventId]/golfers/[golferId]/event-manual-handicap.tsx` — Manual handicap field wrapper (event context)
-- `events/[eventId]/golfers/[golferId]/actions.ts` — Event-scoped golfer detail server actions (manual handicap update)
+- `events/[eventId]/golfers/[golferId]/page.tsx` — Event-scoped golfer detail (status, subscriptions for this event only)
+- `events/[eventId]/golfers/[golferId]/actions.ts` — Event-scoped golfer detail server actions
 - `events/[eventId]/rsvp/[scheduleId]/page.tsx` — Event-scoped RSVP management redirect
 - `events/[eventId]/rsvp/[scheduleId]/rsvp-controls.tsx` — RSVP override controls (post-cutoff admin changes)
 - `events/[eventId]/rsvp/[scheduleId]/guest-controls.tsx` — Guest request approve/deny controls
@@ -135,7 +133,7 @@ Every page (except the landing page and login) **must** have a `<Breadcrumbs>` c
 - `cron/invite/route.ts` — Invite email sender (legacy, now handled by email-scheduler)
 - `cron/reminder/route.ts` — Reminder email sender (legacy, now handled by email-scheduler)
 - `cron/confirmation/route.ts` — Confirmation email sender (legacy, now handled by email-scheduler)
-- `cron/grouping/route.ts` — Grouping engine cron endpoint (runs at cutoff time, generates suggested foursomes)
+
 
 ### Shared Libraries (src/lib/)
 - `auth.ts` — Auth helpers (get current user, check admin role)
@@ -164,7 +162,6 @@ Every page (except the landing page and login) **must** have a `<Breadcrumbs>` c
 - `src/components/collapsible-section.tsx` — Shared collapsible section component (expand/collapse with chevron, count badge, optional "View All" link)
 - `src/components/weather-forecast.tsx` — Weather forecast display (full + compact variants)
 - `src/components/activity-tracker.tsx` — Client-side page view tracker (fires on route changes, logs to /api/activity)
-- `src/components/manual-handicap-field.tsx` — Shared admin-only manual handicap inline editor (used on global and event-scoped golfer detail pages)
 - `scripts/import-golfers.ts` — Batch import golfers from Excel
 - `scripts/delete-user.ts` — Delete a user script
 - `supabase/migrations/` — Database schema migrations (001–022)
@@ -345,8 +342,8 @@ All email types, days, and times below are **configurable per event** via the `e
 - First name (required)
 - Last name (required)
 - Email (required, validated, confirmed)
-- Phone (required, US 10-digit format)
-- GHIN number (required)
+- Phone (optional, US 10-digit format when provided)
+- GHIN number (optional)
 - All fields editable by the golfer at any time.
 
 ### Event Subscriptions
@@ -485,7 +482,7 @@ Handicap sync (migration 018):
 Handicap-based grouping methods (migration 019):
 - `events.grouping_method` — text, one of: `harmony`, `flight_foursomes`, `balanced_foursomes`, `flight_teams`, `balanced_teams`. Default `harmony`.
 - `events.flight_team_pairing` — text, `similar` or `random`. Default `similar`. Only used when `grouping_method = 'flight_teams'`.
-- `profiles.manual_handicap_index` — numeric(4,1), admin-entered handicap override. Takes precedence over GHIN-synced `handicap_index`.
+- `profiles.manual_handicap_index` — numeric(4,1), legacy column (no longer used in the app). The column remains in the database but is not read or written by any code.
 - `groupings.team_number` — smallint, nullable. Tracks 2-person team assignments for team-based grouping methods.
 
 Handicap history (migration 021):
@@ -695,7 +692,7 @@ The following is fully implemented and running in production:
 - **Weekly RSVP Cycle:** Tokenized RSVP links, automated invite/reminder/confirmation/suggested groupings emails (configurable per event), evite-style "In" list visibility, capacity and waitlist management, admin RSVP override (post-cutoff).
 - **Preferences:** Playing partner preferences (ranked 1–10, per-event, searchable dropdown with reordering). Tee time preferences (per-week on RSVP page).
 - **Admin Tools:** Schedule management (8-week rolling view, Game On/No Game toggle with cancellation emails), custom email composer with templates, action items/task summary, golfer directory with search/filter (global + event-scoped), golfer detail pages with subscription management, admin "Add Golfer" (direct add), admin "Add Golfer to Game" on RSVP management page (add subscribed golfers who missed the invite cycle), configurable email schedules (6 Vercel cron slots), admin notification emails (new_registration, capacity_reached, spot_opened, low_response), event-centric admin dashboard with summary cards, per-event admin scoping, help page with Golfer + Admin FAQ. Next-game display respects event `start_date` — events with a future start date don't show games before that date.
-- **Grouping Engine:** Five grouping methods: (1) Harmony — greedy heuristic with weighted partner preferences, tee time constraints, shuffle randomization; (2) Flight Foursomes — sorted by handicap, grouped by skill level; (3) Balanced ABCD Foursomes — round-robin tier distribution (one from each quartile per group); (4) Flight 2-Person Teams — adjacent handicap pairs, with similar or random foursome pairing; (5) Balanced 2-Person Teams — outside-in pairing (best+worst) for equal team totals. Handicap methods override partner/tee time preferences (with admin warning banner). Manual handicap entry on admin golfer detail pages (global + event-scoped). Handicap resolution: manual_handicap_index → handicap_index → 25.0 default. Guest-host pairing, group variety with 8-week lookback, configurable partner/tee time modes. 50+ unit tests. DB layer with team_number support, cron integration, suggested groupings email with grouped roster. See `docs/GROUPING_ENGINE_SPEC.md`.
+- **Grouping Engine:** Five grouping methods: (1) Harmony — greedy heuristic with weighted partner preferences, tee time constraints, shuffle randomization; (2) Flight Foursomes — sorted by handicap, grouped by skill level; (3) Balanced ABCD Foursomes — round-robin tier distribution (one from each quartile per group); (4) Flight 2-Person Teams — adjacent handicap pairs, with similar or random foursome pairing; (5) Balanced 2-Person Teams — outside-in pairing (best+worst) for equal team totals. Handicap methods override partner/tee time preferences (with admin warning banner). Handicap resolution: handicap_index → 25.0 default. Guest-host pairing, group variety with 8-week lookback, configurable partner/tee time modes. 50+ unit tests. DB layer with team_number support, cron integration, suggested groupings email with grouped roster. See `docs/GROUPING_ENGINE_SPEC.md`.
 - **Admin Reports:** Super-admin-only reports page (`/admin/reports`) with four reports: (1) **Golfer Engagement** — per-golfer RSVP response rates, participation rates, consecutive no-replies, ghost detection (3+ weeks unresponsive) across all events over the last 12 weeks, with filter/sort controls; (2) **Platform Activity** — login counts, page view counts, most visited pages, most active users over the last 30 days, powered by a new `activity_log` table and client-side `ActivityTracker` component; (3) **Response Timing** — distribution of how quickly golfers respond after invite emails, with median/average stats and bucket bar chart (within 1 hour, 1–4 hours, etc.) over the last 8 weeks; (4) **Profile Completeness** — identifies golfers missing GHIN numbers, phone numbers, or handicap data, with filter controls. Reports linked from admin dashboard.
 - **Activity Tracking Infrastructure:** `activity_log` table (migration 020) with RLS policies. Login events logged on both OTP verification and magic link callback. Page views logged via client-side `ActivityTracker` component in root layout → `/api/activity` POST endpoint. Lightweight fire-and-forget — never blocks auth or navigation.
 - **GHIN Handicap Sync:** Automated system to fetch current Handicap Index from GHIN for all golfers with a GHIN number. Uses unofficial GHIN mobile app API (`api2.ghin.com`) directly via HTTP — no npm dependency, fully patchable. Auth uses `email_or_ghin` + `password` + `token` fields. Syncs within 24 hours of each scheduled event via email-scheduler cron. Features: per-event toggle (`handicap_sync_enabled`), 20-golfer batch cap per cron run (stalest-first), 24-hour freshness window (shared across events for multi-event golfers), `handicap_sync_log` table for health monitoring, auto-alert on auth/total failure, status indicator in Event Settings. Handicap displayed on: golfer home page (My Profile section), golfer profile/edit page, admin golfer detail pages (global + event-scoped), both golfer directories (global + event-scoped, as HCP line on each row), and suggested groupings email (HCP column). Env vars: `GHIN_EMAIL`, `GHIN_PASSWORD` (must be set at the **Vercel project level**, not team level). Handicap history: every GHIN-synced value is recorded in the `handicap_history` table for per-golfer and group-level trend analysis. See `docs/HANDICAP_SYNC_SPEC.md`.

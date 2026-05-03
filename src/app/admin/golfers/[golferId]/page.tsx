@@ -12,7 +12,7 @@ import {
   ReactivateButton,
   PermanentlyDeleteGolferButton,
 } from "../../admin-actions";
-import { GolferManualHandicapField } from "./manual-handicap";
+
 
 export default async function GolferDetailPage({
   params,
@@ -40,19 +40,23 @@ export default async function GolferDetailPage({
     golferId
   );
 
+  const isPending = golfer.status === "pending_approval" || golfer.status === "pending_email";
+
   const statusLabel =
     golfer.status === "active"
       ? "Active"
       : golfer.status === "pending_approval"
         ? "Pending Approval"
-        : golfer.status === "deactivated"
-          ? "Deactivated"
-          : golfer.status;
+        : golfer.status === "pending_email"
+          ? "Pending Email Verification"
+          : golfer.status === "deactivated"
+            ? "Deactivated"
+            : golfer.status;
 
   const statusStyle =
     golfer.status === "active"
       ? "bg-teal-100 text-teal-700"
-      : golfer.status === "pending_approval"
+      : isPending
         ? "bg-yellow-100 text-yellow-700"
         : "bg-gray-100 text-gray-600";
 
@@ -81,7 +85,7 @@ export default async function GolferDetailPage({
                 </span>
               </div>
               <div className="flex gap-2">
-                {golfer.status === "pending_approval" && (
+                {isPending && (
                   <>
                     <ApproveButton profileId={golferId} />
                     <DenyButton profileId={golferId} />
@@ -119,11 +123,7 @@ export default async function GolferDetailPage({
                   {golfer.handicap_index != null ? golfer.handicap_index.toFixed(1) : "N/A"}
                 </dd>
               </div>
-              <GolferManualHandicapField
-                profileId={golfer.id}
-                manualHandicap={golfer.manual_handicap_index ?? null}
-                syncedHandicap={golfer.handicap_index ?? null}
-              />
+
               {golfer.handicap_index != null && golfer.handicap_updated_at && (
                 <div className="flex justify-between">
                   <dt className="text-gray-500">Last Synced</dt>

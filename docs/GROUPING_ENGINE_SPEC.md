@@ -1,6 +1,6 @@
 # Grouping Engine — Final Specification
 
-**Status:** Fully implemented — 5 grouping methods (harmony + 4 handicap-based), DB layer, cron integration, pro shop email with grouped roster + preference columns, manual handicap admin entry.
+**Status:** Fully implemented — 5 grouping methods (harmony + 4 handicap-based), DB layer, cron integration, pro shop email with grouped roster + preference columns.
 **Date:** March 21, 2026 (updated)
 **Owner:** Jesse Herrera
 
@@ -197,9 +197,8 @@ The **harmony multiplier** scales all raw pair scores before the greedy algorith
 
 When `events.grouping_method` is not `harmony`, the engine bypasses the harmony algorithm and uses handicap-based grouping. Partner preferences, tee time preferences, and group variety are all forced off.
 
-**Handicap Resolution:** `profiles.manual_handicap_index ?? profiles.handicap_index ?? 25.0`
-- Manual handicap (admin-entered) takes precedence
-- Falls back to GHIN-synced handicap
+**Handicap Resolution:** `profiles.handicap_index ?? 25.0`
+- Uses GHIN-synced handicap index
 - Falls back to 25.0 default (places golfer in lower flights)
 
 ### Method 1: Flight Foursomes (`flight_foursomes`)
@@ -322,7 +321,7 @@ ALTER TABLE public.events ADD COLUMN grouping_method text NOT NULL DEFAULT 'harm
   CONSTRAINT chk_grouping_method CHECK (grouping_method IN ('harmony', 'flight_foursomes', 'balanced_foursomes', 'flight_teams', 'balanced_teams'));
 ALTER TABLE public.events ADD COLUMN flight_team_pairing text NOT NULL DEFAULT 'similar'
   CONSTRAINT chk_flight_team_pairing CHECK (flight_team_pairing IN ('similar', 'random'));
-ALTER TABLE public.profiles ADD COLUMN manual_handicap_index numeric(4,1);
+ALTER TABLE public.profiles ADD COLUMN manual_handicap_index numeric(4,1);  -- legacy, no longer used by app code
 ALTER TABLE public.groupings ADD COLUMN team_number smallint;
 ```
 
@@ -333,15 +332,10 @@ ALTER TABLE public.groupings ADD COLUMN team_number smallint;
 ### New Files:
 - `supabase/migrations/010_grouping_engine.sql` — Schema changes (groupings table, rank column, feature flag)
 - `supabase/migrations/018_grouping_preferences.sql` — Grouping preference columns (partner mode, tee time mode, promote variety)
-- `supabase/migrations/019_handicap_grouping_methods.sql` — Handicap method columns (grouping_method, flight_team_pairing, manual_handicap_index, team_number)
+- `supabase/migrations/019_handicap_grouping_methods.sql` — Handicap method columns (grouping_method, flight_team_pairing, team_number)
 - `src/lib/grouping-engine.ts` — Core algorithm (pure function, no DB calls, shuffle support, configurable preference modes, 5 grouping methods)
 - `src/lib/grouping-engine.test.ts` — Unit tests for the algorithm (50+ tests including preference modes, variety, tee time priority, all handicap methods)
 - `src/lib/grouping-db.ts` — DB queries: fetch confirmed golfers (with handicap resolution), partner preferences, approved guests, tee time history, recent pairings; store groupings with team numbers; fetch stored groupings with preference annotations
-- `src/components/manual-handicap-field.tsx` — Shared admin-only manual handicap inline editor
-- `src/app/admin/golfers/[golferId]/manual-handicap.tsx` — Manual handicap wrapper (global golfer context)
-- `src/app/admin/golfers/[golferId]/actions.ts` — Server action for manual handicap update (global)
-- `src/app/admin/events/[eventId]/golfers/[golferId]/event-manual-handicap.tsx` — Manual handicap wrapper (event context)
-- `src/app/admin/events/[eventId]/golfers/[golferId]/actions.ts` — Server action for manual handicap update (event-scoped)
 
 ### Modified Files:
 - `src/lib/email.ts` — Pro shop email with grouped roster, 6-column table (Name, Email, Phone, GHIN, HCP, Tee Time, Player Pref), guest labels, preference annotations. Accepts optional `groupingMethod` to vary description text.
@@ -350,8 +344,6 @@ ALTER TABLE public.groupings ADD COLUMN team_number smallint;
 - `src/app/preferences/page.tsx` — Ranked partner list with up/down arrow reordering, email hidden from display (searchable only), partner search filtered to active + subscribed to same event only
 - `src/app/admin/events/[eventId]/settings/components.tsx` — Grouping method radio selector, flight team pairing sub-selector, amber override warning banner, greyed-out controls for handicap methods
 - `src/app/admin/events/[eventId]/settings/actions.ts` — Validates and persists grouping_method and flight_team_pairing
-- `src/app/admin/golfers/[golferId]/page.tsx` — Added manual handicap field display
-- `src/app/admin/events/[eventId]/golfers/[golferId]/page.tsx` — Added manual handicap field display
 
 ### Not Changed (by design):
 - Golfer confirmation email (no groupings shown — roster only)
@@ -366,7 +358,7 @@ ALTER TABLE public.groupings ADD COLUMN team_number smallint;
 These items are acknowledged and designed for but NOT included in this build:
 
 1. ~~**Round Robin tiebreaker**~~ — **Done.** Superseded by the Group Variety feature (Level 5). The `grouping_promote_variety` setting uses 8-week lookback with recency-weighted penalties.
-2. ~~**Handicap-based grouping methods**~~ — **Done.** Five methods implemented: harmony (original), flight foursomes, balanced ABCD foursomes, flight 2-person teams (similar/random pairing), balanced 2-person teams. Configurable via `events.grouping_method`. Manual handicap admin entry via `profiles.manual_handicap_index`.
+2. ~~**Handicap-based grouping methods**~~ — **Done.** Five methods implemented: harmony (original), flight foursomes, balanced ABCD foursomes, flight 2-person teams (similar/random pairing), balanced 2-person teams. Configurable via `events.grouping_method`. Handicap sourced from GHIN sync.
 3. **Admin drag-and-drop editing** — Groupings are read-only suggestions for now.
 4. ~~**Guest integration**~~ — **Done.** Guests are placed in their host's group, labeled in the pro shop email.
 5. **Standing tee time preference cleanup** — Table and UI left in place, just ignored by engine.

@@ -33,7 +33,7 @@ export function isTeamMethod(method: GroupingMethod): boolean {
   return method === 'flight_teams' || method === 'balanced_teams';
 }
 
-/** Default handicap index used when a golfer has no synced or manual handicap */
+/** Default handicap index used when a golfer has no GHIN-synced handicap */
 export const DEFAULT_HANDICAP_INDEX = 25.0;
 
 /** Admin-facing labels for grouping methods */
@@ -320,7 +320,7 @@ export interface GroupingOptions {
 export interface GroupingGolfer {
   profileId: string;
   teeTimePreference: TeeTimePreference;
-  /** Resolved handicap index: manual_handicap_index ?? handicap_index ?? DEFAULT_HANDICAP_INDEX */
+  /** Resolved handicap index: handicap_index ?? DEFAULT_HANDICAP_INDEX */
   handicapIndex: number;
 }
 

@@ -26,7 +26,7 @@ import { formatInitialLastName } from "./format";
  * Fetch confirmed golfers for a schedule with their per-week tee time preference
  * and resolved handicap index.
  *
- * Handicap resolution: manual_handicap_index ?? handicap_index ?? DEFAULT_HANDICAP_INDEX
+ * Handicap resolution: handicap_index ?? DEFAULT_HANDICAP_INDEX
  */
 export async function fetchConfirmedGolfers(
   supabase: SupabaseClient,
@@ -34,7 +34,7 @@ export async function fetchConfirmedGolfers(
 ): Promise<GroupingGolfer[]> {
   const { data, error } = await supabase
     .from("rsvps")
-    .select("profile_id, tee_time_preference, profile:profiles(handicap_index, manual_handicap_index)")
+    .select("profile_id, tee_time_preference, profile:profiles(handicap_index)")
     .eq("schedule_id", scheduleId)
     .eq("status", "in")
     .order("responded_at", { ascending: true });
@@ -47,11 +47,11 @@ export async function fetchConfirmedGolfers(
   return (data || []).map((r: Record<string, unknown>) => {
     // Supabase returns joined relations as arrays; unwrap to single object
     const profileData = Array.isArray(r.profile) ? r.profile[0] : r.profile;
-    const profile = profileData as { handicap_index: number | null; manual_handicap_index: number | null } | null;
+    const profile = profileData as { handicap_index: number | null } | null;
     return {
       profileId: r.profile_id as string,
       teeTimePreference: ((r.tee_time_preference as string) || "no_preference") as TeeTimePreference,
-      handicapIndex: profile?.manual_handicap_index ?? profile?.handicap_index ?? DEFAULT_HANDICAP_INDEX,
+      handicapIndex: profile?.handicap_index ?? DEFAULT_HANDICAP_INDEX,
     };
   });
 }

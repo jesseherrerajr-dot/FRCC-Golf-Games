@@ -15,7 +15,7 @@ A companion to CLAUDE.md. Where CLAUDE.md is the technical specification and imp
 **What's complete:**
 - Phases 1–2 (Foundation + Weekly RSVP Cycle) — fully shipped
 - Phase 4 (Admin Tools & Communication) — mostly complete, powering the production workflow
-- Grouping engine — 5 methods (harmony + 4 handicap-based: flight foursomes, balanced ABCD foursomes, flight 2-person teams, balanced 2-person teams). 50+ unit tests, cron integration, suggested groupings email integration, repeat foursome prevention, tee time preference limits, partner preference weighting, manual handicap admin entry
+- Grouping engine — 5 methods (harmony + 4 handicap-based: flight foursomes, balanced ABCD foursomes, flight 2-person teams, balanced 2-person teams). 50+ unit tests, cron integration, suggested groupings email integration, repeat foursome prevention, tee time preference limits, partner preference weighting
 - Playing partner preferences — ranked 1–10 with per-event scoping
 - Tee time preferences — per-week on RSVP page
 - Multi-event architecture — designed and implemented, second event being onboarded
@@ -31,14 +31,12 @@ A companion to CLAUDE.md. Where CLAUDE.md is the technical specification and imp
 - Registration event scoping fix — golfers registering via event-specific join links are now correctly subscribed to only that event on approval
 
 **What's on the roadmap (see CLAUDE.md Roadmap for details):**
-1. Email template review
+1. League Leaderboard & Season Scoring (Stableford points, cumulative standings)
+2. Email template review
 3. Guest workflow (architecture exists, feature-flagged OFF)
-4. Priority email batching (for when Resend free-tier limit is approached)
-5. Public "Who's Playing" view
-6. Golfer engagement & gamification stats
-7. Waitlist end-to-end testing & refinement
-8. Invite-a-friend / referral registration
-9. SMS / text notifications
+4. Golfer engagement & gamification stats
+5. Waitlist end-to-end testing & refinement
+6. SMS / WhatsApp notifications
 
 ---
 
@@ -83,7 +81,7 @@ These are final decisions reflected in the codebase and not open for reconsidera
 
 **Grouping Engine:**
 - Five methods: harmony (greedy heuristic with partner prefs), flight foursomes, balanced ABCD foursomes, flight 2-person teams, balanced 2-person teams.
-- Handicap methods use GHIN-synced or manual handicap index (resolution: manual → synced → 25.0 default). Override partner/tee time preferences when active.
+- Handicap methods use GHIN-synced handicap index (resolution: synced → 25.0 default). Override partner/tee time preferences when active.
 - Pure function design — no DB calls in the algorithm. DB layer is separate (`grouping-db.ts`).
 - Runs automatically at cutoff time via existing email-scheduler cron (no separate cron entry).
 - Feature-flagged per event (`allow_auto_grouping`). When disabled, suggested groupings email gets alphabetical roster.
@@ -266,24 +264,22 @@ See the Roadmap section of CLAUDE.md for the current prioritized list. Key items
 **Changes made:**
 1. **Added 4 handicap-based grouping methods** to the grouping engine alongside the existing harmony (partner preference) method: Flight Foursomes, Balanced ABCD Foursomes, Flight 2-Person Teams (similar/random foursome pairing sub-option), and Balanced 2-Person Teams.
 
-2. **Created migration 019** — Added `events.grouping_method`, `events.flight_team_pairing`, `profiles.manual_handicap_index`, and `groupings.team_number` columns.
+2. **Created migration 019** — Added `events.grouping_method`, `events.flight_team_pairing`, and `groupings.team_number` columns.
 
 3. **Updated admin Event Settings UI** — New grouping method radio selector (5 options) at the top of the Grouping Engine section. Flight team pairing sub-selector shown only for flight_teams. Amber warning banner when handicap method is active. Partner prefs, tee time prefs, and variety toggle are greyed out when overridden.
 
-4. **Added manual handicap entry** — Shared `ManualHandicapField` component used on both global and event-scoped admin golfer detail pages. Inline edit with save/cancel/clear. Validates range -10 to 54.
+4. **Updated cron/email integration** — When a handicap method is active, cron forces partner/tee time prefs off. Suggested groupings email description reflects the active method.
 
-5. **Updated cron/email integration** — When a handicap method is active, cron forces partner/tee time prefs off. Suggested groupings email description reflects the active method.
+5. **Updated DB layer** — `fetchConfirmedGolfers` resolves handicap (synced → 25.0 default). `storeGroupings` writes `team_number` for team methods.
 
-6. **Updated DB layer** — `fetchConfirmedGolfers` resolves handicap (manual → synced → 25.0 default). `storeGroupings` writes `team_number` for team methods.
-
-7. **Added 15 unit tests** for all new methods (type-checked clean, test runner unavailable in sandbox).
+6. **Added 15 unit tests** for all new methods (type-checked clean, test runner unavailable in sandbox).
 
 **Key decisions:**
-- **Handicap resolution hierarchy:** `manual_handicap_index ?? handicap_index ?? 25.0`. Manual always wins — allows admins to override GHIN-synced values for fairness.
+- **Handicap resolution:** `handicap_index ?? 25.0`. GHIN-synced value is used; 25.0 default for golfers without a synced handicap.
 - **Handicap methods override partner/tee time prefs** in the engine (forced off) but UI shows them greyed out with a warning banner rather than hiding them — so admins understand what's happening.
 - **2-person team methods output complete foursomes** — the engine pairs teams into foursomes (not just teams), producing a full tee sheet.
 - **Balanced teams use outside-in pairing** at both levels: team (A+D, B+C) and foursome (lowest combined team + highest combined team).
-- **Default handicap (25.0)** used for golfers with no synced or manual handicap. High enough to land them in lower flights, reasonable for casual golfers.
+- **Default handicap (25.0)** used for golfers with no GHIN-synced handicap. High enough to land them in lower flights, reasonable for casual golfers.
 
 ### Session: March 23, 2026
 

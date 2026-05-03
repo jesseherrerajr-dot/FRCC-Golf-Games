@@ -58,36 +58,6 @@ export async function adminSubscribeToEvent(
 }
 
 /**
- * Admin sets or clears a golfer's manual handicap index override.
- * Pass null to clear the override (revert to GHIN-synced value).
- */
-export async function updateManualHandicap(
-  profileId: string,
-  handicapIndex: number | null
-) {
-  const ctx = await requireAdminAction();
-  if (!ctx) return { error: "Not authorized" };
-
-  // Validate range if provided
-  if (handicapIndex !== null && (handicapIndex < -10 || handicapIndex > 54)) {
-    return { error: "Handicap index must be between -10 and 54" };
-  }
-
-  const { error } = await ctx.supabase
-    .from("profiles")
-    .update({ manual_handicap_index: handicapIndex })
-    .eq("id", profileId);
-
-  if (error) {
-    console.error("Update manual handicap error:", error);
-    return { error: "Failed to update handicap" };
-  }
-
-  revalidatePath(`/admin/golfers/${profileId}`);
-  return { success: true };
-}
-
-/**
  * Admin unsubscribes a golfer from an event.
  */
 export async function adminUnsubscribeFromEvent(
