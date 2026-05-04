@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import {
   sendEmail,
@@ -24,36 +24,51 @@ import { formatGameDateMonthDay, formatSponsorName, getSiteUrl } from "@/lib/for
 
 /**
  * Verify the current user is a super admin or event admin.
+ * Returns an admin supabase client (bypasses RLS), admin user id,
+ * and event admin assignments for event-scoped access checks.
  */
 async function requireAdminAccess() {
-  const supabase = await createClient();
+  const sessionSupabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await sessionSupabase.auth.getUser();
 
   if (!user) throw new Error("Not authenticated");
 
-  const { data: profile } = await supabase
+  const { data: profile } = await sessionSupabase
     .from("profiles")
     .select("is_super_admin")
     .eq("id", user.id)
     .single();
 
-  if (profile?.is_super_admin) {
-    return { supabase, adminId: user.id };
-  }
+  if (!profile) throw new Error("Profile not found");
 
-  const { data: eventAdmins } = await supabase
+  // Use admin client for data operations (bypasses RLS)
+  const supabase = createAdminClient();
+
+  const { data: eventAdmins } = await sessionSupabase
     .from("event_admins")
-    .select("id")
-    .eq("profile_id", user.id)
-    .limit(1);
+    .select("event_id")
+    .eq("profile_id", user.id);
 
-  if (!eventAdmins?.length) {
+  if (!profile.is_super_admin && (!eventAdmins || eventAdmins.length === 0)) {
     throw new Error("Not authorized");
   }
 
-  return { supabase, adminId: user.id };
+  const isSuperAdmin = profile.is_super_admin;
+  const adminEventIds = (eventAdmins || []).map((e: { event_id: string }) => e.event_id);
+
+  return { supabase, adminId: user.id, isSuperAdmin, adminEventIds };
+}
+
+/**
+ * Verify the admin has access to the event that a schedule belongs to.
+ */
+function verifyEventAccess(isSuperAdmin: boolean, adminEventIds: string[], eventId: string) {
+  if (isSuperAdmin) return;
+  if (!adminEventIds.includes(eventId)) {
+    throw new Error("Not authorized for this event");
+  }
 }
 
 /**
@@ -61,7 +76,7 @@ async function requireAdminAccess() {
  */
 export async function sendInviteNow(scheduleId: string) {
   try {
-    const { supabase } = await requireAdminAccess();
+    const { supabase, isSuperAdmin, adminEventIds } = await requireAdminAccess();
     const siteUrl = getSiteUrl();
 
     // Get schedule with event info
@@ -77,6 +92,9 @@ export async function sendInviteNow(scheduleId: string) {
 
     const event = schedule.event;
     if (!event) return { error: "Event not found" };
+
+    // Verify event access
+    verifyEventAccess(isSuperAdmin, adminEventIds, event.id);
 
     if (schedule.status === "cancelled") {
       return { error: "Game is cancelled" };
@@ -145,7 +163,7 @@ export async function sendInviteNow(scheduleId: string) {
  */
 export async function sendReminderNow(scheduleId: string) {
   try {
-    const { supabase } = await requireAdminAccess();
+    const { supabase, isSuperAdmin, adminEventIds } = await requireAdminAccess();
     const siteUrl = getSiteUrl();
 
     const { data: schedule, error: schedError } = await supabase
@@ -158,6 +176,9 @@ export async function sendReminderNow(scheduleId: string) {
 
     const event = schedule.event;
     if (!event) return { error: "Event not found" };
+
+    // Verify event access
+    verifyEventAccess(isSuperAdmin, adminEventIds, event.id);
 
     if (schedule.status === "cancelled") return { error: "Game is cancelled" };
 
@@ -239,7 +260,7 @@ export async function sendReminderNow(scheduleId: string) {
  */
 export async function sendGolferConfirmationNow(scheduleId: string) {
   try {
-    const { supabase } = await requireAdminAccess();
+    const { supabase, isSuperAdmin, adminEventIds } = await requireAdminAccess();
     const siteUrl = getSiteUrl();
 
     const { data: schedule, error: schedError } = await supabase
@@ -252,6 +273,9 @@ export async function sendGolferConfirmationNow(scheduleId: string) {
 
     const event = schedule.event;
     if (!event) return { error: "Event not found" };
+
+    // Verify event access
+    verifyEventAccess(isSuperAdmin, adminEventIds, event.id);
 
     if (schedule.status === "cancelled") return { error: "Game is cancelled" };
 
@@ -411,7 +435,7 @@ export async function sendGolferConfirmationNow(scheduleId: string) {
  */
 export async function sendProShopDetailNow(scheduleId: string) {
   try {
-    const { supabase } = await requireAdminAccess();
+    const { supabase, isSuperAdmin, adminEventIds } = await requireAdminAccess();
 
     const { data: schedule, error: schedError } = await supabase
       .from("event_schedules")
@@ -423,6 +447,9 @@ export async function sendProShopDetailNow(scheduleId: string) {
 
     const event = schedule.event;
     if (!event) return { error: "Event not found" };
+
+    // Verify event access
+    verifyEventAccess(isSuperAdmin, adminEventIds, event.id);
 
     if (schedule.status === "cancelled") return { error: "Game is cancelled" };
 

@@ -1,6 +1,7 @@
 "use server";
 
-import { requireAdmin } from "@/lib/auth";
+import { requireAdmin, hasEventAccess } from "@/lib/auth";
+import { createAdminClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { sendEmail } from "@/lib/email";
 
@@ -8,7 +9,20 @@ export async function approveGuestRequest(
   guestRequestId: string,
   scheduleId: string
 ) {
-  const { supabase, profile } = await requireAdmin();
+  const { profile, adminEvents } = await requireAdmin();
+  // Use admin client for data operations (bypasses RLS)
+  const supabase = createAdminClient();
+
+  // Verify event access via the schedule
+  const { data: scheduleCheck } = await supabase
+    .from("event_schedules")
+    .select("event_id")
+    .eq("id", scheduleId)
+    .single();
+
+  if (scheduleCheck && !hasEventAccess(profile, adminEvents, scheduleCheck.event_id)) {
+    return { error: "Not authorized for this event" };
+  }
 
   // Fetch the guest request
   const { data: guestRequest, error: fetchError } = await supabase
@@ -110,7 +124,20 @@ export async function denyGuestRequest(
   guestRequestId: string,
   scheduleId: string
 ) {
-  const { supabase, profile } = await requireAdmin();
+  const { profile, adminEvents } = await requireAdmin();
+  // Use admin client for data operations (bypasses RLS)
+  const supabase = createAdminClient();
+
+  // Verify event access via the schedule
+  const { data: scheduleCheck } = await supabase
+    .from("event_schedules")
+    .select("event_id")
+    .eq("id", scheduleId)
+    .single();
+
+  if (scheduleCheck && !hasEventAccess(profile, adminEvents, scheduleCheck.event_id)) {
+    return { error: "Not authorized for this event" };
+  }
 
   // Fetch the guest request first
   const { data: guestRequest, error: fetchError } = await supabase

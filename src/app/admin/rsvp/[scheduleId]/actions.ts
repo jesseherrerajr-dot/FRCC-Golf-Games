@@ -1,41 +1,58 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
 /**
  * Verify the current user is a super admin or event admin.
- * Returns the supabase client and admin user id, or throws.
+ * Returns an admin supabase client (bypasses RLS), the admin user id,
+ * and event admin assignments for event-scoped access checks.
+ * Auth verification uses the session-based client; data operations use the admin client
+ * so event admins have full access to RSVPs they manage.
  */
 async function requireAdminAccess() {
-  const supabase = await createClient();
+  const sessionSupabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await sessionSupabase.auth.getUser();
 
   if (!user) throw new Error("Not authenticated");
 
-  const { data: profile } = await supabase
+  const { data: profile } = await sessionSupabase
     .from("profiles")
     .select("is_super_admin")
     .eq("id", user.id)
     .single();
 
-  if (profile?.is_super_admin) {
-    return { supabase, adminId: user.id };
-  }
+  if (!profile) throw new Error("Profile not found");
 
-  const { data: eventAdmins } = await supabase
+  // Use admin client for data operations (bypasses RLS)
+  const supabase = createAdminClient();
+
+  const { data: eventAdmins } = await sessionSupabase
     .from("event_admins")
-    .select("id")
-    .eq("profile_id", user.id)
-    .limit(1);
+    .select("event_id")
+    .eq("profile_id", user.id);
 
-  if (!eventAdmins?.length) {
+  if (!profile.is_super_admin && (!eventAdmins || eventAdmins.length === 0)) {
     throw new Error("Not authorized");
   }
 
-  return { supabase, adminId: user.id };
+  const isSuperAdmin = profile.is_super_admin;
+  const adminEventIds = (eventAdmins || []).map((e: { event_id: string }) => e.event_id);
+
+  return { supabase, adminId: user.id, isSuperAdmin, adminEventIds };
+}
+
+/**
+ * Verify the admin has access to the event that a schedule belongs to.
+ * Super admins always have access. Event admins only have access to their assigned events.
+ */
+function verifyEventAccess(isSuperAdmin: boolean, adminEventIds: string[], eventId: string) {
+  if (isSuperAdmin) return;
+  if (!adminEventIds.includes(eventId)) {
+    throw new Error("Not authorized for this event");
+  }
 }
 
 /**
@@ -47,18 +64,22 @@ export async function adminUpdateRsvpStatus(
   scheduleId: string
 ) {
   try {
-    const { supabase, adminId } = await requireAdminAccess();
+    const { supabase, adminId, isSuperAdmin, adminEventIds } = await requireAdminAccess();
 
-    // Get the current RSVP
+    // Get the current RSVP with schedule info for event access check
     const { data: rsvp, error: fetchError } = await supabase
       .from("rsvps")
-      .select("id, status, profile_id, schedule_id, waitlist_position")
+      .select("id, status, profile_id, schedule_id, waitlist_position, schedule:event_schedules(event_id)")
       .eq("id", rsvpId)
       .single();
 
     if (fetchError || !rsvp) {
       return { error: "RSVP not found" };
     }
+
+    // Verify event access
+    const eventId = (rsvp.schedule as unknown as { event_id: string })?.event_id;
+    if (eventId) verifyEventAccess(isSuperAdmin, adminEventIds, eventId);
 
     if (rsvp.status === newStatus) {
       return { success: true }; // No change needed
@@ -129,12 +150,12 @@ export async function adminPromoteFromWaitlist(
   scheduleId: string
 ) {
   try {
-    const { supabase, adminId } = await requireAdminAccess();
+    const { supabase, adminId, isSuperAdmin, adminEventIds } = await requireAdminAccess();
 
-    // Get the waitlisted RSVP
+    // Get the waitlisted RSVP with schedule info for event access check
     const { data: rsvp, error: fetchError } = await supabase
       .from("rsvps")
-      .select("id, status, profile_id, schedule_id, waitlist_position")
+      .select("id, status, profile_id, schedule_id, waitlist_position, schedule:event_schedules(event_id)")
       .eq("id", rsvpId)
       .eq("status", "waitlisted")
       .single();
@@ -142,6 +163,10 @@ export async function adminPromoteFromWaitlist(
     if (fetchError || !rsvp) {
       return { error: "Waitlisted RSVP not found" };
     }
+
+    // Verify event access
+    const eventId = (rsvp.schedule as unknown as { event_id: string })?.event_id;
+    if (eventId) verifyEventAccess(isSuperAdmin, adminEventIds, eventId);
 
     // Promote to "in"
     const { error: updateError } = await supabase
@@ -214,7 +239,10 @@ export async function getEligibleGolfersForGame(
   eventId: string
 ) {
   try {
-    const { supabase } = await requireAdminAccess();
+    const { supabase, isSuperAdmin, adminEventIds } = await requireAdminAccess();
+
+    // Verify event access
+    verifyEventAccess(isSuperAdmin, adminEventIds, eventId);
 
     // Get all active, subscribed golfers for this event
     const { data: subscribers } = await supabase
@@ -280,7 +308,7 @@ export async function adminAddGolferToGame(
   status: "in" | "no_response" = "in"
 ) {
   try {
-    const { supabase, adminId } = await requireAdminAccess();
+    const { supabase, adminId, isSuperAdmin, adminEventIds } = await requireAdminAccess();
 
     // Verify the schedule exists
     const { data: schedule, error: schedError } = await supabase
@@ -292,6 +320,9 @@ export async function adminAddGolferToGame(
     if (schedError || !schedule) {
       return { error: "Schedule not found" };
     }
+
+    // Verify event access
+    verifyEventAccess(isSuperAdmin, adminEventIds, schedule.event_id);
 
     // Verify golfer is subscribed and active
     const { data: sub } = await supabase

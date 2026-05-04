@@ -90,7 +90,7 @@ export default async function AdminDashboard() {
       const { data: pendingForEvent } = await supabase
         .from("profiles")
         .select("*")
-        .eq("status", "pending_approval")
+        .in("status", ["pending_approval", "pending_email"])
         .eq("is_guest", false)
         .or(`registration_event_id.eq.${event.id},registration_event_id.is.null`);
 

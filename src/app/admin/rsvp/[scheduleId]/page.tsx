@@ -1,5 +1,6 @@
-import { requireAdmin } from "@/lib/auth";
-import { notFound } from "next/navigation";
+import { requireAdmin, hasEventAccess } from "@/lib/auth";
+import { createAdminClient } from "@/lib/supabase/server";
+import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { CollapsibleSection } from "@/components/collapsible-section";
@@ -20,7 +21,12 @@ export default async function AdminRsvpPage({
   params: Promise<{ scheduleId: string }>;
 }) {
   const { scheduleId } = await params;
-  const { supabase } = await requireAdmin();
+  // Verify the user is an admin (session-based auth check)
+  const { profile, adminEvents } = await requireAdmin();
+  // Use admin client for data queries — bypasses RLS so event admins
+  // see the same data as super admins. Access control is enforced by
+  // requireAdmin() above and the hasEventAccess() check below.
+  const supabase = createAdminClient();
 
   // Fetch the schedule with event info
   const { data: schedule, error: schedError } = await supabase
@@ -31,6 +37,11 @@ export default async function AdminRsvpPage({
 
   if (schedError || !schedule) {
     notFound();
+  }
+
+  // Verify this admin has access to the event this schedule belongs to
+  if (!hasEventAccess(profile, adminEvents, schedule.event_id)) {
+    redirect("/admin");
   }
 
   const event = schedule.event;
@@ -44,8 +55,6 @@ export default async function AdminRsvpPage({
     )
     .eq("schedule_id", scheduleId)
     .order("responded_at", { ascending: true, nullsFirst: false });
-
-  console.log('Admin RSVP query:', { scheduleId, rsvps, error: rsvpsError });
 
   const allRsvps = rsvps || [];
 

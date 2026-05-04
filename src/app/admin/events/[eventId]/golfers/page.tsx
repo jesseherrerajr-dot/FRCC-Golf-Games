@@ -60,7 +60,7 @@ export default async function EventGolferDirectoryPage({
   if (statusFilter === "active") {
     allGolfers = allGolfers.filter((m: any) => m.status === "active");
   } else if (statusFilter === "pending") {
-    allGolfers = allGolfers.filter((m: any) => m.status === "pending_approval");
+    allGolfers = allGolfers.filter((m: any) => m.status === "pending_approval" || m.status === "pending_email");
   } else if (statusFilter === "deactivated") {
     allGolfers = allGolfers.filter((m: any) => m.status === "deactivated");
   }
@@ -108,7 +108,7 @@ export default async function EventGolferDirectoryPage({
   const activeCount = allGolfers.filter((m: any) => m.status === "active")
     .length;
   const pendingCount = allGolfers.filter(
-    (m: any) => m.status === "pending_approval"
+    (m: any) => m.status === "pending_approval" || m.status === "pending_email"
   ).length;
   const deactivatedCount = allGolfers.filter(
     (m: any) => m.status === "deactivated"
@@ -277,6 +277,7 @@ function StatusBadge({
         </span>
       );
     case "pending_approval":
+    case "pending_email":
       return (
         <span className="inline-flex rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-700">
           Pending
@@ -311,8 +312,9 @@ function GolferActions({
   const golferIsSuperAdmin = golfer.is_super_admin as boolean;
 
   // Only show inline action buttons for statuses that need quick actions
+  const isPending = status === "pending_approval" || status === "pending_email";
   const hasActions =
-    status === "pending_approval" ||
+    isPending ||
     (status === "active" && !golferIsSuperAdmin) ||
     status === "deactivated";
 
@@ -320,7 +322,7 @@ function GolferActions({
 
   return (
     <div className="ml-3 flex shrink-0 items-center gap-2">
-      {status === "pending_approval" && (
+      {isPending && (
         <>
           <ApproveButton profileId={id} />
           <DenyButton profileId={id} />

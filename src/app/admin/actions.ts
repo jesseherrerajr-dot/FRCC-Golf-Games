@@ -38,9 +38,9 @@ export async function approveRegistration(profileId: string) {
   // Fetch the profile to check for event-specific registration
   const { data: pendingProfile } = await supabase
     .from("profiles")
-    .select("registration_event_id")
+    .select("registration_event_id, status")
     .eq("id", profileId)
-    .eq("status", "pending_approval")
+    .in("status", ["pending_approval", "pending_email"])
     .single();
 
   if (!pendingProfile) {
@@ -51,7 +51,7 @@ export async function approveRegistration(profileId: string) {
     .from("profiles")
     .update({ status: "active" })
     .eq("id", profileId)
-    .eq("status", "pending_approval");
+    .in("status", ["pending_approval", "pending_email"]);
 
   if (error) {
     console.error("Approve error:", error);
@@ -111,7 +111,7 @@ export async function denyRegistration(profileId: string) {
     .from("profiles")
     .update({ status: "deactivated" })
     .eq("id", profileId)
-    .eq("status", "pending_approval");
+    .in("status", ["pending_approval", "pending_email"]);
 
   if (error) {
     console.error("Deny error:", error);

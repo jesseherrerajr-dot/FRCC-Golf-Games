@@ -1,4 +1,5 @@
 import { requireAdmin, hasEventAccess } from "@/lib/auth";
+import { createAdminClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Breadcrumbs } from "@/components/breadcrumbs";
@@ -17,11 +18,16 @@ export default async function EventDashboardPage({
   params: Promise<{ eventId: string }>;
 }) {
   const { eventId } = await params;
-  const { supabase, profile, adminEvents } = await requireAdmin();
+  const { profile, adminEvents } = await requireAdmin();
 
   if (!hasEventAccess(profile, adminEvents, eventId)) {
     redirect("/admin");
   }
+
+  // Use admin client for data queries — bypasses RLS so event admins
+  // see the same data as super admins. Access control is enforced by
+  // requireAdmin() + hasEventAccess() above.
+  const supabase = createAdminClient();
 
   // Fetch event details
   const { data: event } = await supabase
@@ -41,7 +47,7 @@ export default async function EventDashboardPage({
   const { data: pendingGolfers } = await supabase
     .from("profiles")
     .select("*")
-    .eq("status", "pending_approval")
+    .in("status", ["pending_approval", "pending_email"])
     .eq("is_guest", false)
     .or(
       `registration_event_id.eq.${eventId},registration_event_id.is.null`
