@@ -42,6 +42,16 @@ export default async function DashboardPage() {
     .select("*")
     .eq("is_active", true);
 
+  // Fetch league configs for all events (to show "League Info" link conditionally)
+  const { data: leagueConfigs } = await supabase
+    .from("event_league_config")
+    .select("event_id, league_enabled")
+    .eq("league_enabled", true);
+
+  const leagueEnabledEventIds = new Set(
+    (leagueConfigs || []).map((c) => c.event_id)
+  );
+
   // Merge subscriptions with event data
   const subscriptions = (rawSubs || []).map((sub) => {
     const event = (allEvents || []).find((e) => e.id === sub.event_id);
@@ -183,6 +193,7 @@ export default async function DashboardPage() {
                     const event = sub.event as {
                       id: string;
                       name: string;
+                      slug: string | null;
                       day_of_week: number | null;
                       frequency: string | null;
                       game_type?: string;
@@ -286,6 +297,26 @@ export default async function DashboardPage() {
                               No upcoming game scheduled
                             </p>
                           </div>
+                        )}
+
+                        {/* League Info link — only for events with league enabled */}
+                        {event && event.slug && leagueEnabledEventIds.has(event.id) && (
+                          <Link
+                            href={`/league/${event.slug}`}
+                            className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 transition-colors hover:bg-teal-50/30"
+                          >
+                            <div className="flex items-center gap-2">
+                              <svg className="h-4 w-4 text-teal-600" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 18.75h-9m9 0a3 3 0 013 3h-15a3 3 0 013-3m9 0v-3.375c0-.621-.503-1.125-1.125-1.125h-.871M7.5 18.75v-3.375c0-.621.504-1.125 1.125-1.125h.872m5.007 0H9.497m5.007 0a7.454 7.454 0 01-.982-3.172M9.497 14.25a7.454 7.454 0 00.981-3.172M5.25 4.236c-.982.143-1.954.317-2.916.52A6.003 6.003 0 007.73 9.728M5.25 4.236V4.5c0 2.108.966 3.99 2.48 5.228M5.25 4.236V2.721C7.456 2.41 9.71 2.25 12 2.25c2.291 0 4.545.16 6.75.47v1.516M18.75 4.236c.982.143 1.954.317 2.916.52A6.003 6.003 0 0016.27 9.728M18.75 4.236V4.5c0 2.108-.966 3.99-2.48 5.228m0 0a6.023 6.023 0 01-2.77.896m5.25-5.124a6.002 6.002 0 01-5.25 5.124" />
+                              </svg>
+                              <span className="text-sm font-medium text-teal-700">
+                                League Info
+                              </span>
+                            </div>
+                            <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                            </svg>
+                          </Link>
                         )}
                       </div>
                     );

@@ -61,6 +61,7 @@ Every page (except the landing page and login) **must** have a `<Breadcrumbs>` c
 | Admin → Add Golfer (global) | `Admin > Golfers > Add Golfer` |
 | Admin → Add Golfer (event) | `Admin > [Event Name] > Golfers > Add Golfer` |
 | Admin → Reports | `Admin > Reports` |
+| League Info | `Home > [Event Name] > League Info` |
 
 ### Typography Standards
 - **Page titles (h1)**: All page titles must use `text-2xl font-serif uppercase tracking-wide font-bold text-navy-900`. Landing and login pages use larger sizes (`text-3xl` or `text-4xl`) but always include `font-serif uppercase tracking-wide`.
@@ -95,6 +96,7 @@ Every page (except the landing page and login) **must** have a `<Breadcrumbs>` c
 - `preferences/` — Redirects to `/profile` (playing partner preferences now scoped per-event on profile page)
 - `help/` — Help documentation with expandable Golfer FAQ + Admin FAQ sections
 - `rsvp/[token]/` — Tokenized RSVP page (one-tap In/Out/Not Sure, guest requests, tee time pref)
+- `league/[slug]/` — League info page (leaderboard, scoring, rules). Only accessible for events with league_enabled=true. Contains: `page.tsx` (server component), `league-tabs.tsx` (tab switching), `leaderboard.tsx` (sortable standings grid with sticky columns).
 
 ### Admin Pages (src/app/admin/)
 - `page.tsx` — Admin dashboard. Super admins see event summary cards for all events + global section. Event admins see only assigned events.
@@ -153,10 +155,11 @@ Every page (except the landing page and login) **must** have a `<Breadcrumbs>` c
 - `grouping-db.ts` — DB queries: fetch confirmed golfers (with handicap resolution), partner preferences, approved guests; store groupings with guest placement and team numbers; fetch stored groupings with tee time + partner preference annotations
 - `weather.ts` — Open-Meteo weather API integration, caching, golfability scoring, email HTML generation
 - `handicap-sync.ts` — GHIN Handicap Index sync service: authenticates with unofficial GHIN API, fetches handicap indices by GHIN number, updates profiles, logs sync runs, health monitoring helpers
+- `league.ts` — League info helpers: fetch config/tabs/scores by slug or event ID, compute season weeks, build leaderboard with best-N-of-M aggregation and rank calculation
 
 ### Other Key Files
 - `src/middleware.ts` — Next.js middleware (auth redirects, session refresh)
-- `src/types/events.ts` — TypeScript types for events, RSVPs, profiles, groupings
+- `src/types/events.ts` — TypeScript types for events, RSVPs, profiles, groupings, league info
 - `src/components/header.tsx` — Shared header/nav component
 - `src/components/event-context-bar.tsx` — Event context indicator + event switcher (shows on `/admin/events/[eventId]/*` pages)
 - `src/components/collapsible-section.tsx` — Shared collapsible section component (expand/collapse with chevron, count badge, optional "View All" link)
@@ -461,7 +464,7 @@ Admin → Events → [Event] → Emails → Compose allows:
 ## Technical Architecture
 
 ### Database: Supabase (PostgreSQL)
-Key tables: profiles, events, event_admins, event_subscriptions, event_schedules, rsvps, guest_requests, playing_partner_preferences, pro_shop_contacts (legacy), pro_shop_contacts_directory (global), event_pro_shop_contact_links (junction), email_templates, email_log, event_email_schedules, event_alert_settings, groupings, weather_cache, handicap_sync_log, activity_log.
+Key tables: profiles, events, event_admins, event_subscriptions, event_schedules, rsvps, guest_requests, playing_partner_preferences, pro_shop_contacts (legacy), pro_shop_contacts_directory (global), event_pro_shop_contact_links (junction), email_templates, email_log, event_email_schedules, event_alert_settings, groupings, weather_cache, handicap_sync_log, activity_log, event_league_config, event_league_tabs, league_scores.
 
 Notable columns added post-initial schema:
 - `events.slug` — URL-friendly identifier for join links (e.g., `saturday-morning`).
@@ -506,6 +509,12 @@ Global pro shop contacts & suggested groupings email (migration 023):
 - `events.grouping_email_send_to_admins` — boolean, default true. Whether the suggested groupings email is sent to event admins.
 - `events.grouping_email_send_to_golfers` — boolean, default false. Whether the suggested groupings email is sent to confirmed golfers for that week.
 - Existing per-event `pro_shop_contacts` data migrated into global directory + junction. Old table retained for backward compatibility.
+
+League info (migration 024):
+- `event_league_config` table: per-event league configuration (season name, date range, best-N-of-M scoring parameters, prize pool, payout percentages). One row per event, optional. `league_enabled` boolean controls visibility on golfer home page. RLS: authenticated read, super admin manage.
+- `event_league_tabs` table: flexible per-event tab configuration for the league info page. Each row defines a tab with `tab_key`, `label`, `content_type` (html/leaderboard/weekly_results), `content` (HTML body for static tabs), `sort_order`, `is_active`. Unique constraint on `(event_id, tab_key)`. RLS: authenticated read, super admin manage.
+- `league_scores` table: weekly Stableford scores per golfer per game date. Columns: `event_id`, `profile_id`, `game_date`, `stableford_points` (integer), `metadata` (JSONB for future fields), `entered_by`. Unique constraint on `(event_id, profile_id, game_date)`. RLS: authenticated read, admin manage.
+- Seeded Thursday League (`thursday-league` slug) with: league config (best 6 of 10, min 6 rounds, $11K pot, top 9 payout), three tabs (Leaderboard, Scoring & Prizes, Conditions of Play with full HTML content).
 
 ### Authentication: Supabase Auth
 - Magic link (OTP) for passwordless login.
@@ -698,6 +707,7 @@ The following is fully implemented and running in production:
 - **GHIN Handicap Sync:** Automated system to fetch current Handicap Index from GHIN for all golfers with a GHIN number. Uses unofficial GHIN mobile app API (`api2.ghin.com`) directly via HTTP — no npm dependency, fully patchable. Auth uses `email_or_ghin` + `password` + `token` fields. Syncs within 24 hours of each scheduled event via email-scheduler cron. Features: per-event toggle (`handicap_sync_enabled`), 20-golfer batch cap per cron run (stalest-first), 24-hour freshness window (shared across events for multi-event golfers), `handicap_sync_log` table for health monitoring, auto-alert on auth/total failure, status indicator in Event Settings. Handicap displayed on: golfer home page (My Profile section), golfer profile/edit page, admin golfer detail pages (global + event-scoped), both golfer directories (global + event-scoped, as HCP line on each row), and suggested groupings email (HCP column). Env vars: `GHIN_EMAIL`, `GHIN_PASSWORD` (must be set at the **Vercel project level**, not team level). Handicap history: every GHIN-synced value is recorded in the `handicap_history` table for per-golfer and group-level trend analysis. See `docs/HANDICAP_SYNC_SPEC.md`.
 - **Profile Completion Nudge:** RSVP token page (`/rsvp/[token]`) detects missing profile fields (phone number, GHIN number) and displays an amber banner prompting the golfer to complete their profile. Includes privacy reassurance ("only shared with event admins and the pro shop") and a direct link to `/profile`. Disappears automatically once all required fields are filled. Designed for extensibility — additional required fields can be added to the check array. Future consideration: gate RSVP submission behind profile completion.
 - **Global Pro Shop Contact Directory & Suggested Groupings Email:** Renamed "Pro Shop Detail Email" to "Suggested Groupings Email" across the entire platform (UI labels, email subjects, help docs, admin controls). Built a global pro shop contacts directory (`pro_shop_contacts_directory` table) so contacts are added once and linked to events via a junction table (`event_pro_shop_contact_links`). Admins configure email recipients per event with three checkboxes: Pro Shop Contacts, Event Admins, and Confirmed Golfers — any combination can be selected. The email scheduler and manual send flows dynamically build TO/CC lists based on these settings. Migration 023 handles schema changes, data migration (deduplication of existing contacts), and RLS policies.
+- **League Info & Leaderboard (Phase 1):** Per-event league info system with configurable tabs (Leaderboard, Scoring & Prizes, Conditions of Play). Three new tables: `event_league_config` (season settings, best-N-of-M scoring, prize payout config), `event_league_tabs` (flexible tab definitions with HTML or data-driven content types), `league_scores` (weekly Stableford points per golfer). Golfer-facing page at `/league/[slug]` with sortable leaderboard grid (two-row header with week numbers and dates, sticky Rank/Golfer/Total columns for mobile horizontal scroll, counting vs. dropped score visual treatment, DNP for missed weeks, tie-shared ranks). "League Info" link conditionally appears in the event RSVP card on the golfer home page only for events with `league_enabled=true`. Seeded for Thursday League with full HTML content for Scoring and Rules tabs. Score entry method TBD pending first Golf Genius report. Migration 024. See `docs/LEAGUE_INFO_SPEC.md`.
 
 ---
 
@@ -707,16 +717,13 @@ The following is fully implemented and running in production:
 ### ~~Admin Reports~~ ✅ COMPLETE
 ### ~~Weather Integration~~ ✅ COMPLETE
 
-### 1. League Leaderboard & Season Scoring
-Build a season-long scoring and leaderboard system for league-format events (e.g., Thursday 9-hole league). Core concept: each week's round is scored using Stableford points, and the platform maintains a cumulative leaderboard across the season. Since not all golfers can play every week, only a subset of each golfer's best rounds count toward the final standings (e.g., best 8 of 12 weeks, with a minimum play requirement to qualify). Specific scoring algorithm and detailed requirements TBD — placeholder for now.
+### 1. League Leaderboard & Season Scoring — Phase 1 ✅ COMPLETE (Phase 2 remaining)
+Phase 1 (complete): League info page with tabs, leaderboard grid, scoring/rules content, home page integration. See "What's Been Built" above.
 
-**Known requirements so far:**
-- **Score entry:** Admin uploads a Golf Genius PDF with final Stableford scores for each golfer each week (not hole-by-hole). Exact PDF format TBD — need a sample to define the parsing/entry workflow.
-- **Two views:** (1) Weekly results — individual week's scores for all golfers who played that round. (2) Cumulative season leaderboard — running standings based on best N rounds with qualification minimum.
-- **Leaderboard access:** Visible to all golfers subscribed to the Thursday league event (logged in). No public/shareable link needed.
+**Phase 2 (remaining):**
+- **Score entry:** Admin workflow to enter weekly Stableford scores. Method TBD — need first Golf Genius PDF report to determine format (manual entry, CSV upload, or PDF parser).
 - **Leaderboard links in emails:** Add leaderboard link to invite, reminder, and confirmation emails for the Thursday league event only (not other events).
-- **Season definition:** Admin-defined date range (specific dates TBD once the league schedule is finalized).
-- **Tie-breaking:** Rules TBD.
+- **Tie-breaking:** Configurable rules beyond shared-rank (can defer further).
 - **Historical seasons:** Support viewing past season results (scope TBD).
 
 ### 2. Email Template Review

@@ -1,7 +1,7 @@
 # League Info Feature — Design Specification
 
-**Status:** Design complete, awaiting build. Score entry format TBD (pending first Golf Genius report).
-**Date:** May 3, 2026
+**Status:** Phase 1 COMPLETE (page, tabs, leaderboard, home page link deployed). Score entry (Phase 2) TBD pending first Golf Genius report.
+**Date:** May 5, 2026 (Phase 1 built and deployed)
 **Owner:** Jesse Herrera
 
 ---
@@ -19,6 +19,55 @@ Additional content tabs can be added per event without code changes.
 
 ---
 
+## 1b. League Parameters (Thursday 9-Hole League — 2026 Summer Season)
+
+These are the confirmed parameters for the initial league implementation.
+
+### Season Structure
+- **Duration:** 10 weeks
+- **Start date:** May 7, 2026 (Week 1)
+- **Game day:** Every Thursday
+- **Week dates:** 5/7, 5/14, 5/21, 5/28, 6/4, 6/11, 6/18, 6/25, 7/2, 7/9
+- **Tee times:** Starting at 3:30 PM, simultaneous tee-off on two nines
+
+### Scoring — Stableford (Net)
+| Result | Points |
+|--------|--------|
+| Double Eagle (Albatross) | 5 |
+| Eagle | 3 |
+| Birdie | 2 |
+| Par | 1 |
+| Bogey | 0 |
+| Double Bogey or worse | -1 |
+
+### Season Standings
+- **Best 6 of 10** weeks count toward season total
+- **Minimum 6 rounds** required to qualify for season prizes
+- Scores that count toward the total are visually highlighted; dropped scores are dimmed
+- Ties share the same rank (v1 — configurable tie-break logic can be added later)
+
+### Prize Payout Structure
+Season Long Pot — Top 9 Players Paid (total pot TBD, currently placeholder $11,000):
+
+| Place | Payout % |
+|-------|----------|
+| 1st | 20.5% |
+| 2nd | 17% |
+| 3rd | 14.5% |
+| 4th | 12% |
+| 5th | 10% |
+| 6th | 8% |
+| 7th | 7% |
+| 8th | 6% |
+| 9th | 5% |
+
+### Weekly Side Games (informational only — not tracked in app)
+- $25 per player per week
+- Games include: Closest to the Pin, Low Net, Low Gross
+- Results managed outside the app
+
+---
+
 ## 2. Key Design Decisions
 
 | Decision | Choice | Rationale |
@@ -30,7 +79,7 @@ Additional content tabs can be added per event without code changes.
 | Content format | Rich text (HTML) for rules/scoring tabs | Conditions of Play docs have structure (numbered rules, headings). Plain text would flatten it. |
 | Leaderboard | Data-driven table from day one | Sortable, aggregatable, supports best-N-of-M logic. |
 | Score entry | TBD — deferred until first Golf Genius PDF report is available | Schema is ready with flexible JSONB metadata column. Input method decided after seeing actual report format. |
-| Scoring parameters | Configurable per event (best N of M, min rounds) | Exact values TBD. Stored in event_league_config so they can be set without code changes. |
+| Scoring parameters | Configurable per event (best N of M, min rounds) | Confirmed: best 6 of 10, min 6 rounds to qualify. Stored in event_league_config. |
 | Access | All golfers subscribed to the event | Even golfers who haven't played yet can read rules and scoring info. |
 
 ---
@@ -52,6 +101,8 @@ Master configuration for the league feature per event. One row per event (option
 | `best_n` | integer, nullable | Number of best rounds that count toward standings |
 | `total_m` | integer, nullable | Total rounds in the season (informational) |
 | `min_rounds_to_qualify` | integer, nullable | Minimum rounds played to appear on leaderboard |
+| `prize_pool_total` | numeric(10,2), nullable | Total prize pot in dollars (e.g., 11000.00) |
+| `payout_config` | jsonb, nullable | Ordered array of payout percentages, e.g. `[20.5, 17, 14.5, 12, 10, 8, 7, 6, 5]`. Position in array = place (index 0 = 1st). |
 | `created_at` | timestamptz | |
 | `updated_at` | timestamptz | |
 
@@ -132,33 +183,65 @@ Weekly score entries per golfer. One row per golfer per game date.
 **`html` tabs** (Rules, Scoring, etc.):
 - Render the `content` column as HTML within a styled prose container.
 - Content is static — set once per season, updated rarely.
+- The **Scoring** tab should include the Stableford point values table and the prize payout structure so golfers can reference them anytime.
+- The **Rules / Conditions of Play** tab should include league details (duration, tee times, eligibility requirements, weekly side games info).
 
-**`leaderboard` tab**:
-- Queries `league_scores` and aggregates across the season.
-- Applies best-N-of-M logic from `event_league_config`.
-- Displays a sortable table:
+**`leaderboard` tab** — Season Standings Grid:
 
-| Rank | Golfer | Rounds Played | Total Points | Qualifying? |
-|------|--------|---------------|--------------|-------------|
-| 1 | J. Herrera | 8 / 12 | 276 | ✓ |
-| 2 | M. Smith | 7 / 12 | 261 | ✓ |
-| ... | ... | ... | ... | ... |
+The leaderboard is a comprehensive grid showing every golfer's weekly scores across the full season.
 
-- "Total Points" = sum of best N rounds (or all rounds if fewer than N played).
-- "Qualifying?" = rounds played ≥ min_rounds_to_qualify.
-- Golfer names displayed as first initial + last name (using `formatInitialLastName()`).
+#### Column Layout
+Two-row header structure:
+- **Row 1:** `Rank` | `Golfer` | `Week 1` | `Week 2` | ... | `Week 10` | `Total`
+- **Row 2:** (empty) | (empty) | `5/7` | `5/14` | ... | `7/9` | (empty)
 
-**`weekly_results` tab**:
-- Shows a dropdown/selector to pick a game date.
-- Displays that week's scores for all golfers who played:
+Week dates are always Thursdays, derived from the season schedule.
 
-| Rank | Golfer | Stableford Points |
-|------|--------|-------------------|
-| 1 | M. Smith | 38 |
-| 2 | J. Herrera | 35 |
-| ... | ... | ... |
+#### Row Layout
+- One row per golfer subscribed to the Thursday League event (pulled from event subscriptions).
+- Default sort: by Total descending (highest score = rank 1).
 
+#### Cell Values
+- **Score cells:** Display the golfer's total Stableford points for that week.
+- **DNP cells:** If a golfer has no score for a given week, display "DNP" (Did Not Play).
+- **Total column:** Sum of the golfer's best (highest) 6 weekly scores. If fewer than 6 scores exist, show the cumulative total of all scores recorded so far.
+
+#### Visual Treatment — Counting vs. Dropped Scores
+When a golfer has more than 6 scores, only the 6 highest count toward the total. The visual treatment must make this clear:
+- **Counting scores** (top 6): Normal styling — full opacity, standard text color.
+- **Dropped scores** (7th+ highest, not counting toward total): Dimmed/muted styling — reduced opacity or lighter text color (e.g., `text-gray-400` or `opacity-50`).
+- **DNP cells:** Neutral styling — gray text, no highlight.
+- When a golfer has 6 or fewer scores, all scores are counting scores (no dimming).
+
+#### Sorting
+All columns are sortable by clicking the column header:
+- **Golfer:** A-Z / Z-A alphabetical toggle.
+- **Weekly score columns:** Highest-first / lowest-first toggle.
+- **Total:** Highest-first / lowest-first toggle (default sort: highest-first).
+- **Rank:** Recalculates based on current sort order of Total column.
+
+#### Rank Column
+- Rank is determined by Total descending.
+- Ties share the same rank (e.g., two golfers tied at 142 points both show rank 3; next golfer shows rank 5).
+- Golfers who haven't played any rounds appear at the bottom with no rank (or rank "—").
+
+#### Footnotes
+Below the table, display:
+- "DNP = Did Not Play"
+- "Total = Best 6 of 10 weekly scores. Dimmed scores are not counted toward the total."
+- Qualification note: "Must play at least 6 weeks to qualify for season prizes."
+
+#### Mobile Considerations
+This table has 13+ columns, which won't fit on a phone screen. Handling:
+- Horizontal scroll with sticky first two columns (Rank + Golfer) and sticky last column (Total).
+- The weekly score columns scroll freely between the sticky edges.
+- Touch-friendly column headers for sorting (44px+ tap targets).
+
+**`weekly_results` tab** (if needed as a separate tab):
+- May not be needed given the leaderboard grid already shows per-week scores.
+- If included, shows a dropdown/selector to pick a game date and displays that week's scores ranked highest to lowest.
 - Defaults to the most recent week with scores.
+- Could serve as a simpler mobile-friendly view of a single week's results.
 
 ---
 
@@ -186,8 +269,9 @@ Options to evaluate once we have the report:
 
 The `league_scores` table and `metadata` JSONB column are designed to accommodate any of these approaches.
 
-### Scoring Parameters
-- `best_n`, `total_m`, `min_rounds_to_qualify` — values TBD. Columns exist and are nullable so the leaderboard can handle partial config gracefully (e.g., show all rounds if best_n is NULL).
+### Scoring Parameters — RESOLVED
+- `best_n` = 6, `total_m` = 10, `min_rounds_to_qualify` = 6.
+- Columns remain nullable in the schema for flexibility with future events, but the Thursday League values are confirmed.
 
 ### Tie-Breaking Rules
 - TBD. For v1, ties share the same rank. Can add configurable tie-break logic later.
@@ -217,7 +301,9 @@ The `league_scores` table and `metadata` JSONB column are designed to accommodat
 ## 8. Open Questions (to resolve before or during build)
 
 1. **Score entry format** — What does the Golf Genius output look like? (Blocked on first report)
-2. **Scoring parameters** — What are the final best-N-of-M values? (Owner will provide before league start)
-3. **Tie-breaking** — How to handle golfers with identical point totals? (Can defer to v2)
+2. ~~**Scoring parameters**~~ — **RESOLVED:** Best 6 of 10, minimum 6 rounds to qualify.
+3. **Tie-breaking** — How to handle golfers with identical point totals? (v1: ties share rank. Configurable tie-break logic can be added later.)
 4. **Email integration** — Should league info links appear in invite/reminder/confirmation emails for the Thursday League? (Mentioned in CLAUDE.md roadmap — decide during build)
 5. **Additional metadata** — What extra fields from Golf Genius should we capture in the JSONB `metadata` column? (Blocked on first report)
+6. **Weekly results tab** — May not be needed as a separate tab since the leaderboard grid already shows per-week scores. Could serve as a mobile-friendly single-week view. Decide during build.
+7. **Prize pot total** — Currently placeholder ($11,000). Owner will update when final participant count is known.

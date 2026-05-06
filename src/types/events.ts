@@ -75,6 +75,7 @@ export const FLIGHT_TEAM_PAIRING_LABELS: Record<FlightTeamPairing, { label: stri
 export interface Event {
   id: string;
   name: string;
+  slug: string | null;
   description: string | null;
   frequency: Frequency;
   day_of_week: number; // 0=Sun, 6=Sat
@@ -370,6 +371,75 @@ export interface Grouping {
   harmony_score: number | null;
   team_number: number | null;
   created_at: string;
+}
+
+// ============================================================
+// League Info Types
+// ============================================================
+
+/** League configuration for an event (one row per event, optional) */
+export interface LeagueConfig {
+  id: string;
+  event_id: string;
+  league_enabled: boolean;
+  season_name: string | null;
+  season_start: string | null; // YYYY-MM-DD
+  season_end: string | null;   // YYYY-MM-DD
+  best_n: number | null;
+  total_m: number | null;
+  min_rounds_to_qualify: number | null;
+  prize_pool_total: number | null;
+  payout_config: number[] | null; // Ordered array of payout percentages by place
+  created_at: string;
+  updated_at: string;
+}
+
+/** Content type for league tabs */
+export type LeagueTabContentType = 'html' | 'leaderboard' | 'weekly_results';
+
+/** A tab on the league info page */
+export interface LeagueTab {
+  id: string;
+  event_id: string;
+  tab_key: string;
+  label: string;
+  content_type: LeagueTabContentType;
+  content: string | null;
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+/** A weekly score entry for one golfer */
+export interface LeagueScore {
+  id: string;
+  event_id: string;
+  profile_id: string;
+  game_date: string; // YYYY-MM-DD
+  stableford_points: number;
+  metadata: Record<string, unknown> | null;
+  entered_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Computed leaderboard row for display */
+export interface LeaderboardEntry {
+  rank: number;
+  profileId: string;
+  firstName: string;
+  lastName: string;
+  /** Map of game_date → stableford_points */
+  weeklyScores: Record<string, number>;
+  /** Set of game_dates whose scores count toward total (top N) */
+  countingWeeks: Set<string>;
+  /** Sum of best N scores (or all if fewer than N) */
+  totalPoints: number;
+  /** Total rounds played */
+  roundsPlayed: number;
+  /** Whether golfer meets min_rounds_to_qualify */
+  isQualified: boolean;
 }
 
 // ============================================================
