@@ -71,15 +71,22 @@ export function Leaderboard({
     // Re-compute display ranks based on total (always by total desc)
     const byTotal = [...sorted].sort((a, b) => b.totalPoints - a.totalPoints);
     const rankMap = new Map<string, number>();
+    const tiedRanks = new Set<number>();
     let currentRank = 1;
     for (let i = 0; i < byTotal.length; i++) {
       if (i > 0 && byTotal[i].totalPoints < byTotal[i - 1].totalPoints) {
         currentRank = i + 1;
+      } else if (i > 0 && byTotal[i].totalPoints === byTotal[i - 1].totalPoints && byTotal[i].roundsPlayed > 0) {
+        tiedRanks.add(currentRank);
       }
       rankMap.set(byTotal[i].profileId, byTotal[i].roundsPlayed > 0 ? currentRank : 0);
     }
 
-    return sorted.map((e) => ({ ...e, rank: rankMap.get(e.profileId) || 0 }));
+    return sorted.map((e) => ({
+      ...e,
+      rank: rankMap.get(e.profileId) || 0,
+      isTied: tiedRanks.has(rankMap.get(e.profileId) || 0),
+    }));
   }, [entries, sortField, sortDir]);
 
   const SortIcon = ({ field }: { field: SortField }) => {
@@ -169,7 +176,9 @@ export function Leaderboard({
                   >
                     {/* Rank */}
                     <td className="sticky left-0 z-10 bg-inherit px-3 py-2.5 text-center font-semibold text-navy-900">
-                      {entry.rank > 0 ? entry.rank : (
+                      {entry.rank > 0 ? (
+                        <>{entry.isTied ? "T" : ""}{entry.rank}</>
+                      ) : (
                         <span className="text-gray-300">&mdash;</span>
                       )}
                     </td>
