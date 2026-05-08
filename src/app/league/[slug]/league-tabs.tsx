@@ -82,7 +82,7 @@ export function LeagueTabs({
         {currentTab.content_type === "html" && currentTab.content && (
           <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
             <div
-              className="prose prose-sm max-w-none prose-headings:text-navy-900 prose-headings:font-serif prose-headings:uppercase prose-headings:tracking-wide prose-h2:text-lg prose-h2:mt-6 prose-h2:mb-3 prose-p:text-gray-700 prose-li:text-gray-700 prose-table:text-sm"
+              className="prose prose-sm max-w-none prose-headings:text-navy-900 prose-headings:font-serif prose-headings:uppercase prose-headings:tracking-wide prose-headings:font-bold prose-h2:text-lg prose-h2:mt-6 prose-h2:mb-3 prose-p:text-gray-700 prose-li:text-gray-700 prose-table:text-sm"
               dangerouslySetInnerHTML={{ __html: currentTab.content }}
             />
           </div>

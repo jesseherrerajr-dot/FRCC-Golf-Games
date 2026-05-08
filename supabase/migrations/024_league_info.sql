@@ -185,8 +185,10 @@ BEGIN
   </tbody>
 </table>
 
-<h2>Season Standings</h2>
+<h2>Season Long Scoring</h2>
 <p>Your <strong>best 6 out of 10</strong> weekly scores count toward the season total. You must play at least <strong>6 of the 10 weeks</strong> to qualify for season-long prizes.</p>
+
+<br/>
 
 <h2>Prize Payout Structure</h2>
 <p>Season Long Pot — Top 9 Players Paid:</p>
