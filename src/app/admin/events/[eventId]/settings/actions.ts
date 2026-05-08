@@ -602,12 +602,20 @@ export async function updateFeatureFlags(
     allow_tee_time_preferences?: boolean;
     allow_playing_partner_preferences?: boolean;
     allow_auto_grouping?: boolean;
+    max_guests_per_week?: number;
   }
 ) {
   await requireSuperAdmin();
   const { supabase } = await requireAdmin();
 
   try {
+    // Validate max_guests_per_week if provided
+    if (flags.max_guests_per_week !== undefined) {
+      if (![1, 2, 3].includes(flags.max_guests_per_week)) {
+        return { error: "Max guests per week must be 1, 2, or 3" };
+      }
+    }
+
     const { error } = await supabase
       .from("events")
       .update(flags)

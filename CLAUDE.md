@@ -132,6 +132,7 @@ Every page (except the landing page and login) **must** have a `<Breadcrumbs>` c
 - `rsvp/tee-time/route.ts` — Tee time preference submission
 - `activity/route.ts` — Activity logging endpoint (page views, called by client-side ActivityTracker)
 - `cron/email-scheduler/route.ts` — Master cron endpoint (checks all events for due emails)
+- `guest-approve/[token]/route.ts` — Tokenized guest approve/decline endpoint (GET, returns HTML page, no auth required)
 - `cron/invite/route.ts` — Invite email sender (legacy, now handled by email-scheduler)
 - `cron/reminder/route.ts` — Reminder email sender (legacy, now handled by email-scheduler)
 - `cron/confirmation/route.ts` — Confirmation email sender (legacy, now handled by email-scheduler)
@@ -331,12 +332,18 @@ All email types, days, and times below are **configurable per event** via the `e
 ---
 
 ## Guest System
-- Only golfers can request guests. Guests only fill spots when golfer capacity isn't full.
-- To request a guest, the golfer provides: guest name, guest email, guest GHIN number.
-- Guest request goes to pending/waitlisted state.
-- After the RSVP cutoff, admins review and approve/deny guest requests.
-- Once approved, an automated confirmation email is sent showing the golfer name and guest name.
+- Only golfers who are "In" can request guests. Guests only fill spots when golfer capacity isn't full.
+- Guest requests are configurable per event: admin enables guest requests via Feature Flags and selects a max guests per week limit (1, 2, or 3).
+- To request a guest, the golfer provides: guest first name, last name (required), email, phone, GHIN (all optional).
+- "Select a Previous Guest" dropdown auto-fills all known fields from the most recent request for that guest.
+- On submission, all event admins receive an immediate email with guest details and one-click approve/decline links (tokenized, no login required).
+- Any admin can approve or deny from the email or from the RSVP management page in the app. If already actioned by another admin, the link shows a friendly "already handled" message.
+- On approval: requesting golfer + all event admins + guest (if email provided) are notified. If GHIN is missing, the approval email includes a "reply-all with GHIN" prompt (pro shop contacts CC'd).
+- On denial: requesting golfer + all event admins are notified. Guest is NOT emailed on denial.
+- Pending guest requests remain open past RSVP cutoff — admins can act at any time (consistent with post-cutoff RSVP override powers).
+- A pending guest request admin alert fires before cutoff if requests are still unactioned.
 - Guests are registered in the system (name, email, phone, GHIN on file) but are NEVER on distribution lists and never receive automated weekly invites.
+- Pro shop approval gate is not yet implemented — pro shop sees approved guests in the suggested groupings email.
 
 ---
 
@@ -515,6 +522,12 @@ League info (migration 024):
 - `event_league_tabs` table: flexible per-event tab configuration for the league info page. Each row defines a tab with `tab_key`, `label`, `content_type` (html/leaderboard/weekly_results), `content` (HTML body for static tabs), `sort_order`, `is_active`. Unique constraint on `(event_id, tab_key)`. RLS: authenticated read, super admin manage.
 - `league_scores` table: weekly Stableford scores per golfer per game date. Columns: `event_id`, `profile_id`, `game_date`, `stableford_points` (integer), `metadata` (JSONB for future fields), `entered_by`. Unique constraint on `(event_id, profile_id, game_date)`. RLS: authenticated read, admin manage.
 - Seeded Thursday League (`thursday-league` slug) with: league config (best 6 of 10, min 6 rounds, $11K pot, top 9 payout), three tabs (Leaderboard, Scoring & Prizes, Conditions of Play with full HTML content).
+
+Guest workflow enhancements (migration 026):
+- `events.max_guests_per_week` — smallint, default 1, CHECK (1–3). Configurable per-event guest limit per golfer per week.
+- `guest_requests.approval_token` — uuid, unique, NOT NULL, DEFAULT gen_random_uuid(). Token for email-based one-click approve/decline links.
+- `guest_requests.guest_email` — dropped NOT NULL constraint (now optional).
+- `guest_requests.guest_ghin_number` — dropped NOT NULL constraint (now optional).
 
 ### Authentication: Supabase Auth
 - Magic link (OTP) for passwordless login.
@@ -708,6 +721,7 @@ The following is fully implemented and running in production:
 - **Profile Completion Nudge:** RSVP token page (`/rsvp/[token]`) detects missing profile fields (phone number, GHIN number) and displays an amber banner prompting the golfer to complete their profile. Includes privacy reassurance ("only shared with event admins and the pro shop") and a direct link to `/profile`. Disappears automatically once all required fields are filled. Designed for extensibility — additional required fields can be added to the check array. Future consideration: gate RSVP submission behind profile completion.
 - **Global Pro Shop Contact Directory & Suggested Groupings Email:** Renamed "Pro Shop Detail Email" to "Suggested Groupings Email" across the entire platform (UI labels, email subjects, help docs, admin controls). Built a global pro shop contacts directory (`pro_shop_contacts_directory` table) so contacts are added once and linked to events via a junction table (`event_pro_shop_contact_links`). Admins configure email recipients per event with three checkboxes: Pro Shop Contacts, Event Admins, and Confirmed Golfers — any combination can be selected. The email scheduler and manual send flows dynamically build TO/CC lists based on these settings. Migration 023 handles schema changes, data migration (deduplication of existing contacts), and RLS policies.
 - **League Info & Leaderboard (Phase 1):** Per-event league info system with configurable tabs (Leaderboard, Scoring & Prizes, Conditions of Play). Three new tables: `event_league_config` (season settings, best-N-of-M scoring, prize payout config), `event_league_tabs` (flexible tab definitions with HTML or data-driven content types), `league_scores` (weekly Stableford points per golfer). Golfer-facing page at `/league/[slug]` with sortable leaderboard grid (two-row header with week numbers and dates, sticky Rank/Golfer/Total columns for mobile horizontal scroll, counting vs. dropped score visual treatment, DNP for missed weeks, tie-shared ranks). "League Info" link conditionally appears in the event RSVP card on the golfer home page only for events with `league_enabled=true`. Seeded for Thursday League with full HTML content for Scoring and Rules tabs. Score entry method TBD pending first Golf Genius report. Migration 024. See `docs/LEAGUE_INFO_SPEC.md`.
+- **Guest Workflow:** Full guest request system with configurable per-event guest limits (1–3 per golfer per week), optional guest email/phone/GHIN fields, past guest auto-fill dropdown. Admin one-click approve/decline via tokenized email links (no login required) with "already handled" graceful fallback. Approval notifications CC all event admins + guest (if email provided) with GHIN follow-up reply-all prompt when GHIN is missing (pro shop contacts CC'd). Denial notifications go to golfer + admins only. Pending guest request admin alert fires before cutoff via existing alert infrastructure. Pending requests remain open post-cutoff for admin action. API route at `/api/guest-approve/[token]` renders HTML confirmation pages. Migration 026. See `docs/GUEST_WORKFLOW_SPEC.md`.
 
 ---
 
@@ -729,8 +743,8 @@ Phase 1 (complete): League info page with tabs, leaderboard grid, scoring/rules 
 ### 2. Email Template Review
 Review all automated email templates (invite, reminder, golfer confirmation, suggested groupings, cancellation, admin alerts, registration notifications) to ensure copy, formatting, and links are all hitting the mark. May involve tweaks to tone, layout, or information included.
 
-### 3. Guest Workflow
-Complete the guest request system. Architecture and DB schema exist (feature-flagged OFF). Remaining work: guest request UI for golfers, admin approval/denial flow, guest confirmation emails, guest visibility in RSVP management. Guest requests table and types are already in place.
+### ~~3. Guest Workflow~~ ✅ COMPLETE
+Guest workflow is fully implemented. Golfers can request guests (name required; email, phone, GHIN optional) via the RSVP page. Admins receive immediate email alerts with one-click approve/decline links (tokenized, no login required). Approval emails CC all event admins + guest (if email provided); missing GHIN triggers a reply-all prompt to the golfer, guest, admins, and pro shop contacts. Denial emails go to golfer + admins only (guest is never emailed on denial). Pending guest request reminders fire via the admin alert system before cutoff. Guest limits are configurable per event (1–3 per golfer per week). Past guest auto-fill with deduplication. See `docs/GUEST_WORKFLOW_SPEC.md`.
 
 ### 4. Golfer Engagement & Gamification Stats
 Build a golfer-facing engagement system that incentivizes consistent RSVP responses and app usage. Ideas include: participation streaks ("You've played 8 of the last 12 weeks"), response rate scores (similar to an Uber-style rating — e.g., "Your response rate: 95%"), and badges or milestones. This data also serves an admin purpose: identifying disengaged golfers who haven't responded in X weeks so admins can reach out or eventually remove them from the distribution list. The engagement score could factor into future waitlist priority decisions.

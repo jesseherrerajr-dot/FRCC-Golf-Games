@@ -268,6 +268,15 @@ export async function GET(request: Request) {
           console.error(`Handicap sync failed for ${event.name} (non-fatal):`, err);
         }
       }
+
+      // Check for pending guest requests that need admin attention (non-fatal)
+      if (!isTest && event.allow_guest_requests) {
+        try {
+          await checkPendingGuestRequests(supabase, event, gameDateString);
+        } catch (err) {
+          console.error(`Pending guest check failed for ${event.name} (non-fatal):`, err);
+        }
+      }
     }
 
     return NextResponse.json({
@@ -1154,6 +1163,77 @@ async function checkLowResponseAlert(
       totalSubscribers: total,
     });
   }
+}
+
+// ============================================================
+// PENDING GUEST REQUEST CHECK
+// ============================================================
+
+/**
+ * Check if there are pending guest requests for the upcoming game.
+ * If so, send a single "pending_guest_requests" admin alert.
+ * Deduplicates: only fires once per schedule via email_log check.
+ */
+async function checkPendingGuestRequests(
+  supabase: ReturnType<typeof createAdminClient>,
+  event: Record<string, unknown>,
+  gameDateString: string,
+) {
+  // Find the schedule for this game date
+  const { data: schedule } = await supabase
+    .from("event_schedules")
+    .select("id, game_date")
+    .eq("event_id", event.id as string)
+    .eq("game_date", gameDateString)
+    .single();
+
+  if (!schedule) return;
+
+  // Check if we already sent this alert for this schedule
+  const { count: alreadySent } = await supabase
+    .from("email_log")
+    .select("*", { count: "exact", head: true })
+    .eq("schedule_id", schedule.id)
+    .eq("email_type", "guest_request_pending");
+
+  if ((alreadySent || 0) > 0) return;
+
+  // Check for pending guest requests
+  const { data: pendingGuests } = await supabase
+    .from("guest_requests")
+    .select("id, guest_first_name, guest_last_name, approval_token, requested_by, requester:profiles!requested_by(first_name, last_name)")
+    .eq("schedule_id", schedule.id)
+    .eq("status", "pending");
+
+  if (!pendingGuests || pendingGuests.length === 0) return;
+
+  const siteUrl = getSiteUrl();
+
+  await sendAdminAlert("pending_guest_requests", {
+    eventId: event.id as string,
+    eventName: event.name as string,
+    gameDate: gameDateString,
+    scheduleId: schedule.id,
+    pendingGuestCount: pendingGuests.length,
+    pendingGuests: pendingGuests.map((g) => {
+      const requester = g.requester as unknown as { first_name: string; last_name: string } | null;
+      return {
+        golferName: requester ? `${requester.first_name} ${requester.last_name}` : "Unknown",
+        guestName: `${g.guest_first_name} ${g.guest_last_name}`,
+        approveUrl: `${siteUrl}/api/guest-approve/${g.approval_token}?action=approve`,
+        denyUrl: `${siteUrl}/api/guest-approve/${g.approval_token}?action=deny`,
+      };
+    }),
+  });
+
+  // Log so we don't send again
+  await supabase.from("email_log").insert({
+    event_id: event.id as string,
+    schedule_id: schedule.id,
+    email_type: "guest_request_pending",
+    subject: `[${event.name}] ${pendingGuests.length} Pending Guest Requests`,
+    recipient_count: 1,
+  });
 }
 
 // ============================================================

@@ -29,11 +29,12 @@ A companion to CLAUDE.md. Where CLAUDE.md is the technical specification and imp
 - Profile Completion Nudge — RSVP token page detects missing phone/GHIN and shows amber banner with link to profile page
 - Admin "Add Golfer to Game" — RSVP management page lets admins add subscribed golfers who missed the invite cycle (e.g., recently approved)
 - Registration event scoping fix — golfers registering via event-specific join links are now correctly subscribed to only that event on approval
+- Guest Workflow — configurable per-event guest limits (1–3), optional email/phone/GHIN, past guest auto-fill, admin one-click approve/decline via tokenized email links, reply-all GHIN follow-up, pending request alerts before cutoff. See `docs/GUEST_WORKFLOW_SPEC.md`.
 
 **What's on the roadmap (see CLAUDE.md Roadmap for details):**
-1. League Leaderboard & Season Scoring (Stableford points, cumulative standings)
+1. League Leaderboard & Season Scoring — Phase 2 (score entry pending Golf Genius report format)
 2. Email template review
-3. Guest workflow (architecture exists, feature-flagged OFF)
+3. ~~Guest workflow~~ ✅ COMPLETE
 4. Golfer engagement & gamification stats
 5. Waitlist end-to-end testing & refinement
 6. SMS / WhatsApp notifications

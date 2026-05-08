@@ -139,17 +139,22 @@ export default async function HelpPage() {
                 </p>
               </FAQ>
 
-              {/* Guest FAQ hidden until guest feature is enabled
               <FAQ question="How do I bring a guest?">
                 <p>
                   After you RSVP &quot;I&apos;m In,&quot; you&apos;ll see a{" "}
                   <strong>Request Guest</strong> section on the RSVP page. Enter your
-                  guest&apos;s name, email, and GHIN number. An admin will review and
-                  approve guest requests after the RSVP cutoff. Guests only fill spots
-                  that golfers haven&apos;t claimed.
+                  guest&apos;s name (required). Email, phone, and GHIN number are optional
+                  but helpful — if you provide an email, your guest will be copied on the
+                  confirmation email. If you&apos;ve brought a guest before, select them
+                  from the dropdown to auto-fill their info.
+                </p>
+                <p className="mt-2">
+                  An admin will review your request and you&apos;ll be notified by email
+                  when it&apos;s approved or declined. If your guest&apos;s GHIN number
+                  is missing, the approval email will ask you to reply-all with it so the
+                  pro shop can get them set up.
                 </p>
               </FAQ>
-              */}
 
               <FAQ question="What are playing partner preferences?">
                 <p>
@@ -362,12 +367,22 @@ export default async function HelpPage() {
 
                 <FAQ question="How do I approve or deny guest requests?">
                   <p>
-                    Guest requests appear on the RSVP management page for the relevant
-                    week, under <strong>Pending Guest Requests</strong>. After the
-                    RSVP cutoff, review each request and tap{" "}
-                    <strong>Approve</strong> or <strong>Deny</strong>. Approved guests
-                    are included in the confirmation emails. Guests only fill spots that
-                    golfers haven&apos;t claimed.
+                    When a golfer submits a guest request, you&apos;ll receive an email
+                    with <strong>Approve</strong> and <strong>Decline</strong> buttons —
+                    just tap one directly from the email (no login needed). You can also
+                    manage requests from the RSVP management page in the app under{" "}
+                    <strong>Pending Guest Requests</strong>.
+                  </p>
+                  <p className="mt-2">
+                    On approval, the golfer (and guest, if email was provided) are notified.
+                    If the guest&apos;s GHIN is missing, the approval email prompts
+                    everyone to reply-all with it. On denial, only the golfer and admins
+                    are notified — the guest is never emailed about a denial.
+                  </p>
+                  <p className="mt-2">
+                    If multiple admins manage the event, any admin can act. If another admin
+                    already handled the request, clicking the link shows a friendly
+                    &quot;already handled&quot; message.
                   </p>
                 </FAQ>
 
@@ -388,8 +403,10 @@ export default async function HelpPage() {
                     In <strong>Event Settings</strong>, the{" "}
                     <strong>Feature Flags</strong> section lets you toggle optional
                     features on or off for each event (currently: guest requests).
-                    Changes take effect immediately — if you disable a feature,
-                    golfers won&apos;t see that option on their RSVP page.
+                    When you enable guest requests, you&apos;ll also set the max number
+                    of guests per member per week (1, 2, or 3). Changes take effect
+                    immediately — if you disable a feature, golfers won&apos;t see that
+                    option on their RSVP page.
                     Playing partner preferences and tee time preferences are
                     managed in the <strong>Grouping Engine</strong> section
                     (super admin only).

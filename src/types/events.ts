@@ -110,6 +110,7 @@ export interface Event {
 
   // Feature flags (super admin only, all default OFF for MVP)
   allow_guest_requests: boolean;
+  max_guests_per_week: number; // 1–3, only meaningful when allow_guest_requests is true
   allow_tee_time_preferences: boolean;
   allow_playing_partner_preferences: boolean;
   allow_auto_grouping: boolean;
@@ -440,6 +441,30 @@ export interface LeaderboardEntry {
   roundsPlayed: number;
   /** Whether golfer meets min_rounds_to_qualify */
   isQualified: boolean;
+}
+
+// ============================================================
+// Guest Request Types
+// ============================================================
+
+export type GuestRequestStatus = 'pending' | 'approved' | 'denied';
+
+/** A guest request for a specific week */
+export interface GuestRequest {
+  id: string;
+  schedule_id: string;
+  requested_by: string;
+  guest_first_name: string;
+  guest_last_name: string;
+  guest_email: string | null;
+  guest_phone: string | null;
+  guest_ghin_number: string | null;
+  guest_profile_id: string | null;
+  status: GuestRequestStatus;
+  approved_by: string | null;
+  approval_token: string;
+  created_at: string;
+  updated_at: string;
 }
 
 // ============================================================

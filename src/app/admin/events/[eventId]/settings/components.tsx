@@ -1657,51 +1657,100 @@ export function GroupingPreferencesForm({ event }: { event: any }) {
 
 export function FeatureFlagsForm({ event }: { event: any }) {
   const [isPending, startTransition] = useTransition();
+  const [message, setMessage] = useState<{ text: string; isError: boolean } | null>(null);
 
-  const flags = [
-    {
-      key: "allow_guest_requests",
-      label: "Guest Requests",
-      description: "Allow golfers to request to bring guests",
-    },
-  ];
+  const guestRequestsEnabled = event.allow_guest_requests;
+  const maxGuestsPerWeek = event.max_guests_per_week || 1;
 
-  const handleToggle = (key: string, currentValue: boolean) => {
+  const handleGuestToggle = () => {
     startTransition(async () => {
-      await updateFeatureFlags(event.id, { [key]: !currentValue });
+      if (guestRequestsEnabled) {
+        // Turning OFF — just toggle
+        const result = await updateFeatureFlags(event.id, { allow_guest_requests: false });
+        if (result.error) {
+          setMessage({ text: result.error, isError: true });
+        } else {
+          setMessage({ text: "Guest requests disabled", isError: false });
+        }
+      } else {
+        // Turning ON — enable with default max_guests_per_week = 1
+        const result = await updateFeatureFlags(event.id, {
+          allow_guest_requests: true,
+          max_guests_per_week: 1,
+        });
+        if (result.error) {
+          setMessage({ text: result.error, isError: true });
+        } else {
+          setMessage({ text: "Guest requests enabled (1 guest per member per week)", isError: false });
+        }
+      }
+    });
+  };
+
+  const handleMaxGuestsChange = (value: number) => {
+    startTransition(async () => {
+      const result = await updateFeatureFlags(event.id, { max_guests_per_week: value });
+      if (result.error) {
+        setMessage({ text: result.error, isError: true });
+      } else {
+        setMessage({ text: `Max guests per week updated to ${value}`, isError: false });
+      }
     });
   };
 
   return (
     <div className="space-y-4">
-      <p className="rounded-md bg-yellow-50 p-3 text-xs text-yellow-700">
-        These features are under development. Keep them OFF until they are fully
-        built, tested, and ready for production.
-      </p>
-      {flags.map((flag) => (
-        <div
-          key={flag.key}
-          className="flex items-start justify-between gap-4"
-        >
+      {message && (
+        <p className={`rounded-md p-3 text-xs ${message.isError ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700"}`}>
+          {message.text}
+        </p>
+      )}
+
+      {/* Guest Requests Toggle */}
+      <div className="space-y-3">
+        <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-sm font-medium text-gray-900">{flag.label}</p>
-            <p className="text-xs text-gray-500">{flag.description}</p>
+            <p className="text-sm font-medium text-gray-900">Guest Requests</p>
+            <p className="text-xs text-gray-500">Allow golfers to request to bring guests</p>
           </div>
           <button
-            onClick={() => handleToggle(flag.key, event[flag.key])}
+            onClick={handleGuestToggle}
             disabled={isPending}
             className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 ${
-              event[flag.key] ? "bg-teal-500" : "bg-gray-200"
+              guestRequestsEnabled ? "bg-teal-500" : "bg-gray-200"
             } ${isPending ? "opacity-50" : ""}`}
           >
             <span
               className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform duration-200 ${
-                event[flag.key] ? "translate-x-5" : "translate-x-0"
+                guestRequestsEnabled ? "translate-x-5" : "translate-x-0"
               }`}
             />
           </button>
         </div>
-      ))}
+
+        {/* Max Guests Per Week selector — shown when guest requests are ON */}
+        {guestRequestsEnabled && (
+          <div className="ml-1 rounded-md border border-gray-200 bg-gray-50 p-4">
+            <p className="mb-2 text-sm font-medium text-gray-700">Max guests per member per week</p>
+            <div className="flex gap-3">
+              {[1, 2, 3].map((value) => (
+                <button
+                  key={value}
+                  onClick={() => handleMaxGuestsChange(value)}
+                  disabled={isPending}
+                  className={`flex h-10 w-14 items-center justify-center rounded-lg border-2 text-sm font-semibold transition-colors ${
+                    maxGuestsPerWeek === value
+                      ? "border-teal-500 bg-teal-50 text-teal-700"
+                      : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
+                  } ${isPending ? "opacity-50" : ""}`}
+                >
+                  {value}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

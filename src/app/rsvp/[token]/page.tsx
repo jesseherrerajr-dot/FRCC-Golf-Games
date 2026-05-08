@@ -102,8 +102,11 @@ export default async function RsvpPage({
   // Fetch guest requests if user is "in"
   const guestRequests =
     currentStatus === "in" ? await getGuestRequests(token) : [];
-  const MAX_GUESTS = 3;
-  const remainingSlots = MAX_GUESTS - guestRequests.length;
+  const maxGuestsPerWeek = event?.max_guests_per_week || 1;
+  const activeGuestCount = guestRequests.filter(
+    (g: { status: string }) => g.status === "pending" || g.status === "approved"
+  ).length;
+  const remainingSlots = maxGuestsPerWeek - activeGuestCount;
 
   // Fetch weather forecast for the game
   const weather = event && schedule
@@ -288,16 +291,17 @@ export default async function RsvpPage({
           !isCancelled &&
           event?.allow_guest_requests && (
             <CollapsibleSection
-              title={`Request Guest${remainingSlots > 0 ? ` (${guestRequests.length}/${MAX_GUESTS})` : "s"} (Optional)`}
+              title={`Request Guest${remainingSlots > 0 ? ` (${activeGuestCount}/${maxGuestsPerWeek})` : "s"} (Optional)`}
               defaultOpen={false}
             >
               {guestRequests.length > 0 && (
                 <GuestRequestStatus
                   guestRequests={guestRequests}
                   remainingSlots={remainingSlots}
+                  maxGuestsPerWeek={maxGuestsPerWeek}
                 />
               )}
-              {remainingSlots > 0 && <GuestRequestForm token={token} remainingSlots={remainingSlots} cutoffDayName={["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"][event?.cutoff_day ?? 5]} />}
+              {remainingSlots > 0 && <GuestRequestForm token={token} remainingSlots={remainingSlots} maxGuestsPerWeek={maxGuestsPerWeek} cutoffDayName={["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"][event?.cutoff_day ?? 5]} />}
               {remainingSlots === 0 && guestRequests.length === 0 && (
                 <p className="text-sm text-gray-500">No guest slots available.</p>
               )}

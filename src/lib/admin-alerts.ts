@@ -7,7 +7,8 @@ type AlertType =
   | "capacity_reached"
   | "spot_opened"
   | "low_response"
-  | "handicap_sync_failed";
+  | "handicap_sync_failed"
+  | "pending_guest_requests";
 
 interface AlertContext {
   eventId: string;
@@ -27,6 +28,10 @@ interface AlertContext {
   syncFailureCount?: number;
   syncErrorMessage?: string;
   consecutiveFailures?: number;
+  // For pending_guest_requests
+  pendingGuestCount?: number;
+  pendingGuests?: Array<{ golferName: string; guestName: string; approveUrl: string; denyUrl: string }>;
+  scheduleId?: string;
 }
 
 /**
@@ -49,10 +54,10 @@ export async function sendAdminAlert(
     .maybeSingle();
 
   // If no setting found, use defaults: new_registration ON, capacity_reached ON,
-  // handicap_sync_failed always ON (no event_alert_settings row needed), others OFF
+  // handicap_sync_failed always ON, pending_guest_requests ON, others OFF
   const isEnabled =
     alertSetting?.is_enabled ??
-    (alertType === "new_registration" || alertType === "capacity_reached" || alertType === "handicap_sync_failed");
+    (alertType === "new_registration" || alertType === "capacity_reached" || alertType === "handicap_sync_failed" || alertType === "pending_guest_requests");
 
   if (!isEnabled) {
     console.log(
@@ -252,6 +257,33 @@ function generateAlertEmail(
           </div>
         `,
       };
+
+    case "pending_guest_requests": {
+      const guestListHtml = (context.pendingGuests || []).map(g => `
+        <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; margin: 8px 0;">
+          <p style="margin: 0 0 4px 0; color: #374151;"><strong>${g.guestName}</strong> (requested by ${g.golferName})</p>
+          <div style="margin-top: 8px;">
+            <a href="${g.approveUrl}" style="display: inline-block; background: #0d9488; color: white; padding: 6px 16px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 13px; margin-right: 8px;">Approve</a>
+            <a href="${g.denyUrl}" style="display: inline-block; background: #dc2626; color: white; padding: 6px 16px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 13px;">Decline</a>
+          </div>
+        </div>
+      `).join("");
+
+      return {
+        subject: `[${context.eventName}] ${context.pendingGuestCount} Pending Guest Request${(context.pendingGuestCount || 0) !== 1 ? "s" : ""} for ${context.gameDate ? formatGameDate(context.gameDate) : "upcoming game"}`,
+        html: `
+          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+            <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 16px; margin-bottom: 20px;">
+              <h2 style="color: #92400e; margin: 0 0 8px 0; font-size: 18px;">Pending Guest Requests</h2>
+              <p style="margin: 0; color: #374151;">${context.eventName} — ${context.gameDate ? formatGameDate(context.gameDate) : "upcoming game"}</p>
+            </div>
+            <p style="color: #374151;">You have <strong>${context.pendingGuestCount}</strong> guest request${(context.pendingGuestCount || 0) !== 1 ? "s" : ""} awaiting a decision:</p>
+            ${guestListHtml}
+            <p style="color: #9ca3af; font-size: 12px; margin-top: 16px;">You can also manage these in the <a href="${context.scheduleId ? `${process.env.NEXT_PUBLIC_SITE_URL || ""}/admin/rsvp/${context.scheduleId}` : "#"}" style="color: #6b7280;">RSVP Management page</a>.</p>
+          </div>
+        `,
+      };
+    }
 
     default:
       return {

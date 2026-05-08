@@ -21,12 +21,12 @@ function formatPhone(value: string): string {
 type PastGuest = {
   guest_first_name: string;
   guest_last_name: string;
-  guest_email: string;
-  guest_phone: string;
-  guest_ghin_number: string;
+  guest_email: string | null;
+  guest_phone: string | null;
+  guest_ghin_number: string | null;
 };
 
-export function GuestRequestForm({ token, remainingSlots, cutoffDayName }: { token: string; remainingSlots: number; cutoffDayName?: string }) {
+export function GuestRequestForm({ token, remainingSlots, maxGuestsPerWeek, cutoffDayName }: { token: string; remainingSlots: number; maxGuestsPerWeek: number; cutoffDayName?: string }) {
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -41,7 +41,7 @@ export function GuestRequestForm({ token, remainingSlots, cutoffDayName }: { tok
 
   // Past guests
   const [pastGuests, setPastGuests] = useState<PastGuest[]>([]);
-  const [selectedGuestEmail, setSelectedGuestEmail] = useState("");
+  const [selectedGuestKey, setSelectedGuestKey] = useState("");
 
   // Fetch past guests when form is shown
   useEffect(() => {
@@ -51,10 +51,10 @@ export function GuestRequestForm({ token, remainingSlots, cutoffDayName }: { tok
   }, [showForm, token]);
 
   // Handle selecting a past guest from dropdown
-  function handleSelectPastGuest(guestEmail: string) {
-    setSelectedGuestEmail(guestEmail);
+  function handleSelectPastGuest(key: string) {
+    setSelectedGuestKey(key);
 
-    if (!guestEmail) {
+    if (!key) {
       // Clear form if "Select a guest" is chosen
       setFirstName("");
       setLastName("");
@@ -64,13 +64,15 @@ export function GuestRequestForm({ token, remainingSlots, cutoffDayName }: { tok
       return;
     }
 
-    const guest = pastGuests.find((g) => g.guest_email === guestEmail);
+    const guest = pastGuests.find(
+      (g) => `${g.guest_first_name}|${g.guest_last_name}|${g.guest_email || ""}` === key
+    );
     if (guest) {
       setFirstName(guest.guest_first_name);
       setLastName(guest.guest_last_name);
-      setEmail(guest.guest_email);
-      setPhone(formatPhone(guest.guest_phone));
-      setGhin(guest.guest_ghin_number);
+      setEmail(guest.guest_email || "");
+      setPhone(guest.guest_phone ? formatPhone(guest.guest_phone) : "");
+      setGhin(guest.guest_ghin_number || "");
     }
   }
 
@@ -97,7 +99,7 @@ export function GuestRequestForm({ token, remainingSlots, cutoffDayName }: { tok
       setEmail("");
       setPhone("");
       setGhin("");
-      setSelectedGuestEmail("");
+      setSelectedGuestKey("");
     }
   }
 
@@ -106,15 +108,14 @@ export function GuestRequestForm({ token, remainingSlots, cutoffDayName }: { tok
       <div className="mt-6 rounded-lg border border-teal-200 bg-navy-50 p-4">
         <h3 className="font-semibold text-navy-900">Guest Request Submitted</h3>
         <p className="mt-1 text-sm text-teal-600">
-          Your guest request has been submitted. An admin will review it after the
-          {cutoffDayName || "Friday"} cutoff and notify you if approved.
+          Your guest request has been submitted. An admin will review it and notify you when approved.
         </p>
       </div>
     );
   }
 
   if (!showForm) {
-    const isFirstGuest = remainingSlots === 3;
+    const isFirstGuest = remainingSlots === maxGuestsPerWeek;
     return (
       <div className="mt-6 rounded-lg border border-blue-200 bg-blue-50 p-4">
         <h3 className="font-semibold text-blue-800">
@@ -122,7 +123,7 @@ export function GuestRequestForm({ token, remainingSlots, cutoffDayName }: { tok
         </h3>
         <p className="mt-1 text-sm text-blue-700">
           {isFirstGuest
-            ? `Want to bring a guest this week? Submit a request and an admin will review it after the ${cutoffDayName || "Friday"} cutoff.`
+            ? "Want to bring a guest this week? Submit a request and an admin will review it."
             : `You can request up to ${remainingSlots} more guest${remainingSlots !== 1 ? "s" : ""} for this week.`
           }
         </p>
@@ -140,7 +141,7 @@ export function GuestRequestForm({ token, remainingSlots, cutoffDayName }: { tok
     <div className="mt-6 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
       <h3 className="font-semibold text-gray-800">Request a Guest</h3>
       <p className="mt-1 text-sm text-gray-600">
-        Provide your guest's information below. All fields are required.
+        Provide your guest's name. Email, phone, and GHIN are optional but helpful.
       </p>
 
       {error && (
@@ -161,16 +162,20 @@ export function GuestRequestForm({ token, remainingSlots, cutoffDayName }: { tok
             </label>
             <select
               id="past_guest"
-              value={selectedGuestEmail}
+              value={selectedGuestKey}
               onChange={(e) => handleSelectPastGuest(e.target.value)}
               className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
             >
               <option value="">-- Or enter new guest details below --</option>
-              {pastGuests.map((guest) => (
-                <option key={guest.guest_email} value={guest.guest_email}>
-                  {guest.guest_first_name} {guest.guest_last_name} ({guest.guest_email})
-                </option>
-              ))}
+              {pastGuests.map((guest) => {
+                const key = `${guest.guest_first_name}|${guest.guest_last_name}|${guest.guest_email || ""}`;
+                const displayEmail = guest.guest_email ? ` (${guest.guest_email})` : "";
+                return (
+                  <option key={key} value={key}>
+                    {guest.guest_first_name} {guest.guest_last_name}{displayEmail}
+                  </option>
+                );
+              })}
             </select>
             <p className="mt-1 text-xs text-gray-400">
               Select a guest you've brought before to auto-fill their info
@@ -184,7 +189,7 @@ export function GuestRequestForm({ token, remainingSlots, cutoffDayName }: { tok
               htmlFor="guest_first_name"
               className="block text-sm font-medium text-gray-700"
             >
-              First Name
+              First Name <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
@@ -201,7 +206,7 @@ export function GuestRequestForm({ token, remainingSlots, cutoffDayName }: { tok
               htmlFor="guest_last_name"
               className="block text-sm font-medium text-gray-700"
             >
-              Last Name
+              Last Name <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
@@ -220,17 +225,18 @@ export function GuestRequestForm({ token, remainingSlots, cutoffDayName }: { tok
             htmlFor="guest_email"
             className="block text-sm font-medium text-gray-700"
           >
-            Email
+            Email <span className="text-xs text-gray-400">(optional)</span>
           </label>
           <input
             type="email"
             id="guest_email"
             name="guest_email"
-            required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            placeholder="guest@example.com"
             className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
           />
+          <p className="mt-1 text-xs text-gray-400">If provided, your guest will be copied on the confirmation email</p>
         </div>
 
         <div>
@@ -238,19 +244,17 @@ export function GuestRequestForm({ token, remainingSlots, cutoffDayName }: { tok
             htmlFor="guest_phone"
             className="block text-sm font-medium text-gray-700"
           >
-            Phone
+            Phone <span className="text-xs text-gray-400">(optional)</span>
           </label>
           <input
             type="tel"
             id="guest_phone"
             name="guest_phone"
-            required
             value={phone}
             onChange={(e) => setPhone(formatPhone(e.target.value))}
             placeholder="(555) 123-4567"
             className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
           />
-          <p className="mt-1 text-xs text-gray-400">US 10-digit format</p>
         </div>
 
         <div>
@@ -258,7 +262,7 @@ export function GuestRequestForm({ token, remainingSlots, cutoffDayName }: { tok
             htmlFor="guest_ghin"
             className="block text-sm font-medium text-gray-700"
           >
-            GHIN Number
+            GHIN Number <span className="text-xs text-gray-400">(optional)</span>
           </label>
           <input
             type="text"
@@ -288,7 +292,7 @@ export function GuestRequestForm({ token, remainingSlots, cutoffDayName }: { tok
               setEmail("");
               setPhone("");
               setGhin("");
-              setSelectedGuestEmail("");
+              setSelectedGuestKey("");
             }}
             className="rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50"
           >
@@ -303,6 +307,7 @@ export function GuestRequestForm({ token, remainingSlots, cutoffDayName }: { tok
 export function GuestRequestStatus({
   guestRequests,
   remainingSlots,
+  maxGuestsPerWeek,
 }: {
   guestRequests: Array<{
     guest_first_name: string;
@@ -310,6 +315,7 @@ export function GuestRequestStatus({
     status: string;
   }>;
   remainingSlots: number;
+  maxGuestsPerWeek: number;
 }) {
   const statusColors: Record<string, string> = {
     pending: "border-yellow-200 bg-yellow-50 text-yellow-700",
@@ -333,7 +339,7 @@ export function GuestRequestStatus({
     <div className="mt-6 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
       <div className="flex items-center justify-between">
         <h3 className="font-semibold text-gray-800">
-          Your Guest Requests ({guestRequests.length}/3)
+          Your Guest Requests ({guestRequests.length}/{maxGuestsPerWeek})
         </h3>
         <span className="text-xs text-gray-500">
           {remainingSlots > 0 && `${remainingSlots} slot${remainingSlots !== 1 ? "s" : ""} remaining`}
@@ -359,7 +365,7 @@ export function GuestRequestStatus({
       </ul>
       {guestRequests.some((g) => g.status === "pending") && (
         <p className="mt-3 text-xs text-gray-500">
-          Guest requests must be approved by the event admin and the pro shop before they will be confirmed to play.
+          Guest requests will be reviewed by an event admin. You'll be notified when approved or declined.
         </p>
       )}
     </div>
