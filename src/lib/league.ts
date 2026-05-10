@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import type { LeagueConfig, LeagueTab, LeagueScore, LeaderboardEntry } from "@/types/events";
+import type { LeagueConfig, LeagueTab, LeagueScore, LeaderboardEntry, LeagueMoneyScore, MoneyLeaderboardEntry } from "@/types/events";
 
 /**
  * Fetch league config for an event by slug.
@@ -223,6 +223,111 @@ export function buildLeaderboard(
     }
     // Golfers with 0 rounds get no rank
     entries[i].rank = entries[i].roundsPlayed > 0 ? currentRank : 0;
+  }
+
+  return entries;
+}
+
+/**
+ * Fetch all money scores for an event within the season date range.
+ */
+export async function getLeagueMoneyScores(
+  eventId: string,
+  seasonStart?: string | null,
+  seasonEnd?: string | null
+): Promise<LeagueMoneyScore[]> {
+  const supabase = await createClient();
+
+  let query = supabase
+    .from("league_money_scores")
+    .select("*")
+    .eq("event_id", eventId)
+    .order("game_date", { ascending: true });
+
+  if (seasonStart) {
+    query = query.gte("game_date", seasonStart);
+  }
+  if (seasonEnd) {
+    query = query.lte("game_date", seasonEnd);
+  }
+
+  const { data } = await query;
+  return (data || []) as LeagueMoneyScore[];
+}
+
+/**
+ * Build the money leaderboard from scores and golfer data.
+ * Simpler than points leaderboard — every dollar counts (no best-N-of-M).
+ * Golfers who played but won nothing show $0; golfers who didn't play show DNP.
+ */
+export function buildMoneyLeaderboard(
+  golfers: { id: string; first_name: string; last_name: string }[],
+  moneyScores: LeagueMoneyScore[],
+  pointsScores: LeagueScore[]
+): MoneyLeaderboardEntry[] {
+  // Group money scores by profile_id
+  const moneyByGolfer = new Map<string, LeagueMoneyScore[]>();
+  for (const score of moneyScores) {
+    const existing = moneyByGolfer.get(score.profile_id) || [];
+    existing.push(score);
+    moneyByGolfer.set(score.profile_id, existing);
+  }
+
+  // Build set of (profile_id, game_date) pairs where the golfer played (from points scores)
+  const playedWeeks = new Map<string, Set<string>>();
+  for (const score of pointsScores) {
+    const existing = playedWeeks.get(score.profile_id) || new Set();
+    existing.add(score.game_date);
+    playedWeeks.set(score.profile_id, existing);
+  }
+
+  // Build entries
+  const entries: MoneyLeaderboardEntry[] = golfers.map((golfer) => {
+    const golferMoney = moneyByGolfer.get(golfer.id) || [];
+    const golferPlayed = playedWeeks.get(golfer.id) || new Set<string>();
+
+    const weeklyAmounts: Record<string, number> = {};
+
+    // Add money score weeks
+    for (const s of golferMoney) {
+      weeklyAmounts[s.game_date] = s.amount;
+    }
+
+    // For weeks where golfer played but has no money score, show $0
+    for (const week of golferPlayed) {
+      if (!(week in weeklyAmounts)) {
+        weeklyAmounts[week] = 0;
+      }
+    }
+
+    const totalAmount = golferMoney.reduce((sum, s) => sum + s.amount, 0);
+    const weeksWon = golferMoney.filter((s) => s.amount > 0).length;
+
+    return {
+      rank: 0,
+      profileId: golfer.id,
+      firstName: golfer.first_name,
+      lastName: golfer.last_name,
+      weeklyAmounts,
+      totalAmount,
+      weeksWon,
+    };
+  });
+
+  // Sort by total amount descending, then by last name for ties
+  entries.sort((a, b) => {
+    if (b.totalAmount !== a.totalAmount) return b.totalAmount - a.totalAmount;
+    return a.lastName.localeCompare(b.lastName);
+  });
+
+  // Assign ranks (ties share rank; golfers with no money at all get no rank)
+  let currentRank = 1;
+  for (let i = 0; i < entries.length; i++) {
+    if (i > 0 && entries[i].totalAmount < entries[i - 1].totalAmount) {
+      currentRank = i + 1;
+    }
+    const hasAnyData = Object.keys(entries[i].weeklyAmounts).length > 0;
+    entries[i].rank = hasAnyData ? currentRank : 0;
   }
 
   return entries;

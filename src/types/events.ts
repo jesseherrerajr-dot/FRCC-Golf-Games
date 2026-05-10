@@ -445,6 +445,33 @@ export interface LeaderboardEntry {
   isQualified: boolean;
 }
 
+/** Weekly money winnings per golfer */
+export interface LeagueMoneyScore {
+  id: string;
+  event_id: string;
+  profile_id: string;
+  game_date: string; // YYYY-MM-DD
+  amount: number; // dollar amount (total for that week)
+  metadata: Record<string, unknown> | null;
+  entered_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Computed money leaderboard row for display */
+export interface MoneyLeaderboardEntry {
+  rank: number;
+  profileId: string;
+  firstName: string;
+  lastName: string;
+  /** Map of game_date → dollar amount won */
+  weeklyAmounts: Record<string, number>;
+  /** Sum of all weekly amounts */
+  totalAmount: number;
+  /** Number of weeks with winnings > 0 */
+  weeksWon: number;
+}
+
 // ============================================================
 // Guest Request Types
 // ============================================================

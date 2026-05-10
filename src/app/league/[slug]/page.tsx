@@ -5,9 +5,11 @@ import {
   getLeagueConfigBySlug,
   getLeagueTabs,
   getLeagueScores,
+  getLeagueMoneyScores,
   getSubscribedGolfers,
   computeSeasonWeeks,
   buildLeaderboard,
+  buildMoneyLeaderboard,
 } from "@/lib/league";
 import { LeagueTabs } from "./league-tabs";
 
@@ -36,10 +38,11 @@ export default async function LeagueInfoPage({ params }: PageProps) {
 
   const { config, event } = result;
 
-  // Fetch tabs, scores, and golfers in parallel
-  const [tabs, scores, golfers] = await Promise.all([
+  // Fetch tabs, scores, money scores, and golfers in parallel
+  const [tabs, scores, moneyScores, golfers] = await Promise.all([
     getLeagueTabs(event.id),
     getLeagueScores(event.id, config.season_start, config.season_end),
+    getLeagueMoneyScores(event.id, config.season_start, config.season_end),
     getSubscribedGolfers(event.id),
   ]);
 
@@ -56,6 +59,9 @@ export default async function LeagueInfoPage({ params }: PageProps) {
     config.best_n,
     config.min_rounds_to_qualify
   );
+
+  // Build money leaderboard data
+  const moneyLeaderboard = buildMoneyLeaderboard(golfers, moneyScores, scores);
 
   // Serialize leaderboard for client component (Set → Array)
   const serializedLeaderboard = leaderboard.map((entry) => ({
@@ -85,6 +91,7 @@ export default async function LeagueInfoPage({ params }: PageProps) {
           <LeagueTabs
             tabs={tabs}
             leaderboard={serializedLeaderboard}
+            moneyLeaderboard={moneyLeaderboard}
             seasonWeeks={seasonWeeks}
             bestN={config.best_n}
             totalM={config.total_m}

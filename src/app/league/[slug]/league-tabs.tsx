@@ -3,6 +3,8 @@
 import { useState } from "react";
 import type { LeagueTab } from "@/types/events";
 import { Leaderboard } from "./leaderboard";
+import { MoneyLeaderboard } from "./money-leaderboard";
+import type { SerializedMoneyLeaderboardEntry } from "./money-leaderboard";
 
 /** Serialized version of LeaderboardEntry (countingWeeks as string[] instead of Set) */
 export interface SerializedLeaderboardEntry {
@@ -21,21 +23,27 @@ export interface SerializedLeaderboardEntry {
 interface LeagueTabsProps {
   tabs: LeagueTab[];
   leaderboard: SerializedLeaderboardEntry[];
+  moneyLeaderboard: SerializedMoneyLeaderboardEntry[];
   seasonWeeks: string[];
   bestN: number | null;
   totalM: number | null;
   minRoundsToQualify: number | null;
 }
 
+type LeaderboardView = "points" | "money";
+
 export function LeagueTabs({
   tabs,
   leaderboard,
+  moneyLeaderboard,
   seasonWeeks,
   bestN,
   totalM,
   minRoundsToQualify,
 }: LeagueTabsProps) {
   const [activeTab, setActiveTab] = useState(tabs[0]?.tab_key || "");
+  const [leaderboardView, setLeaderboardView] =
+    useState<LeaderboardView>("points");
 
   if (tabs.length === 0) {
     return (
@@ -71,13 +79,48 @@ export function LeagueTabs({
       {/* Tab content */}
       <div className="mt-4">
         {currentTab.content_type === "leaderboard" && (
-          <Leaderboard
-            entries={leaderboard}
-            seasonWeeks={seasonWeeks}
-            bestN={bestN}
-            totalM={totalM}
-            minRoundsToQualify={minRoundsToQualify}
-          />
+          <div>
+            {/* Points / Money toggle */}
+            <div className="mb-4 flex items-center">
+              <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-0.5">
+                <button
+                  onClick={() => setLeaderboardView("points")}
+                  className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
+                    leaderboardView === "points"
+                      ? "bg-white text-navy-900 shadow-sm"
+                      : "text-gray-500 hover:text-gray-700"
+                  }`}
+                >
+                  Points
+                </button>
+                <button
+                  onClick={() => setLeaderboardView("money")}
+                  className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
+                    leaderboardView === "money"
+                      ? "bg-white text-navy-900 shadow-sm"
+                      : "text-gray-500 hover:text-gray-700"
+                  }`}
+                >
+                  Money
+                </button>
+              </div>
+            </div>
+
+            {leaderboardView === "points" ? (
+              <Leaderboard
+                entries={leaderboard}
+                seasonWeeks={seasonWeeks}
+                bestN={bestN}
+                totalM={totalM}
+                minRoundsToQualify={minRoundsToQualify}
+              />
+            ) : (
+              <MoneyLeaderboard
+                entries={moneyLeaderboard}
+                seasonWeeks={seasonWeeks}
+              />
+            )}
+          </div>
         )}
 
         {currentTab.content_type === "html" && currentTab.content && (
