@@ -30,6 +30,7 @@ A companion to CLAUDE.md. Where CLAUDE.md is the technical specification and imp
 - Admin "Add Golfer to Game" — RSVP management page lets admins add subscribed golfers who missed the invite cycle (e.g., recently approved)
 - Registration event scoping fix — golfers registering via event-specific join links are now correctly subscribed to only that event on approval
 - Guest Workflow — configurable per-event guest limits (1–3), optional email/phone/GHIN, past guest auto-fill, admin one-click approve/decline via tokenized email links, reply-all GHIN follow-up, pending request alerts before cutoff. See `docs/GUEST_WORKFLOW_SPEC.md`.
+- Money Leaderboard — tracks weekly dollar winnings alongside Stableford points. Points/Money toggle on the Leaderboard tab. Data entry via conversational workflow (admin pastes weekly winner email, Claude parses and inserts). Migration 030.
 
 **What's on the roadmap (see CLAUDE.md Roadmap for details):**
 1. League Leaderboard & Season Scoring — Phase 2 (score entry pending Golf Genius report format)
@@ -357,3 +358,20 @@ See the Roadmap section of CLAUDE.md for the current prioritized list. Key items
 - **Three-layer fix for registration_event_id** — trigger fix handles new users, OTP verification handles existing users re-registering, and the callback fix prevents duplicate admin alerts. Belt-and-suspenders approach because a NULL registration_event_id causes silent mis-behavior (subscribes to all events instead of one).
 - **Add Golfer to Game available at all times** — not just past cutoff. Admins may need to add a golfer mid-week for any reason.
 - **RSVP history logged for manually added golfers** — maintains participation tracking accuracy even for admin overrides.
+
+### Session: May 10, 2026
+
+**Context:** Money leaderboard feature and duplicate golfer cleanup.
+
+**Changes made:**
+1. **Money Leaderboard** — Added a money leaderboard alongside the existing Stableford points leaderboard on the league info page. New `league_money_scores` table (migration 030) stores total dollars won per golfer per week. The Leaderboard tab now has a Points/Money pill toggle. Money view uses the same grid layout (Rank, Golfer, WK1–WK10, Total) but with `$` formatting, green highlighting for winnings, `$0` for played-but-no-winnings, and `DNP` for missed weeks. No best-N-of-M — every dollar counts. New files: `money-leaderboard.tsx`, types `LeagueMoneyScore`/`MoneyLeaderboardEntry`, library functions `getLeagueMoneyScores()`/`buildMoneyLeaderboard()`.
+
+2. **Duplicate Craig Cohen cleanup** — Two profiles existed for Craig Cohen: one admin-created (`icloud.com`) with participation data, one self-registered (`me.com`) with better profile info. Merged by moving all RSVPs, league scores, groupings, and partner preferences to the self-registered profile, then deleting the admin-created one. Kept `me.com` as Craig's preferred login.
+
+3. **Week 1 money data inserted** — D. Irwin $300, B. Tashakorian $100, B. Ross $100, C. Cohen $50, T. McCartin $25, K. Stanley $25.
+
+**Key decisions:**
+- **Simple totals only** — no per-category breakdown (Stableford, Blind Draw, CTP) in the database. Each week stores one total dollar amount per golfer. Detailed breakdowns are in the weekly winner emails if anyone needs them.
+- **Conversational data entry** — admin pastes the weekly winner email into a Cowork chat, Claude parses and confirms totals, then inserts via SQL. No admin UI needed.
+- **$0 vs. DNP distinction** — `$0` means the golfer played but won nothing; `DNP` means they didn't play that week. Determined by cross-referencing `league_scores` (points) to know who played.
+- **Keep self-registered profile for duplicates** — when merging duplicate golfer accounts, prefer the profile the golfer created themselves (their chosen email) over the admin-created one.
