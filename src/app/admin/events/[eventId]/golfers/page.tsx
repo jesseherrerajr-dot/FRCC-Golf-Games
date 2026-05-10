@@ -221,6 +221,9 @@ export default async function EventGolferDirectoryPage({
                         {golfer.handicap_index != null && (
                           <span className="block text-xs text-teal-600">
                             HCP: {Number(golfer.handicap_index).toFixed(1)}
+                            {golfer.low_hi_value != null && (
+                              <span className="ml-1">| Low H.I.: {Number(golfer.low_hi_value).toFixed(1)}</span>
+                            )}
                             {golfer.handicap_updated_at && (
                               <span className="ml-1 text-gray-400">
                                 (updated {new Date(golfer.handicap_updated_at).toLocaleDateString("en-US", { timeZone: "America/Los_Angeles", month: "short", day: "numeric" })})

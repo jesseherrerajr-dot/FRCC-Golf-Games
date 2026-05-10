@@ -45,6 +45,8 @@ type Profile = {
   ghin_number: string;
   handicap_index: number | null;
   handicap_updated_at: string | null;
+  low_hi_value: number | null;
+  low_hi_date: string | null;
   status: string;
 };
 
@@ -287,7 +289,7 @@ export default function ProfilePage() {
               Your USGA Golf Handicap ID
             </p>
             {profile.handicap_index != null && (
-              <div className="mt-2 rounded-md bg-teal-50 px-3 py-2">
+              <div className="mt-2 rounded-md bg-teal-50 px-3 py-2 space-y-1">
                 <p className="text-sm text-teal-800">
                   Current Handicap Index: <span className="font-semibold">{Number(profile.handicap_index).toFixed(1)}</span>
                   {profile.handicap_updated_at && (
@@ -296,6 +298,16 @@ export default function ProfilePage() {
                     </span>
                   )}
                 </p>
+                {profile.low_hi_value != null && (
+                  <p className="text-sm text-teal-800">
+                    Low H.I.: <span className="font-semibold">{Number(profile.low_hi_value).toFixed(1)}</span>
+                    {profile.low_hi_date && (
+                      <span className="ml-1 text-xs text-teal-600">
+                        (as of {new Date(profile.low_hi_date + "T00:00:00").toLocaleDateString("en-US", { timeZone: "America/Los_Angeles", month: "short", day: "numeric", year: "numeric" })})
+                      </span>
+                    )}
+                  </p>
+                )}
               </div>
             )}
           </div>

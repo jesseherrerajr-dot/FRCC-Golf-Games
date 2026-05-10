@@ -133,6 +133,11 @@ export function Leaderboard({
                   Golfer
                   <SortIcon field="golfer" />
                 </th>
+                <th
+                  className="px-2 py-2 text-center text-xs font-semibold uppercase tracking-wider text-gray-500 min-w-[56px]"
+                >
+                  Low H.I.
+                </th>
                 {seasonWeeks.map((week, i) => (
                   <th
                     key={week}
@@ -155,6 +160,7 @@ export function Leaderboard({
               <tr className="bg-gray-50/50 border-b border-gray-300">
                 <th className="sticky left-0 z-20 bg-gray-50/50 px-3 py-1" />
                 <th className="sticky left-[48px] z-20 bg-gray-50/50 px-3 py-1" />
+                <th className="bg-gray-50/50 px-2 py-1" />
                 {seasonWeeks.map((week) => (
                   <th
                     key={`date-${week}`}
@@ -185,6 +191,10 @@ export function Leaderboard({
                     {/* Golfer name */}
                     <td className="sticky left-[48px] z-10 bg-inherit px-3 py-2.5 font-medium text-navy-900 whitespace-nowrap">
                       {formatInitialLastName(entry.firstName, entry.lastName)}
+                    </td>
+                    {/* Low H.I. */}
+                    <td className="px-2 py-2.5 text-center tabular-nums text-gray-600 text-xs">
+                      {entry.lowHiValue != null ? entry.lowHiValue.toFixed(1) : "—"}
                     </td>
                     {/* Weekly scores */}
                     {seasonWeeks.map((week) => {
@@ -220,7 +230,7 @@ export function Leaderboard({
               {sortedEntries.length === 0 && (
                 <tr>
                   <td
-                    colSpan={seasonWeeks.length + 3}
+                    colSpan={seasonWeeks.length + 4}
                     className="px-4 py-8 text-center text-sm text-gray-500"
                   >
                     No golfers subscribed to this event yet.

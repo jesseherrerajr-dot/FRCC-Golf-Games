@@ -918,7 +918,7 @@ async function handleProShopDetail(
   const { data: confirmedRsvps } = await supabase
     .from("rsvps")
     .select(
-      "*, profile:profiles(id, first_name, last_name, email, phone, ghin_number, handicap_index)"
+      "*, profile:profiles(id, first_name, last_name, email, phone, ghin_number, handicap_index, low_hi_value)"
     )
     .eq("schedule_id", schedule.id)
     .eq("status", "in")
@@ -943,6 +943,7 @@ async function handleProShopDetail(
         phone: string;
         ghin_number: string;
         handicap_index: number | null;
+        low_hi_value: number | null;
       };
       return { ...profile, is_guest: false };
     }
@@ -961,6 +962,7 @@ async function handleProShopDetail(
         phone: (g.guest_phone as string) || "",
         ghin_number: (g.guest_ghin_number as string) || "",
         handicap_index: null as number | null,
+        low_hi_value: null as number | null,
         is_guest: true,
         sponsor_name: sponsor
           ? formatSponsorName(sponsor.first_name, sponsor.last_name)

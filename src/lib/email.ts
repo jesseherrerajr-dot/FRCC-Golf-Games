@@ -245,6 +245,7 @@ export function generateProShopEmail({
     phone: string;
     ghin_number: string;
     handicap_index?: number | null;
+    low_hi_value?: number | null;
     is_guest?: boolean;
     sponsor_name?: string;
   }[];
@@ -284,6 +285,7 @@ export function generateProShopEmail({
               <td style="${tdStyle}">${formatPhoneDisplay(m.phone)}</td>
               <td style="${tdStyle}">${m.ghinNumber || "—"}</td>
               <td style="${tdStyle} text-align: center;">${m.handicapIndex != null ? m.handicapIndex.toFixed(1) : "—"}</td>
+              <td style="${tdStyle} text-align: center;">${m.lowHiValue != null ? m.lowHiValue.toFixed(1) : "—"}</td>
               <td style="${tdStyle} text-align: center;">${teePref}</td>
               <td style="${tdStyle} text-align: center;">${playerPref}</td>
             </tr>`;
@@ -320,6 +322,7 @@ export function generateProShopEmail({
             <th style="${thStyle}">Phone</th>
             <th style="${thStyle}">GHIN</th>
             <th style="${thStyle} text-align: center;">HCP</th>
+            <th style="${thStyle} text-align: center;">Low H.I.</th>
             <th style="${thStyle} text-align: center;">Tee Time</th>
             <th style="${thStyle} text-align: center;">Player Pref</th>
           </tr>
@@ -346,6 +349,7 @@ export function generateProShopEmail({
         <td style="${tdStyle}">${formatPhoneDisplay(p.phone)}</td>
         <td style="${tdStyle}">${p.ghin_number}</td>
         <td style="${tdStyle} text-align: center;">${p.handicap_index != null ? p.handicap_index.toFixed(1) : "—"}</td>
+        <td style="${tdStyle} text-align: center;">${p.low_hi_value != null ? Number(p.low_hi_value).toFixed(1) : "—"}</td>
       </tr>`;
       }
     )
@@ -365,6 +369,7 @@ export function generateProShopEmail({
             <th style="${thStyle}">Phone</th>
             <th style="${thStyle}">GHIN</th>
             <th style="${thStyle} text-align: center;">HCP</th>
+            <th style="${thStyle} text-align: center;">Low H.I.</th>
           </tr>
         </thead>
         <tbody>

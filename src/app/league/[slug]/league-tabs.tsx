@@ -10,6 +10,7 @@ export interface SerializedLeaderboardEntry {
   profileId: string;
   firstName: string;
   lastName: string;
+  lowHiValue: number | null;
   weeklyScores: Record<string, number>;
   countingWeeks: string[];
   totalPoints: number;

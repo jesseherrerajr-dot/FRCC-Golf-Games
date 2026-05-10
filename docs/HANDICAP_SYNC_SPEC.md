@@ -21,6 +21,8 @@ Automated system to fetch current Handicap Index values from GHIN for all golfer
 |--------|------|---------|-------------|
 | `handicap_index` | `numeric(4,1)` | `NULL` | Current USGA Handicap Index (e.g., 12.3, +2.1). NULL = never synced or no GHIN number. |
 | `handicap_updated_at` | `timestamptz` | `NULL` | When the handicap was last successfully fetched from GHIN. |
+| `low_hi_value` | `numeric(4,1)` | `NULL` | 12-month Low Handicap Index from GHIN. NULL = never synced or no data (GHIN returns 999 as sentinel). Added in migration 028. |
+| `low_hi_date` | `date` | `NULL` | The date the low H.I. pertains to. NULL = no data available. Added in migration 028. |
 
 **`handicap_sync_log` table — new table for health monitoring:**
 
@@ -100,7 +102,7 @@ For each active event:
 4. Authenticate with GHIN API using env vars. If auth fails → log error, send admin alert, return.
 5. For each golfer needing update (batched, 1 request per 2 seconds):
    a. Call GHIN API with golfer's ghin_number.
-   b. On success: update profiles.handicap_index and profiles.handicap_updated_at.
+   b. On success: update profiles.handicap_index, profiles.handicap_updated_at, profiles.low_hi_value, and profiles.low_hi_date.
    c. On failure: increment failure count, log the error, continue to next golfer.
 6. Write a row to handicap_sync_log with results.
 7. If failure_count > 0 and success_count == 0 (total failure), send admin alert.

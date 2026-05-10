@@ -54,6 +54,8 @@ interface GhinGolferResponse {
   golfers: Array<{
     ghin_number: string;
     handicap_index: string | number | null;
+    low_hi_value: number | null;
+    low_hi_date: string | null;
     first_name: string;
     last_name: string;
     status: string;
@@ -117,15 +119,20 @@ async function authenticateGhin(): Promise<string> {
 }
 
 /**
- * Fetch the current handicap index for a single GHIN number.
- * Returns { handicapIndex, rawResponse } — rawResponse is the full
- * GHIN API golfer object (only captured when captureRaw is true).
+ * Fetch the current handicap index and Low H.I. for a single GHIN number.
+ * Returns { handicapIndex, lowHiValue, lowHiDate, rawResponse } —
+ * rawResponse is the full GHIN API golfer object (only captured when captureRaw is true).
  */
 async function fetchHandicapIndex(
   ghinNumber: string,
   token: string,
   captureRaw: boolean = false
-): Promise<{ handicapIndex: number | null; rawResponse?: Record<string, unknown> }> {
+): Promise<{
+  handicapIndex: number | null;
+  lowHiValue: number | null;
+  lowHiDate: string | null;
+  rawResponse?: Record<string, unknown>;
+}> {
   const url = `${GHIN_API_BASE}/golfers/search.json?per_page=1&page=1&golfer_id=${encodeURIComponent(ghinNumber)}`;
 
   const response = await fetch(url, {
@@ -145,16 +152,21 @@ async function fetchHandicapIndex(
 
   if (!data.golfers || data.golfers.length === 0) {
     console.log(`GHIN lookup: No golfer found for GHIN# ${ghinNumber}`);
-    return { handicapIndex: null };
+    return { handicapIndex: null, lowHiValue: null, lowHiDate: null };
   }
 
   const golfer = data.golfers[0];
   const rawResponse = captureRaw ? (golfer as unknown as Record<string, unknown>) : undefined;
   const handicapIndexVal = golfer.handicap_index;
 
+  // Parse Low H.I. (999 = no data sentinel from GHIN API)
+  const rawLowHi = golfer.low_hi_value;
+  const lowHiValue = (rawLowHi != null && rawLowHi !== 999) ? rawLowHi : null;
+  const lowHiDate = golfer.low_hi_date || null;
+
   if (handicapIndexVal === null || handicapIndexVal === undefined || handicapIndexVal === "NH") {
     console.log(`GHIN lookup: No handicap on file for GHIN# ${ghinNumber}`);
-    return { handicapIndex: null, rawResponse };
+    return { handicapIndex: null, lowHiValue, lowHiDate, rawResponse };
   }
 
   const parsed = typeof handicapIndexVal === "string"
@@ -163,10 +175,10 @@ async function fetchHandicapIndex(
 
   if (isNaN(parsed)) {
     console.log(`GHIN lookup: Invalid handicap value "${handicapIndexVal}" for GHIN# ${ghinNumber}`);
-    return { handicapIndex: null, rawResponse };
+    return { handicapIndex: null, lowHiValue, lowHiDate, rawResponse };
   }
 
-  return { handicapIndex: parsed, rawResponse };
+  return { handicapIndex: parsed, lowHiValue, lowHiDate, rawResponse };
 }
 
 /** Throttle helper */
@@ -362,6 +374,8 @@ export async function runHandicapSync(eventId: string): Promise<SyncResult> {
             .update({
               handicap_index: handicapIndex,
               handicap_updated_at: now,
+              low_hi_value: result.lowHiValue,
+              low_hi_date: result.lowHiDate,
             })
             .eq("id", profile.id);
 
@@ -383,16 +397,18 @@ export async function runHandicapSync(eventId: string): Promise<SyncResult> {
               });
 
             console.log(
-              `Updated handicap for ${profile.first_name} ${profile.last_name}: ${handicapIndex}`
+              `Updated handicap for ${profile.first_name} ${profile.last_name}: ${handicapIndex}${result.lowHiValue != null ? ` (Low H.I.: ${result.lowHiValue})` : ""}`
             );
             successCount++;
           }
         } else {
-          // No handicap found — still mark as "attempted" so we don't retry immediately
+          // No handicap found — still mark as "attempted" and store Low H.I. if available
           await supabase
             .from("profiles")
             .update({
               handicap_updated_at: new Date().toISOString(),
+              low_hi_value: result.lowHiValue,
+              low_hi_date: result.lowHiDate,
             })
             .eq("id", profile.id);
           successCount++; // Count as success (we got a valid API response)

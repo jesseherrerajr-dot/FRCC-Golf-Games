@@ -431,6 +431,8 @@ export interface LeaderboardEntry {
   profileId: string;
   firstName: string;
   lastName: string;
+  /** 12-month Low Handicap Index from GHIN (null if not synced) */
+  lowHiValue: number | null;
   /** Map of game_date → stableford_points */
   weeklyScores: Record<string, number>;
   /** Set of game_dates whose scores count toward total (top N) */

@@ -100,6 +100,7 @@ export async function getSubscribedGolfers(eventId: string): Promise<{
   id: string;
   first_name: string;
   last_name: string;
+  low_hi_value: number | null;
 }[]> {
   const supabase = await createClient();
 
@@ -115,12 +116,12 @@ export async function getSubscribedGolfers(eventId: string): Promise<{
 
   const { data: profiles } = await supabase
     .from("profiles")
-    .select("id, first_name, last_name")
+    .select("id, first_name, last_name, low_hi_value")
     .in("id", profileIds)
     .eq("status", "active")
     .order("last_name", { ascending: true });
 
-  return (profiles || []) as { id: string; first_name: string; last_name: string }[];
+  return (profiles || []) as { id: string; first_name: string; last_name: string; low_hi_value: number | null }[];
 }
 
 /**
@@ -153,7 +154,7 @@ export function computeSeasonWeeks(
  * Applies best-N-of-M logic and computes ranks.
  */
 export function buildLeaderboard(
-  golfers: { id: string; first_name: string; last_name: string }[],
+  golfers: { id: string; first_name: string; last_name: string; low_hi_value: number | null }[],
   scores: LeagueScore[],
   bestN: number | null,
   minRoundsToQualify: number | null
@@ -199,6 +200,7 @@ export function buildLeaderboard(
       profileId: golfer.id,
       firstName: golfer.first_name,
       lastName: golfer.last_name,
+      lowHiValue: golfer.low_hi_value,
       weeklyScores,
       countingWeeks,
       totalPoints,

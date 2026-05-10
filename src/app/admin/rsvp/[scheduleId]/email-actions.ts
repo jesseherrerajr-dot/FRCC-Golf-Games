@@ -456,7 +456,7 @@ export async function sendProShopDetailNow(scheduleId: string) {
     // Get confirmed golfers with full details
     const { data: confirmedRsvps } = await supabase
       .from("rsvps")
-      .select("*, profile:profiles(id, first_name, last_name, email, phone, ghin_number)")
+      .select("*, profile:profiles(id, first_name, last_name, email, phone, ghin_number, low_hi_value)")
       .eq("schedule_id", schedule.id)
       .eq("status", "in")
       .order("responded_at", { ascending: true });
@@ -475,6 +475,7 @@ export async function sendProShopDetailNow(scheduleId: string) {
         email: string;
         phone: string;
         ghin_number: string;
+        low_hi_value: number | null;
       };
       return { ...profile, is_guest: false };
     });
@@ -487,6 +488,7 @@ export async function sendProShopDetailNow(scheduleId: string) {
         email: (g.guest_email as string) || "",
         phone: (g.guest_phone as string) || "",
         ghin_number: (g.guest_ghin_number as string) || "",
+        low_hi_value: null as number | null,
         is_guest: true,
         sponsor_name: sponsor ? formatSponsorName(sponsor.first_name, sponsor.last_name) : "Golfer",
       };

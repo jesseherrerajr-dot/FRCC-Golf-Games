@@ -124,6 +124,18 @@ export default async function GolferDetailPage({
                 </dd>
               </div>
 
+              <div className="flex justify-between">
+                <dt className="text-gray-500">Low H.I.</dt>
+                <dd className="font-medium text-gray-900">
+                  {golfer.low_hi_value != null ? Number(golfer.low_hi_value).toFixed(1) : "N/A"}
+                  {golfer.low_hi_date && (
+                    <span className="ml-1 text-xs text-gray-400">
+                      ({new Date(golfer.low_hi_date + "T00:00:00").toLocaleDateString("en-US", { timeZone: "America/Los_Angeles", month: "short", day: "numeric", year: "numeric" })})
+                    </span>
+                  )}
+                </dd>
+              </div>
+
               {golfer.handicap_index != null && golfer.handicap_updated_at && (
                 <div className="flex justify-between">
                   <dt className="text-gray-500">Last Synced</dt>
