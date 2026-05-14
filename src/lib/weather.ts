@@ -351,6 +351,19 @@ export async function getGameWeather(
 }
 
 /**
+ * Clear cached weather data for an event.
+ * Call this when event settings that affect the forecast window change
+ * (first_tee_time, game_type) so the next fetch uses the updated window.
+ */
+export async function clearWeatherCache(eventId: string): Promise<void> {
+  const supabase = createAdminClient();
+  await supabase
+    .from("weather_cache")
+    .delete()
+    .eq("event_id", eventId);
+}
+
+/**
  * Generate weather HTML snippet for emails
  */
 export function generateWeatherEmailHtml(

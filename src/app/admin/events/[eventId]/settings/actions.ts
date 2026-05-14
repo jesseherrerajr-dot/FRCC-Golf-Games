@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { AlertType, GroupingPartnerPrefMode, GroupingTeeTimePrefMode, GroupingMethod, FlightTeamPairing } from "@/types/events";
+import { clearWeatherCache } from "@/lib/weather";
 
 // ============================================================
 // Event Basic Settings
@@ -90,6 +91,12 @@ export async function updateEventBasicSettings(
       .eq("id", eventId);
 
     if (error) throw error;
+
+    // If game time settings changed, clear weather cache so forecasts
+    // are re-fetched with the correct hourly window
+    if (updates.game_type || updates.first_tee_time) {
+      await clearWeatherCache(eventId);
+    }
 
     revalidatePath(`/admin/events/${eventId}/settings`);
     return { success: true };
