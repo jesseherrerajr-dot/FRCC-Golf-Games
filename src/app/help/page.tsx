@@ -244,6 +244,39 @@ export default async function HelpPage() {
                 </p>
               </FAQ>
 
+              <FAQ question="Is my personal information secure?">
+                <p>
+                  Yes — protecting your data is a top priority. Here&apos;s how your
+                  information is handled:
+                </p>
+                <p className="mt-2">
+                  <strong>What we collect:</strong> Your name, email address, and
+                  optionally your phone number and GHIN number. This is the minimum
+                  needed to run the weekly game.
+                </p>
+                <p className="mt-2">
+                  <strong>Who can see it:</strong> Your email, phone, and GHIN are
+                  visible only to you and to event admins. Other golfers can only see
+                  your first initial and last name (e.g., &quot;J. Smith&quot;) on the
+                  confirmed list. The pro shop receives your details only in the
+                  game-day email — they don&apos;t have a login or access to the app.
+                </p>
+                <p className="mt-2">
+                  <strong>How it&apos;s protected:</strong> All data is stored in a
+                  secure, encrypted database. Every page and API request is served over
+                  HTTPS. Access is controlled by row-level security policies that ensure
+                  each user can only read their own personal information. Login is
+                  passwordless — a one-time magic link sent to your verified email — so
+                  there are no passwords to steal or leak.
+                </p>
+                <p className="mt-2">
+                  <strong>What we don&apos;t do:</strong> We never sell, share, or use
+                  your information for anything outside of running these golf events.
+                  There are no ads, no analytics trackers, and no third-party data
+                  sharing.
+                </p>
+              </FAQ>
+
               <FAQ question="How do I turn on push notifications?">
                 <p>
                   Push notifications let you get alerts about game updates and

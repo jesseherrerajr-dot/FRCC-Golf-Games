@@ -21,13 +21,15 @@ export async function GET(request: Request) {
   const isTest = searchParams.get("test") === "true";
   const siteUrl = getSiteUrl();
 
-  // Verify cron secret if set (for production security)
+  // Verify cron secret (fail-closed: reject if CRON_SECRET is not configured)
   const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret) {
-    const authHeader = request.headers.get("authorization");
-    if (authHeader !== `Bearer ${cronSecret}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+  if (!cronSecret) {
+    console.error("CRON_SECRET environment variable is not set — rejecting request");
+    return NextResponse.json({ error: "Server misconfiguration" }, { status: 500 });
+  }
+  const authHeader = request.headers.get("authorization");
+  if (authHeader !== `Bearer ${cronSecret}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const supabase = createAdminClient();

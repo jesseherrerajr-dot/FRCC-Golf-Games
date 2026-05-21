@@ -15,7 +15,6 @@ type Golfer = {
   id: string;
   first_name: string;
   last_name: string;
-  email: string;
 };
 
 type Partner = {
@@ -66,8 +65,7 @@ export function PlayingPartnerPreferencesSection({
       searchQuery === "" ||
       `${golfer.first_name} ${golfer.last_name}`
         .toLowerCase()
-        .includes(searchQuery.toLowerCase()) ||
-      golfer.email.toLowerCase().includes(searchQuery.toLowerCase());
+        .includes(searchQuery.toLowerCase());
     return !partnerIds.includes(golfer.id) && matchesSearch;
   });
 

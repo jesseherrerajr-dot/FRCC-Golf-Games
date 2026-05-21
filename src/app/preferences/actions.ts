@@ -1,17 +1,18 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
 /**
  * Get all active golfers (for search dropdown)
+ * Uses profiles_directory view to avoid exposing PII (email, phone, GHIN)
  */
 export async function getActiveGolfers() {
   const supabase = await createClient();
 
   const { data, error } = await supabase
-    .from("profiles")
-    .select("id, first_name, last_name, email")
+    .from("profiles_directory")
+    .select("id, first_name, last_name")
     .eq("status", "active")
     .eq("is_guest", false)
     .order("last_name", { ascending: true })
@@ -27,9 +28,10 @@ export async function getActiveGolfers() {
 
 /**
  * Get active golfers subscribed to a specific event
+ * Uses admin client with restricted column selection to avoid exposing PII
  */
 export async function getActiveGolfersByEvent(eventId: string) {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const { data, error } = await supabase
     .from("profiles")
@@ -38,7 +40,6 @@ export async function getActiveGolfersByEvent(eventId: string) {
       id,
       first_name,
       last_name,
-      email,
       event_subscriptions!inner(event_id)
     `
     )
@@ -141,8 +142,7 @@ export async function getPlayingPartnerPreferences(eventId: string) {
       profiles!playing_partner_preferences_preferred_partner_id_fkey(
         id,
         first_name,
-        last_name,
-        email
+        last_name
       )
     `
     )

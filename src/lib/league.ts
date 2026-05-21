@@ -114,8 +114,9 @@ export async function getSubscribedGolfers(eventId: string): Promise<{
 
   const profileIds = subs.map((s) => s.profile_id);
 
+  // Use profiles_directory view to avoid exposing PII (email, phone, GHIN)
   const { data: profiles } = await supabase
-    .from("profiles")
+    .from("profiles_directory")
     .select("id, first_name, last_name, low_hi_value")
     .in("id", profileIds)
     .eq("status", "active")
