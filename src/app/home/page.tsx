@@ -39,17 +39,17 @@ export default async function DashboardPage() {
 
   const { data: allEvents } = await supabase
     .from("events")
-    .select("*")
+    .select("*, event_league_config(league_enabled)")
     .eq("is_active", true);
 
-  // Fetch league configs for all events (to show "League Info" link conditionally)
-  const { data: leagueConfigs } = await supabase
-    .from("event_league_config")
-    .select("event_id, league_enabled")
-    .eq("league_enabled", true);
-
+  // Build league-enabled set from the joined data (handles both array and object return types)
   const leagueEnabledEventIds = new Set(
-    (leagueConfigs || []).map((c) => c.event_id)
+    (allEvents || [])
+      .filter((e) => {
+        const lc = (e as Record<string, unknown>).event_league_config;
+        return Array.isArray(lc) ? (lc[0] as Record<string, unknown>)?.league_enabled : (lc as Record<string, unknown>)?.league_enabled;
+      })
+      .map((e) => e.id)
   );
 
   // Merge subscriptions with event data
