@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import type { LeagueConfig, LeagueTab, LeagueScore, LeaderboardEntry, LeagueMoneyScore, MoneyLeaderboardEntry } from "@/types/events";
 
 /**
@@ -21,8 +21,10 @@ export async function getLeagueConfigBySlug(slug: string): Promise<{
 
   if (!event) return null;
 
-  // Fetch league config
-  const { data: config } = await supabase
+  // Fetch league config (admin client bypasses RLS — session client silently
+  // fails for non-admin golfers despite "authenticated read" policy)
+  const admin = createAdminClient();
+  const { data: config } = await admin
     .from("event_league_config")
     .select("*")
     .eq("event_id", event.id)
@@ -38,9 +40,9 @@ export async function getLeagueConfigBySlug(slug: string): Promise<{
  * Returns the config or null if not found/not enabled.
  */
 export async function getLeagueConfigByEventId(eventId: string): Promise<LeagueConfig | null> {
-  const supabase = await createClient();
+  const admin = createAdminClient();
 
-  const { data: config } = await supabase
+  const { data: config } = await admin
     .from("event_league_config")
     .select("*")
     .eq("event_id", eventId)
@@ -54,9 +56,9 @@ export async function getLeagueConfigByEventId(eventId: string): Promise<LeagueC
  * Fetch active league tabs for an event, ordered by sort_order.
  */
 export async function getLeagueTabs(eventId: string): Promise<LeagueTab[]> {
-  const supabase = await createClient();
+  const admin = createAdminClient();
 
-  const { data } = await supabase
+  const { data } = await admin
     .from("event_league_tabs")
     .select("*")
     .eq("event_id", eventId)
@@ -74,9 +76,9 @@ export async function getLeagueScores(
   seasonStart?: string | null,
   seasonEnd?: string | null
 ): Promise<LeagueScore[]> {
-  const supabase = await createClient();
+  const admin = createAdminClient();
 
-  let query = supabase
+  let query = admin
     .from("league_scores")
     .select("*")
     .eq("event_id", eventId)
@@ -102,9 +104,9 @@ export async function getSubscribedGolfers(eventId: string): Promise<{
   last_name: string;
   low_hi_value: number | null;
 }[]> {
-  const supabase = await createClient();
+  const admin = createAdminClient();
 
-  const { data: subs } = await supabase
+  const { data: subs } = await admin
     .from("event_subscriptions")
     .select("profile_id")
     .eq("event_id", eventId)
@@ -114,9 +116,8 @@ export async function getSubscribedGolfers(eventId: string): Promise<{
 
   const profileIds = subs.map((s) => s.profile_id);
 
-  // Use profiles_directory view to avoid exposing PII (email, phone, GHIN)
-  const { data: profiles } = await supabase
-    .from("profiles_directory")
+  const { data: profiles } = await admin
+    .from("profiles")
     .select("id, first_name, last_name, low_hi_value")
     .in("id", profileIds)
     .eq("status", "active")
@@ -237,9 +238,9 @@ export async function getLeagueMoneyScores(
   seasonStart?: string | null,
   seasonEnd?: string | null
 ): Promise<LeagueMoneyScore[]> {
-  const supabase = await createClient();
+  const admin = createAdminClient();
 
-  let query = supabase
+  let query = admin
     .from("league_money_scores")
     .select("*")
     .eq("event_id", eventId)
