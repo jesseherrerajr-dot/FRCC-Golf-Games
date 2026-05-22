@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { formatPhoneDisplay, formatGameDateShort } from "@/lib/format";
@@ -39,17 +39,20 @@ export default async function DashboardPage() {
 
   const { data: allEvents } = await supabase
     .from("events")
-    .select("*, event_league_config(league_enabled)")
+    .select("*")
     .eq("is_active", true);
 
-  // Build league-enabled set from the joined data (handles both array and object return types)
+  // Fetch league configs using admin client (bypasses RLS) to reliably check
+  // which events have league enabled. The session-based client was silently
+  // failing for non-admin golfers, hiding the League Info link.
+  const adminClient = createAdminClient();
+  const { data: leagueConfigs } = await adminClient
+    .from("event_league_config")
+    .select("event_id, league_enabled")
+    .eq("league_enabled", true);
+
   const leagueEnabledEventIds = new Set(
-    (allEvents || [])
-      .filter((e) => {
-        const lc = (e as Record<string, unknown>).event_league_config;
-        return Array.isArray(lc) ? (lc[0] as Record<string, unknown>)?.league_enabled : (lc as Record<string, unknown>)?.league_enabled;
-      })
-      .map((e) => e.id)
+    (leagueConfigs || []).map((c: { event_id: string }) => c.event_id)
   );
 
   // Merge subscriptions with event data
