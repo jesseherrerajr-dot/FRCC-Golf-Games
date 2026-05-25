@@ -356,11 +356,21 @@ export async function getGameWeather(
  * (first_tee_time, game_type) so the next fetch uses the updated window.
  */
 export async function clearWeatherCache(eventId: string): Promise<void> {
-  const supabase = createAdminClient();
-  await supabase
-    .from("weather_cache")
-    .delete()
-    .eq("event_id", eventId);
+  try {
+    const supabase = createAdminClient();
+    const { error, count } = await supabase
+      .from("weather_cache")
+      .delete()
+      .eq("event_id", eventId);
+
+    if (error) {
+      console.error("Failed to clear weather cache:", error);
+    } else {
+      console.log(`Cleared weather cache for event ${eventId} (${count ?? "unknown"} rows)`);
+    }
+  } catch (err) {
+    console.error("Weather cache clear threw:", err);
+  }
 }
 
 /**

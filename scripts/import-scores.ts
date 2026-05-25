@@ -42,19 +42,30 @@ const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
 });
 
 // --- Name Alias Map ---
-// Golf Genius sometimes uses different first names than what's in our database.
-// Add entries here when a mismatch is discovered. Format: "GolfGeniusFirst LastName" -> "DatabaseFirst"
-// Only the first name is remapped — last names must match exactly.
-const NAME_ALIASES: Record<string, string> = {
-  "douglas irwin": "Doug",
-  "mike leiby": "Michael",
+// Golf Genius sometimes uses different names than what's in our database.
+// Add entries here when a mismatch is discovered.
+// Format: "golf genius full name (lowercase)" -> { firstName, lastName } as stored in DB.
+// If only the first name differs, you can omit lastName.
+const NAME_ALIASES: Record<string, { firstName: string; lastName?: string }> = {
+  "douglas irwin": { firstName: "Doug" },
+  "mike leiby": { firstName: "Michael" },
+  "samuel dagan": { firstName: "Sam" },
+  "bradley schluter": { firstName: "Brad" },
+  "tony dambrosia": { firstName: "Tony", lastName: "D'Ambrosia" },
 };
 
 // --- Helpers ---
 
-function resolveFirstName(firstName: string, lastName: string): string {
+function resolveName(firstName: string, lastName: string): { firstName: string; lastName: string } {
   const key = `${firstName.trim().toLowerCase()} ${lastName.trim().toLowerCase()}`;
-  return NAME_ALIASES[key] || firstName;
+  const alias = NAME_ALIASES[key];
+  if (alias) {
+    return {
+      firstName: alias.firstName,
+      lastName: alias.lastName || lastName,
+    };
+  }
+  return { firstName, lastName };
 }
 
 function askConfirmation(question: string): Promise<boolean> {
@@ -82,26 +93,38 @@ interface ParsedScore {
 }
 
 function parseGolfGeniusXls(filePath: string): ParsedScore[] {
-  const workbook = XLSX.readFile(filePath);
+  // Try xlsx (SheetJS) first — works well with .xlsx files
+  // Falls back to Python xlrd for old .xls binary files that SheetJS can't parse
+  let rows: unknown[][] = [];
+  let sheetName = "";
 
-  // Find the "individual stableford" sheet (case-insensitive)
-  const sheetName = workbook.SheetNames.find(
-    (name) => name.toLowerCase().includes("individual stableford")
-  );
+  try {
+    const workbook = XLSX.readFile(filePath);
 
-  if (!sheetName) {
-    console.error("Could not find 'individual stableford' sheet.");
-    console.error("Available sheets:", workbook.SheetNames.join(", "));
-    process.exit(1);
+    // Find the stableford sheet (case-insensitive)
+    sheetName = workbook.SheetNames.find(
+      (name) => name.toLowerCase().includes("stableford")
+    ) || workbook.SheetNames[0];
+
+    const sheet = workbook.Sheets[sheetName];
+    rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+    // If SheetJS read the file but got no usable data, fall back to xlrd
+    const dataRows = rows.filter((r) => r && (r as unknown[]).length >= 4);
+    if (dataRows.length <= 1) {
+      throw new Error("SheetJS returned no usable data — falling back to xlrd");
+    }
+
+    console.log(`📄 Using sheet: "${sheetName}"`);
+  } catch {
+    console.log("ℹ️  SheetJS couldn't parse this .xls file. Using Python xlrd...");
+    rows = parseWithXlrd(filePath);
   }
-
-  const sheet = workbook.Sheets[sheetName];
-  const rows: unknown[][] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
 
   // Skip header row, parse player data
   const scores: ParsedScore[] = [];
   for (let i = 1; i < rows.length; i++) {
-    const row = rows[i];
+    const row = rows[i] as unknown[];
     if (!row || row.length < 4) continue;
 
     const playerName = String(row[1] || "").trim();
@@ -117,14 +140,52 @@ function parseGolfGeniusXls(filePath: string): ParsedScore[] {
     }
 
     const rawFirstName = nameParts[0];
-    const lastName = nameParts.slice(1).join(" ");
-    // Resolve aliases (e.g., "Douglas" -> "Doug", "Mike" -> "Michael")
-    const firstName = resolveFirstName(rawFirstName, lastName);
+    const rawLastName = nameParts.slice(1).join(" ");
+    // Resolve aliases (e.g., "Douglas" -> "Doug", "Dambrosia" -> "D'Ambrosia")
+    const { firstName, lastName } = resolveName(rawFirstName, rawLastName);
 
     scores.push({ playerName, firstName, lastName, stablefordPoints: points });
   }
 
   return scores;
+}
+
+/**
+ * Fallback parser using Python's xlrd library for old .xls binary files
+ * that SheetJS can't handle reliably.
+ */
+function parseWithXlrd(filePath: string): unknown[][] {
+  const { execSync } = require("child_process");
+  const helperScript = path.join(path.dirname(process.argv[1]), "parse-xls.py");
+
+  try {
+    const result = execSync(
+      `python3 "${helperScript}" "${filePath}"`,
+      { encoding: "utf-8", maxBuffer: 10 * 1024 * 1024 }
+    );
+
+    return JSON.parse(result.trim());
+  } catch (err: unknown) {
+    // Check if stderr has sheet name info
+    if (err && typeof err === "object" && "stderr" in err) {
+      const stderr = (err as { stderr: string }).stderr;
+      const sheetLine = stderr.split("\n").find((l: string) => l.startsWith("SHEET:"));
+      if (sheetLine) {
+        console.log(`📄 Using sheet: "${sheetLine.replace("SHEET:", "")}"`);
+      }
+    }
+    // If we got stdout with valid JSON, the "error" was just stderr output
+    if (err && typeof err === "object" && "stdout" in err) {
+      const stdout = (err as { stdout: string }).stdout.trim();
+      if (stdout.startsWith("[")) {
+        return JSON.parse(stdout);
+      }
+    }
+    console.error("Python xlrd fallback failed. Make sure xlrd is installed:");
+    console.error("  pip3 install xlrd");
+    console.error(err);
+    process.exit(1);
+  }
 }
 
 // --- Main ---

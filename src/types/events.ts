@@ -548,6 +548,82 @@ export interface GameWeatherForecast {
   };
 }
 
+// ============================================================
+// Penalty Box Types
+// ============================================================
+
+/** Status of a penalty record */
+export type PenaltyStatus = 'incarcerated' | 'awaiting_witnesses' | 'apology_required' | 'released';
+
+/** Witness vote value */
+export type WitnessVote = 'yes' | 'no';
+
+/** Witness request status */
+export type WitnessStatus = 'pending' | 'completed' | 'expired';
+
+/** A penalty record (one instance of a golfer being sent to the Penalty Box) */
+export interface PenaltyRecord {
+  id: string;
+  event_id: string;
+  profile_id: string;
+  charged_by: string;
+  charge: string;
+  status: PenaltyStatus;
+  escape_completed_at: string | null;
+  released_at: string | null;
+  released_by: string | null;
+  apology_text: string | null;
+  apology_submitted_at: string | null;
+  witnesses_required: number;
+  offense_number: number;
+  total_no_votes: number;
+  created_at: string;
+}
+
+/** A penalty record with joined profile data for display */
+export interface PenaltyRecordWithProfiles extends PenaltyRecord {
+  profile: {
+    id: string;
+    first_name: string;
+    last_name: string;
+  };
+  charged_by_profile: {
+    id: string;
+    first_name: string;
+    last_name: string;
+  };
+  released_by_profile?: {
+    id: string;
+    first_name: string;
+    last_name: string;
+  } | null;
+  witnesses: PenaltyWitnessWithProfile[];
+}
+
+/** A character witness record */
+export interface PenaltyWitness {
+  id: string;
+  penalty_id: string;
+  witness_profile_id: string;
+  token: string;
+  status: WitnessStatus;
+  vote: WitnessVote | null;
+  testimony: string | null;
+  game_completed_at: string | null;
+  voted_at: string | null;
+  expires_at: string;
+  created_at: string;
+}
+
+/** A character witness record with joined profile data */
+export interface PenaltyWitnessWithProfile extends PenaltyWitness {
+  witness_profile: {
+    id: string;
+    first_name: string;
+    last_name: string;
+  };
+}
+
 export interface UpdateEventSettingsInput {
   name?: string;
   description?: string;

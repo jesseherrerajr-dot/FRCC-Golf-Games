@@ -74,21 +74,37 @@ export default async function RsvpPage({
   const isCancelled = cancelled === "true" || schedule?.status === "cancelled";
 
   // Fetch "In" list — only show if this golfer is "in"
-  let inList: { first_name: string; last_name: string }[] = [];
+  let inList: { id: string; first_name: string; last_name: string }[] = [];
   let inCount = 0;
+  const penalizedProfileIds = new Set<string>();
   if (currentStatus === "in" || currentStatus === "waitlisted") {
     const { data: inRsvps } = await supabase
       .from("rsvps")
-      .select("profile:profiles(first_name, last_name)")
+      .select("profile:profiles(id, first_name, last_name)")
       .eq("schedule_id", rsvp.schedule_id)
       .eq("status", "in")
       .order("responded_at", { ascending: true });
 
     if (inRsvps) {
       inList = inRsvps
-        .map((r: Record<string, unknown>) => r.profile as { first_name: string; last_name: string })
+        .map((r: Record<string, unknown>) => r.profile as { id: string; first_name: string; last_name: string })
         .filter(Boolean);
       inCount = inList.length;
+    }
+
+    // Fetch penalty box inmates for badge display
+    if (event?.penalty_box_enabled && inList.length > 0) {
+      const adminClient = createAdminClient();
+      const { data: penalties } = await adminClient
+        .from("penalty_box")
+        .select("profile_id")
+        .eq("event_id", event.id)
+        .neq("status", "released");
+      if (penalties) {
+        for (const p of penalties) {
+          penalizedProfileIds.add(p.profile_id);
+        }
+      }
     }
   }
 
@@ -264,8 +280,13 @@ export default async function RsvpPage({
             <CollapsibleSection title={`Who's In (${inList.length})`} defaultOpen={false}>
               <ul className="mt-2 space-y-1">
                 {inList.map((golfer, i) => (
-                  <li key={i} className="text-sm text-gray-600">
+                  <li key={i} className="flex items-center gap-2 text-sm text-gray-600">
                     {formatInitialLastName(golfer.first_name, golfer.last_name)}
+                    {penalizedProfileIds.has(golfer.id) && (
+                      <span className="inline-flex items-center rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-700">
+                        🔒
+                      </span>
+                    )}
                   </li>
                 ))}
               </ul>

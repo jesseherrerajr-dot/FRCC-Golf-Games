@@ -92,11 +92,10 @@ export async function updateEventBasicSettings(
 
     if (error) throw error;
 
-    // If game time settings changed, clear weather cache so forecasts
-    // are re-fetched with the correct hourly window
-    if (updates.game_type || updates.first_tee_time) {
-      await clearWeatherCache(eventId);
-    }
+    // Always clear weather cache on settings save — ensures forecasts
+    // use the current game window (first_tee_time + game_type).
+    // This is cheap (deletes a few rows) and avoids stale forecast windows.
+    await clearWeatherCache(eventId);
 
     revalidatePath(`/admin/events/${eventId}/settings`);
     return { success: true };
@@ -610,6 +609,7 @@ export async function updateFeatureFlags(
     allow_playing_partner_preferences?: boolean;
     allow_auto_grouping?: boolean;
     max_guests_per_week?: number;
+    penalty_box_enabled?: boolean;
   }
 ) {
   await requireSuperAdmin();

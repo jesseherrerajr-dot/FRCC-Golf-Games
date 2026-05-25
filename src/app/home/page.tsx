@@ -11,6 +11,7 @@ import { RSVP_GOLFER_LABELS as statusLabels, RSVP_GOLFER_COLORS as statusStyles,
 import { getGameWeather } from "@/lib/weather";
 import { WeatherForecast } from "@/components/weather-forecast";
 import type { GameType, GameWeatherForecast } from "@/types/events";
+import { isInPenaltyBox } from "@/lib/penalty-box";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -54,6 +55,23 @@ export default async function DashboardPage() {
   const leagueEnabledEventIds = new Set(
     (leagueConfigs || []).map((c: { event_id: string }) => c.event_id)
   );
+
+  // Penalty Box: check which events have it enabled and if user is penalized
+  const penaltyBoxEnabledEvents = new Set(
+    (allEvents || [])
+      .filter((e) => e.penalty_box_enabled)
+      .map((e) => e.id)
+  );
+
+  // Check if user is in the penalty box for any event
+  const penaltyBoxStatuses: Record<string, boolean> = {};
+  if (penaltyBoxEnabledEvents.size > 0 && user) {
+    await Promise.all(
+      Array.from(penaltyBoxEnabledEvents).map(async (eventId) => {
+        penaltyBoxStatuses[eventId] = await isInPenaltyBox(eventId, user.id);
+      })
+    );
+  }
 
   // Merge subscriptions with event data
   const subscriptions = (rawSubs || []).map((sub) => {
@@ -315,6 +333,37 @@ export default async function DashboardPage() {
                               <span className="text-sm font-medium text-teal-700">
                                 League Info & Leaderboard
                               </span>
+                            </div>
+                            <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                            </svg>
+                          </Link>
+                        )}
+
+                        {/* Penalty Box link — only for events with penalty box enabled */}
+                        {event && event.slug && penaltyBoxEnabledEvents.has(event.id) && (
+                          <Link
+                            href={`/penalty-box/${event.slug}`}
+                            className={`flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 transition-colors ${
+                              penaltyBoxStatuses[event.id]
+                                ? "hover:bg-red-50/30"
+                                : "hover:bg-teal-50/30"
+                            }`}
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="text-base">🔒</span>
+                              <span className={`text-sm font-medium ${
+                                penaltyBoxStatuses[event.id]
+                                  ? "text-red-700"
+                                  : "text-gray-700"
+                              }`}>
+                                The Penalty Box
+                              </span>
+                              {penaltyBoxStatuses[event.id] && (
+                                <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
+                                  You&apos;re In!
+                                </span>
+                              )}
                             </div>
                             <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />

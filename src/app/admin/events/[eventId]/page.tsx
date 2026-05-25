@@ -11,6 +11,8 @@ import {
   DenyButton,
 } from "@/app/admin/admin-actions";
 import { JoinLinkSection } from "./settings/components";
+import { SendToPenaltyBoxForm, ActivePenaltiesAdmin } from "./penalty-box-admin";
+import { getActivePenalties, formatTimeServed, getEventAdmin } from "@/lib/penalty-box";
 
 export default async function EventDashboardPage({
   params,
@@ -177,6 +179,50 @@ export default async function EventDashboardPage({
 
   // Check if guest requests feature is enabled for this event
   const guestRequestsEnabled = event.allow_guest_requests;
+
+  // Penalty Box data (only fetch when enabled)
+  let penaltyBoxData: {
+    activePenalties: Awaited<ReturnType<typeof getActivePenalties>>;
+    subscribers: Array<{ id: string; first_name: string; last_name: string }>;
+    eventAdminId: string;
+    eventSlug: string;
+  } | null = null;
+
+  if (event.penalty_box_enabled) {
+    const [activePenalties, eventAdmin] = await Promise.all([
+      getActivePenalties(eventId),
+      getEventAdmin(eventId),
+    ]);
+
+    // Fetch active subscribers for the golfer dropdown
+    const { data: subs } = await supabase
+      .from("event_subscriptions")
+      .select("profile:profiles(id, first_name, last_name, status)")
+      .eq("event_id", eventId);
+
+    const activeSubscribers = (subs || [])
+      .filter((s) => {
+        const p = s.profile as unknown as { status: string } | null;
+        return p && p.status === "active";
+      })
+      .map((s) => {
+        const p = s.profile as unknown as { id: string; first_name: string; last_name: string };
+        return { id: p.id, first_name: p.first_name, last_name: p.last_name };
+      })
+      .sort((a, b) => a.last_name.localeCompare(b.last_name));
+
+    const activePenaltiesWithTime = activePenalties.map((p) => ({
+      ...p,
+      timeServed: formatTimeServed(p.created_at),
+    }));
+
+    penaltyBoxData = {
+      activePenalties: activePenaltiesWithTime as typeof activePenalties,
+      subscribers: activeSubscribers,
+      eventAdminId: eventAdmin?.id || profile.id,
+      eventSlug: event.slug || "",
+    };
+  }
 
   return (
     <main className="min-h-screen px-4 py-8">
@@ -515,6 +561,32 @@ export default async function EventDashboardPage({
               </svg>
             </Link>
           </section>
+
+          {/* Section 4: Penalty Box (when enabled) */}
+          {penaltyBoxData && (
+            <section className="mb-8">
+              <h2 className="mb-4 text-lg font-semibold text-gray-900">
+                🔒 The Penalty Box
+              </h2>
+              <div className="space-y-4">
+                <SendToPenaltyBoxForm
+                  eventId={eventId}
+                  eventName={event.name}
+                  slug={penaltyBoxData.eventSlug}
+                  chargedBy={penaltyBoxData.eventAdminId}
+                  subscribers={penaltyBoxData.subscribers}
+                />
+                <ActivePenaltiesAdmin
+                  penalties={penaltyBoxData.activePenalties.map((p) => ({
+                    ...p,
+                    timeServed: formatTimeServed(p.created_at),
+                  }))}
+                  slug={penaltyBoxData.eventSlug}
+                  currentUserId={profile.id}
+                />
+              </div>
+            </section>
+          )}
 
           {/* Section 5: Manage Event */}
           <section className="mb-12">

@@ -1751,6 +1751,41 @@ export function FeatureFlagsForm({ event }: { event: any }) {
           </div>
         )}
       </div>
+
+      {/* Penalty Box Toggle */}
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-sm font-medium text-gray-900">The Penalty Box</p>
+          <p className="text-xs text-gray-500">Allow admins to playfully penalize golfers with a mini-game escape challenge</p>
+        </div>
+        <button
+          onClick={() => {
+            startTransition(async () => {
+              const result = await updateFeatureFlags(event.id, {
+                penalty_box_enabled: !event.penalty_box_enabled,
+              });
+              if (result.error) {
+                setMessage({ text: result.error, isError: true });
+              } else {
+                setMessage({
+                  text: event.penalty_box_enabled ? "Penalty Box disabled" : "Penalty Box enabled",
+                  isError: false,
+                });
+              }
+            });
+          }}
+          disabled={isPending}
+          className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 ${
+            event.penalty_box_enabled ? "bg-teal-500" : "bg-gray-200"
+          } ${isPending ? "opacity-50" : ""}`}
+        >
+          <span
+            className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform duration-200 ${
+              event.penalty_box_enabled ? "translate-x-5" : "translate-x-0"
+            }`}
+          />
+        </button>
+      </div>
     </div>
   );
 }
