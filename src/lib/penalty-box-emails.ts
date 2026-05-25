@@ -95,9 +95,15 @@ const EMAIL_FOOTER = `
 export function generatePenaltyIssuedEmail(params: PenaltyIssuedEmailParams): string {
   const { golferName, eventName, adminName, charge, penaltyBoxUrl } = params;
 
+  const isMultiple = golferName.includes(" and ");
+  const headerEmoji = isMultiple ? "🚨" : "⚠️";
+  const escapeText = isMultiple
+    ? "Each must independently complete the Escape Challenge and find their own character witnesses to earn release."
+    : `${golferName} must complete the Escape Challenge and find character witnesses to earn release.`;
+
   return `${EMAIL_WRAPPER}
   <div style="background: #fef2f2; border-left: 4px solid #dc2626; padding: 20px; margin-bottom: 30px;">
-    <h1 style="color: #991b1b; margin: 0 0 10px 0; font-size: 24px;">⚠️ Penalty Box Alert</h1>
+    <h1 style="color: #991b1b; margin: 0 0 10px 0; font-size: 24px;">${headerEmoji} Penalty Box Alert</h1>
     <p style="margin: 0; font-size: 16px; color: #b91c1c;">${eventName}</p>
   </div>
 
@@ -110,7 +116,7 @@ export function generatePenaltyIssuedEmail(params: PenaltyIssuedEmailParams): st
       <p style="margin: 0; font-size: 16px; color: #1f2937; font-style: italic;">"${charge}"</p>
     </div>
     <p style="margin: 0; font-size: 14px; color: #6b7280;">
-      ${golferName} must complete the Escape Challenge and find character witnesses to earn release.
+      ${escapeText}
       Follow the drama on the Penalty Box page.
     </p>
   </div>

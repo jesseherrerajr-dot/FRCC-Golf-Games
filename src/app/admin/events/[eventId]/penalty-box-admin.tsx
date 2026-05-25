@@ -24,7 +24,7 @@ export function SendToPenaltyBoxForm({
   subscribers: Array<{ id: string; first_name: string; last_name: string }>;
 }) {
   const [showForm, setShowForm] = useState(false);
-  const [selectedGolfer, setSelectedGolfer] = useState("");
+  const [selectedGolfers, setSelectedGolfers] = useState<Set<string>>(new Set());
   const [charge, setCharge] = useState("");
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<{ text: string; isError: boolean } | null>(null);
@@ -37,27 +37,49 @@ export function SendToPenaltyBoxForm({
     "Slow play advocacy",
     "Complained about the weather forecast",
     "Asked 'what time do we tee off?' for the 5th time",
+    "Co-conspirators in crimes against the group",
   ];
 
+  const toggleGolfer = (id: string) => {
+    setSelectedGolfers((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
   const handleSubmit = () => {
-    if (!selectedGolfer || !charge.trim()) return;
+    if (selectedGolfers.size === 0 || !charge.trim()) return;
 
     startTransition(async () => {
       const formData = new FormData();
       formData.set("eventId", eventId);
-      formData.set("profileId", selectedGolfer);
       formData.set("chargedBy", chargedBy);
       formData.set("charge", charge);
       formData.set("slug", slug);
       formData.set("eventName", eventName);
+      // Send all selected profile IDs
+      Array.from(selectedGolfers).forEach((id) => {
+        formData.append("profileIds", id);
+      });
 
       const result = await sendToPenaltyBox(formData);
       if (result.error) {
         setMessage({ text: result.error, isError: true });
       } else {
-        setMessage({ text: "Golfer sent to the Penalty Box! Email notification sent.", isError: false });
+        const count = selectedGolfers.size;
+        setMessage({
+          text: count === 1
+            ? "Golfer sent to the Penalty Box! Email notification sent."
+            : `${count} golfers sent to the Penalty Box! Email notification sent.`,
+          isError: false,
+        });
         setShowForm(false);
-        setSelectedGolfer("");
+        setSelectedGolfers(new Set());
         setCharge("");
         router.refresh();
       }
@@ -94,19 +116,44 @@ export function SendToPenaltyBoxForm({
       )}
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Select Golfer</label>
-        <select
-          value={selectedGolfer}
-          onChange={(e) => setSelectedGolfer(e.target.value)}
-          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500"
-        >
-          <option value="">Choose a golfer...</option>
-          {subscribers.map((s) => (
-            <option key={s.id} value={s.id}>
-              {formatFullName(s.first_name, s.last_name)}
-            </option>
-          ))}
-        </select>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Select Golfer{selectedGolfers.size !== 1 ? "s" : ""}
+          {selectedGolfers.size > 0 && (
+            <span className="ml-2 text-red-600 font-normal">
+              ({selectedGolfers.size} selected)
+            </span>
+          )}
+        </label>
+        <div className="max-h-48 overflow-y-auto rounded-lg border border-gray-300 divide-y divide-gray-100">
+          {subscribers.map((s) => {
+            const isSelected = selectedGolfers.has(s.id);
+            return (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => toggleGolfer(s.id)}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm text-left transition-colors ${
+                  isSelected
+                    ? "bg-red-50 text-red-900"
+                    : "bg-white text-gray-700 hover:bg-gray-50"
+                }`}
+              >
+                <span className={`flex-shrink-0 h-4 w-4 rounded border flex items-center justify-center ${
+                  isSelected
+                    ? "bg-red-600 border-red-600"
+                    : "border-gray-300"
+                }`}>
+                  {isSelected && (
+                    <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                    </svg>
+                  )}
+                </span>
+                {formatFullName(s.first_name, s.last_name)}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <div>
@@ -132,10 +179,15 @@ export function SendToPenaltyBoxForm({
 
       <button
         onClick={handleSubmit}
-        disabled={!selectedGolfer || !charge.trim() || isPending}
+        disabled={selectedGolfers.size === 0 || !charge.trim() || isPending}
         className="w-full py-2 rounded-lg font-semibold text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 text-sm"
       >
-        {isPending ? "Sending..." : "🔒 Send to Penalty Box"}
+        {isPending
+          ? "Sending..."
+          : selectedGolfers.size > 1
+            ? `🔒 Send ${selectedGolfers.size} Golfers to Penalty Box`
+            : "🔒 Send to Penalty Box"
+        }
       </button>
     </div>
   );

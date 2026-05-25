@@ -31,21 +31,33 @@ import { revalidatePath } from "next/cache";
 // ============================================================
 
 /**
- * Admin sends a golfer to the Penalty Box.
+ * Admin sends one or more golfers to the Penalty Box under a single charge.
+ * Creates individual penalty records per golfer but sends one combined email blast.
  */
 export async function sendToPenaltyBox(formData: FormData) {
   const eventId = formData.get("eventId") as string;
-  const profileId = formData.get("profileId") as string;
   const chargedBy = formData.get("chargedBy") as string;
   const charge = formData.get("charge") as string;
   const slug = formData.get("slug") as string;
 
-  if (!eventId || !profileId || !chargedBy || !charge) {
+  // Support both single profileId (legacy) and multiple profileIds
+  const profileIds = formData.getAll("profileIds") as string[];
+  const singleId = formData.get("profileId") as string;
+  const allProfileIds = profileIds.length > 0 ? profileIds : singleId ? [singleId] : [];
+
+  if (!eventId || allProfileIds.length === 0 || !chargedBy || !charge) {
     return { error: "Missing required fields" };
   }
 
   try {
-    const penalty = await createPenalty({ eventId, profileId, chargedBy, charge });
+    const supabase = createAdminClient();
+
+    // Create a penalty for each golfer
+    const penalties = await Promise.all(
+      allProfileIds.map((profileId) =>
+        createPenalty({ eventId, profileId, chargedBy, charge })
+      )
+    );
 
     // Get event admin for email attribution
     const eventAdmin = await getEventAdmin(eventId);
@@ -53,30 +65,23 @@ export async function sendToPenaltyBox(formData: FormData) {
       ? formatFullName(eventAdmin.first_name, eventAdmin.last_name)
       : "The Admin";
 
-    // Get penalized golfer info
-    const supabase = createAdminClient();
-    const { data: golfer } = await supabase
+    // Get all penalized golfer names
+    const { data: golfers } = await supabase
       .from("profiles")
-      .select("first_name, last_name")
-      .eq("id", profileId)
-      .single();
+      .select("id, first_name, last_name")
+      .in("id", allProfileIds);
 
-    const golferName = golfer
-      ? formatFullName(golfer.first_name, golfer.last_name)
-      : "A golfer";
+    const golferNames = (golfers || []).map((g) =>
+      formatFullName(g.first_name, g.last_name)
+    );
+    const golferName = golferNames.length === 1
+      ? golferNames[0]
+      : golferNames.length === 2
+        ? `${golferNames[0]} and ${golferNames[1]}`
+        : `${golferNames.slice(0, -1).join(", ")}, and ${golferNames[golferNames.length - 1]}`;
 
     const siteUrl = getSiteUrl();
     const penaltyBoxUrl = `${siteUrl}/penalty-box/${slug}`;
-
-    // Send email blast to all event subscribers
-    const subscribers = await getEventSubscribers(eventId);
-    const emailHtml = generatePenaltyIssuedEmail({
-      golferName,
-      eventName: (formData.get("eventName") as string) || "Golf Group",
-      adminName,
-      charge,
-      penaltyBoxUrl,
-    });
 
     // Get event info for email
     const { data: event } = await supabase
@@ -87,10 +92,15 @@ export async function sendToPenaltyBox(formData: FormData) {
 
     const eventName = event?.name || "Golf Group";
 
+    // Send one combined email blast to all event subscribers
+    const subscribers = await getEventSubscribers(eventId);
+    const subjectPrefix = allProfileIds.length > 1 ? "🚨" : "⚠️";
+    const subjectVerb = allProfileIds.length > 1 ? "sent" : "sent";
+
     for (const subscriber of subscribers) {
       await sendEmail({
         to: subscriber.email,
-        subject: `⚠️ ${eventName}: ${golferName} sent to the Penalty Box!`,
+        subject: `${subjectPrefix} ${eventName}: ${golferName} ${subjectVerb} to the Penalty Box!`,
         html: generatePenaltyIssuedEmail({
           golferName,
           eventName,
@@ -103,7 +113,7 @@ export async function sendToPenaltyBox(formData: FormData) {
     }
 
     revalidatePath(`/penalty-box/${slug}`);
-    return { success: true, penaltyId: penalty.id };
+    return { success: true, penaltyIds: penalties.map((p) => p.id) };
   } catch (error) {
     console.error("Failed to send to penalty box:", error);
     return { error: "Failed to create penalty" };
