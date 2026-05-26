@@ -33,6 +33,8 @@ interface PuttingGameProps {
   isWitnessMode?: boolean;
   /** Called when witness finishes (witness mode only) */
   onWitnessComplete?: () => void;
+  /** Optional image URL for the admin gatekeeper (replaces clown emoji) */
+  adminImageUrl?: string;
 }
 
 // ============================================================
@@ -189,9 +191,11 @@ function PowerMeter({
 function BallAnimation({
   result,
   holeNumber,
+  adminImageUrl,
 }: {
   result: "rolling" | "in" | "miss" | "clown-spit";
   holeNumber: HoleNumber;
+  adminImageUrl?: string;
 }) {
   return (
     <div className="relative w-full h-32 flex items-center justify-center">
@@ -200,9 +204,22 @@ function BallAnimation({
         {/* Hole / Clown mouth */}
         <div className="absolute right-8 top-1/2 -translate-y-1/2">
           {holeNumber === 3 ? (
-            <div className="text-4xl">
-              {result === "clown-spit" ? "🤡💨" : "🤡"}
-            </div>
+            adminImageUrl ? (
+              <div className={`relative transition-transform duration-300 ${result === "clown-spit" ? "scale-110" : ""}`}>
+                <img
+                  src={adminImageUrl}
+                  alt="The Gatekeeper"
+                  className="w-16 h-16 rounded-full border-2 border-red-500 object-cover"
+                />
+                {result === "clown-spit" && (
+                  <span className="absolute -left-4 top-1/2 -translate-y-1/2 text-xl">💨</span>
+                )}
+              </div>
+            ) : (
+              <div className="text-4xl">
+                {result === "clown-spit" ? "🤡💨" : "🤡"}
+              </div>
+            )
           ) : (
             <div
               className="w-6 h-6 rounded-full bg-gray-900 border-2 border-gray-700"
@@ -238,12 +255,14 @@ function ClownReveal({
   witnessesRequired,
   isWitnessMode,
   onContinue,
+  adminImageUrl,
 }: {
   adminName: string;
   taunt: string;
   witnessesRequired: number;
   isWitnessMode: boolean;
   onContinue: () => void;
+  adminImageUrl?: string;
 }) {
   const [showMessage, setShowMessage] = useState(false);
 
@@ -254,8 +273,18 @@ function ClownReveal({
 
   return (
     <div className="text-center space-y-6">
-      {/* Clown animation */}
-      <div className="text-6xl animate-bounce">🤡</div>
+      {/* Gatekeeper avatar */}
+      {adminImageUrl ? (
+        <div className="animate-bounce">
+          <img
+            src={adminImageUrl}
+            alt={`${adminName} the Gatekeeper`}
+            className="w-24 h-24 rounded-full border-4 border-red-500 mx-auto object-cover"
+          />
+        </div>
+      ) : (
+        <div className="text-6xl animate-bounce">🤡</div>
+      )}
       <p className="text-lg font-bold text-gray-800">
         {adminName} the Gatekeeper
       </p>
@@ -306,6 +335,7 @@ export default function PuttingGame({
   onComplete,
   isWitnessMode = false,
   onWitnessComplete,
+  adminImageUrl,
 }: PuttingGameProps) {
   const [currentHole, setCurrentHole] = useState<HoleNumber>(1);
   const [phase, setPhase] = useState<GamePhase>("intro");
@@ -369,6 +399,7 @@ export default function PuttingGame({
           witnessesRequired={witnessesRequired}
           isWitnessMode={isWitnessMode}
           onContinue={handleClownContinue}
+          adminImageUrl={adminImageUrl}
         />
       </div>
     );
@@ -425,7 +456,7 @@ export default function PuttingGame({
       </div>
 
       {/* Ball animation area */}
-      <BallAnimation result={ballResult} holeNumber={currentHole} />
+      <BallAnimation result={ballResult} holeNumber={currentHole} adminImageUrl={adminImageUrl} />
 
       {/* Power meter */}
       {phase === "intro" && (

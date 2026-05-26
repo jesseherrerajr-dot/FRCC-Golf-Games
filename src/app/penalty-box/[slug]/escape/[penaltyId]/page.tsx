@@ -4,6 +4,7 @@ import {
   getPenaltyById,
   getEventAdmin,
   getRandomClownTaunt,
+  getGatekeeperImageUrl,
 } from "@/lib/penalty-box";
 import { formatFullName } from "@/lib/format";
 import { EscapeGameClient } from "./escape-game-client";
@@ -48,6 +49,7 @@ export default async function EscapeGamePage({ params }: PageProps) {
     : "The Admin";
 
   const clownTaunt = getRandomClownTaunt(adminName);
+  const adminImageUrl = getGatekeeperImageUrl(eventAdmin?.id);
 
   return (
     <main className="min-h-screen flex items-center justify-center px-4 py-8">
@@ -58,6 +60,7 @@ export default async function EscapeGamePage({ params }: PageProps) {
         adminName={adminName}
         clownTaunt={clownTaunt}
         witnessesRequired={penalty.witnesses_required}
+        adminImageUrl={adminImageUrl}
       />
     </main>
   );

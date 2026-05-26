@@ -12,6 +12,7 @@ interface EscapeGameClientProps {
   adminName: string;
   clownTaunt: string;
   witnessesRequired: number;
+  adminImageUrl?: string;
 }
 
 export function EscapeGameClient({
@@ -21,6 +22,7 @@ export function EscapeGameClient({
   adminName,
   clownTaunt,
   witnessesRequired,
+  adminImageUrl,
 }: EscapeGameClientProps) {
   const [gameComplete, setGameComplete] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -62,6 +64,7 @@ export function EscapeGameClient({
         clownTaunt={clownTaunt}
         witnessesRequired={witnessesRequired}
         onComplete={handleGameComplete}
+        adminImageUrl={adminImageUrl}
       />
     </div>
   );

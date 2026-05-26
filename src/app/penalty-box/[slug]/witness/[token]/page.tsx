@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getWitnessByToken, getRandomClownTaunt } from "@/lib/penalty-box";
+import { getWitnessByToken, getRandomClownTaunt, getGatekeeperImageUrl } from "@/lib/penalty-box";
 import { formatFullName } from "@/lib/format";
 import { WitnessFlowClient } from "./witness-flow-client";
 
@@ -74,6 +74,7 @@ export default async function WitnessPage({ params }: PageProps) {
 
   const adminName = formatFullName(eventAdmin.first_name, eventAdmin.last_name);
   const clownTaunt = getRandomClownTaunt(adminName);
+  const adminImageUrl = getGatekeeperImageUrl(eventAdmin.id);
   const golferName = formatFullName(
     penalty.profile.first_name,
     penalty.profile.last_name
@@ -89,6 +90,7 @@ export default async function WitnessPage({ params }: PageProps) {
         adminName={adminName}
         clownTaunt={clownTaunt}
         eventName={event.name}
+        adminImageUrl={adminImageUrl}
       />
     </main>
   );

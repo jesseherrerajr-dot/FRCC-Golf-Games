@@ -12,6 +12,7 @@ interface WitnessFlowClientProps {
   adminName: string;
   clownTaunt: string;
   eventName: string;
+  adminImageUrl?: string;
 }
 
 type FlowPhase = "intro" | "game" | "vote" | "submitted";
@@ -24,6 +25,7 @@ export function WitnessFlowClient({
   adminName,
   clownTaunt,
   eventName,
+  adminImageUrl,
 }: WitnessFlowClientProps) {
   const [phase, setPhase] = useState<FlowPhase>("intro");
   const [vote, setVote] = useState<"yes" | "no" | null>(null);
@@ -99,6 +101,7 @@ export function WitnessFlowClient({
           onComplete={() => {}}
           isWitnessMode
           onWitnessComplete={handleGameComplete}
+          adminImageUrl={adminImageUrl}
         />
       </div>
     );

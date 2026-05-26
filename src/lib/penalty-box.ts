@@ -53,6 +53,17 @@ export function getRandomClownTaunt(adminName: string): string {
   return taunt.replace(/{adminName}/g, adminName);
 }
 
+/**
+ * Get the gatekeeper image URL for an event admin.
+ * Returns the static image path if one exists for this admin, or undefined.
+ * Currently hardcoded — expand per-admin as needed.
+ */
+export function getGatekeeperImageUrl(_adminProfileId?: string): string | undefined {
+  // For now, we have a single gatekeeper image used for all events.
+  // To add per-admin images later, map adminProfileId → filename here.
+  return "/penalty-box/gatekeeper.png";
+}
+
 // ============================================================
 // Read Operations
 // ============================================================
@@ -215,7 +226,7 @@ export async function getWitnessByToken(token: string): Promise<{
   witness: PenaltyWitnessWithProfile;
   penalty: PenaltyRecordWithProfiles;
   event: { id: string; name: string; slug: string };
-  eventAdmin: { first_name: string; last_name: string };
+  eventAdmin: { id?: string; first_name: string; last_name: string };
 } | null> {
   const supabase = createAdminClient();
 
@@ -244,18 +255,21 @@ export async function getWitnessByToken(token: string): Promise<{
   // Get the primary event admin name for the clown
   const { data: adminAssignment } = await supabase
     .from("event_admins")
-    .select("profile:profiles(first_name, last_name)")
+    .select("profile_id, profile:profiles(first_name, last_name)")
     .eq("event_id", event.id)
     .eq("role", "primary")
     .single();
 
-  const eventAdmin = adminAssignment?.profile || { first_name: "The", last_name: "Admin" };
+  const adminProfile = adminAssignment?.profile as unknown as { first_name: string; last_name: string } | null;
+  const eventAdmin = adminProfile
+    ? { id: adminAssignment!.profile_id, ...adminProfile }
+    : { first_name: "The", last_name: "Admin" };
 
   return {
     witness: witness as PenaltyWitnessWithProfile,
     penalty,
     event,
-    eventAdmin: eventAdmin as { first_name: string; last_name: string },
+    eventAdmin: eventAdmin as { id?: string; first_name: string; last_name: string },
   };
 }
 
