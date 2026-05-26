@@ -45,7 +45,7 @@ function getHoles(charge: string): HoleConfig[] {
   return [
     {
       number: 1,
-      name: "The Gimme",
+      name: "Hole 1",
       subtitle: "Even you can make this one.",
       sweetSpotPercent: 40,
       greenColor: "#22c55e",
@@ -53,7 +53,7 @@ function getHoles(charge: string): HoleConfig[] {
     },
     {
       number: 2,
-      name: "The Snake",
+      name: "Hole 2",
       subtitle: `Difficulty adjusted for: "${charge.length > 60 ? charge.slice(0, 57) + "..." : charge}"`,
       sweetSpotPercent: 20,
       greenColor: "#eab308",
@@ -61,11 +61,11 @@ function getHoles(charge: string): HoleConfig[] {
     },
     {
       number: 3,
-      name: "The Clown",
+      name: "Hole 3",
       subtitle: "The final challenge...",
       sweetSpotPercent: 25,
       greenColor: "#ef4444",
-      description: "Sink it in the clown's mouth to escape!",
+      description: "Sink it in the gatekeeper's mouth to escape!",
     },
   ];
 }
@@ -438,11 +438,19 @@ export default function PuttingGame({
       {/* Hole info */}
       <div className="text-center space-y-1">
         <div className="flex items-center justify-center gap-2">
-          <span className="text-2xl">
-            {currentHole === 3 ? "🤡" : "⛳"}
-          </span>
+          {currentHole === 3 && adminImageUrl ? (
+            <img
+              src={adminImageUrl}
+              alt="The Gatekeeper"
+              className="w-7 h-7 rounded-full object-cover"
+            />
+          ) : (
+            <span className="text-2xl">
+              {currentHole === 3 ? "🤡" : "⛳"}
+            </span>
+          )}
           <h2 className="text-xl font-bold text-gray-800">
-            Hole {currentHole}: {currentHoleConfig.name}
+            {currentHoleConfig.name}
           </h2>
         </div>
         <p className="text-sm text-gray-500 italic">
