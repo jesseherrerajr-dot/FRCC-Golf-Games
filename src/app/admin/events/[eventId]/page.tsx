@@ -566,7 +566,7 @@ export default async function EventDashboardPage({
           {penaltyBoxData && (
             <section className="mb-8">
               <h2 className="mb-4 text-lg font-semibold text-gray-900">
-                🔒 The Penalty Box
+                🔒 {event.penalty_box_name || "The Penalty Box"}
               </h2>
               <div className="space-y-4">
                 <SendToPenaltyBoxForm

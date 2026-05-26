@@ -16,6 +16,7 @@ export interface PenaltyIssuedEmailParams {
   adminName: string;
   charge: string;
   penaltyBoxUrl: string;
+  penaltyBoxName?: string;
 }
 
 export interface WitnessRequestEmailParams {
@@ -93,7 +94,7 @@ const EMAIL_FOOTER = `
  * Email sent to all event subscribers when a golfer is penalized.
  */
 export function generatePenaltyIssuedEmail(params: PenaltyIssuedEmailParams): string {
-  const { golferName, eventName, adminName, charge, penaltyBoxUrl } = params;
+  const { golferName, eventName, adminName, charge, penaltyBoxUrl, penaltyBoxName = "The Penalty Box" } = params;
 
   const isMultiple = golferName.includes(" and ");
   const headerEmoji = isMultiple ? "🚨" : "⚠️";
@@ -103,13 +104,13 @@ export function generatePenaltyIssuedEmail(params: PenaltyIssuedEmailParams): st
 
   return `${EMAIL_WRAPPER}
   <div style="background: #fef2f2; border-left: 4px solid #dc2626; padding: 20px; margin-bottom: 30px;">
-    <h1 style="color: #991b1b; margin: 0 0 10px 0; font-size: 24px;">${headerEmoji} Penalty Box Alert</h1>
+    <h1 style="color: #991b1b; margin: 0 0 10px 0; font-size: 24px;">${headerEmoji} ${penaltyBoxName} Alert</h1>
     <p style="margin: 0; font-size: 16px; color: #b91c1c;">${eventName}</p>
   </div>
 
   <div style="background: #ffffff; border: 2px solid #fecaca; border-radius: 8px; padding: 24px; margin-bottom: 24px;">
     <p style="margin: 0 0 16px 0; font-size: 18px; font-weight: bold; color: #991b1b;">
-      ${adminName} has sent ${golferName} to the Penalty Box!
+      ${adminName} has sent ${golferName} to ${penaltyBoxName}!
     </p>
     <div style="background: #fef2f2; border-radius: 6px; padding: 16px; margin-bottom: 16px;">
       <p style="margin: 0 0 4px 0; font-size: 12px; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px;">The Charge</p>
@@ -117,13 +118,13 @@ export function generatePenaltyIssuedEmail(params: PenaltyIssuedEmailParams): st
     </div>
     <p style="margin: 0; font-size: 14px; color: #6b7280;">
       ${escapeText}
-      Follow the drama on the Penalty Box page.
+      Follow the drama on the ${penaltyBoxName} page.
     </p>
   </div>
 
   <div style="text-align: center; margin: 30px 0;">
     <a href="${penaltyBoxUrl}" style="display: inline-block; padding: 14px 32px; background: #dc2626; color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
-      View the Penalty Box
+      View ${penaltyBoxName}
     </a>
   </div>
 ${EMAIL_FOOTER}`;

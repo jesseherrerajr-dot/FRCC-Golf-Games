@@ -63,6 +63,11 @@ export default async function DashboardPage() {
       .map((e) => e.id)
   );
 
+  const penaltyBoxNames: Record<string, string> = {};
+  (allEvents || [])
+    .filter((e) => e.penalty_box_enabled)
+    .forEach((e) => { penaltyBoxNames[e.id] = (e as unknown as { penalty_box_name?: string }).penalty_box_name || "The Penalty Box"; });
+
   // Check if user is in the penalty box for any event
   const penaltyBoxStatuses: Record<string, boolean> = {};
   if (penaltyBoxEnabledEvents.size > 0 && user) {
@@ -357,7 +362,7 @@ export default async function DashboardPage() {
                                   ? "text-red-700"
                                   : "text-gray-700"
                               }`}>
-                                The Penalty Box
+                                {penaltyBoxNames[event.id] || "The Penalty Box"}
                               </span>
                               {penaltyBoxStatuses[event.id] && (
                                 <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">

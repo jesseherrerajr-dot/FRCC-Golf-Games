@@ -77,12 +77,13 @@ export async function getPenaltyBoxEventBySlug(slug: string): Promise<{
   name: string;
   slug: string;
   penalty_box_enabled: boolean;
+  penalty_box_name: string;
 } | null> {
   const supabase = createAdminClient();
 
   const { data: event } = await supabase
     .from("events")
-    .select("id, name, slug, penalty_box_enabled")
+    .select("id, name, slug, penalty_box_enabled, penalty_box_name")
     .eq("slug", slug)
     .eq("is_active", true)
     .single();

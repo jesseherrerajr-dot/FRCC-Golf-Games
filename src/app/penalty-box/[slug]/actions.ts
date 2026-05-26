@@ -86,27 +86,28 @@ export async function sendToPenaltyBox(formData: FormData) {
     // Get event info for email
     const { data: event } = await supabase
       .from("events")
-      .select("name")
+      .select("name, penalty_box_name")
       .eq("id", eventId)
       .single();
 
     const eventName = event?.name || "Golf Group";
+    const penaltyBoxName = event?.penalty_box_name || "The Penalty Box";
 
     // Send one combined email blast to all event subscribers
     const subscribers = await getEventSubscribers(eventId);
     const subjectPrefix = allProfileIds.length > 1 ? "🚨" : "⚠️";
-    const subjectVerb = allProfileIds.length > 1 ? "sent" : "sent";
 
     for (const subscriber of subscribers) {
       await sendEmail({
         to: subscriber.email,
-        subject: `${subjectPrefix} ${eventName}: ${golferName} ${subjectVerb} to the Penalty Box!`,
+        subject: `${subjectPrefix} ${eventName}: ${golferName} sent to ${penaltyBoxName}!`,
         html: generatePenaltyIssuedEmail({
           golferName,
           eventName,
           adminName,
           charge,
           penaltyBoxUrl,
+          penaltyBoxName,
         }),
         replyTo: eventAdmin?.email,
       });
@@ -223,10 +224,11 @@ export async function castWitnessVote(
     const supabase = createAdminClient();
     const { data: event } = await supabase
       .from("events")
-      .select("id, name")
+      .select("id, name, penalty_box_name")
       .eq("id", penalty.event_id)
       .single();
     const eventName = event?.name || "Golf Group";
+    const penaltyBoxName = event?.penalty_box_name || "The Penalty Box";
 
     // Get the witness's name for notifications
     const { data: witnessProfile } = await supabase
@@ -286,7 +288,7 @@ export async function castWitnessVote(
       for (const subscriber of subscribers) {
         await sendEmail({
           to: subscriber.email,
-          subject: `🎉 ${eventName}: ${golferName} released from the Penalty Box!`,
+          subject: `🎉 ${eventName}: ${golferName} released from ${penaltyBoxName}!`,
           html: generatePenaltyReleasedEmail({
             golferName,
             eventName,
@@ -414,10 +416,11 @@ export async function adminRelease(
     const supabase = createAdminClient();
     const { data: event } = await supabase
       .from("events")
-      .select("name")
+      .select("name, penalty_box_name")
       .eq("id", penalty.event_id)
       .single();
     const eventName = event?.name || "Golf Group";
+    const penaltyBoxName = event?.penalty_box_name || "The Penalty Box";
 
     const siteUrl = getSiteUrl();
     const penaltyBoxUrl = `${siteUrl}/penalty-box/${slug}`;
@@ -436,7 +439,7 @@ export async function adminRelease(
     for (const subscriber of subscribers) {
       await sendEmail({
         to: subscriber.email,
-        subject: `🎉 ${eventName}: ${golferName} released from the Penalty Box!`,
+        subject: `🎉 ${eventName}: ${golferName} released from ${penaltyBoxName}!`,
         html: generatePenaltyReleasedEmail({
           golferName,
           eventName,

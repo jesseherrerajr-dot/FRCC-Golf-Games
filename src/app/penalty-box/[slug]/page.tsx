@@ -37,7 +37,7 @@ export default async function PenaltyBoxPage({ params }: PageProps) {
     redirect("/home");
   }
 
-  const { id: eventId, name: eventName } = eventResult;
+  const { id: eventId, name: eventName, penalty_box_name: penaltyBoxName } = eventResult;
 
   // Expire overdue witnesses on page load
   const [activePenalties] = await Promise.all([
@@ -107,12 +107,12 @@ export default async function PenaltyBoxPage({ params }: PageProps) {
           items={[
             { label: "Home", href: "/home" },
             { label: eventName },
-            { label: "Penalty Box" },
+            { label: penaltyBoxName },
           ]}
         />
 
         <h1 className="text-2xl font-serif uppercase tracking-wide font-bold text-navy-900 mt-4 mb-2">
-          🔒 The Penalty Box
+          🔒 {penaltyBoxName}
         </h1>
         <p className="text-sm text-gray-500 mb-8">{eventName}</p>
 
