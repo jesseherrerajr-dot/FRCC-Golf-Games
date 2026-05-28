@@ -2135,6 +2135,7 @@ export function RestrictedPairingsSection({
   restrictions: any[];
   subscribers: any[];
 }) {
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [selectedId1, setSelectedId1] = useState("");
   const [selectedId2, setSelectedId2] = useState("");
@@ -2171,6 +2172,7 @@ export function RestrictedPairingsSection({
         setSelectedId1("");
         setSelectedId2("");
         setMessage(null);
+        router.refresh();
       }
     });
   };
@@ -2180,6 +2182,8 @@ export function RestrictedPairingsSection({
       const result = await removeDoNotPairRestriction(eventId, restrictionId);
       if (result.error) {
         setMessage(result.error);
+      } else {
+        router.refresh();
       }
     });
   };
