@@ -192,6 +192,19 @@ export default async function EventSettingsPage({
             <div className="mt-3 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
               <GroupingPreferencesForm event={event} />
             </div>
+
+            <h3 className="mt-6 text-sm font-semibold text-gray-900">Restricted Pairings</h3>
+            <p className="mt-1 text-sm text-gray-500">
+              These golfers will never be placed in the same group. This restriction
+              applies in both directions regardless of selection order.
+            </p>
+            <div className="mt-3 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+              <RestrictedPairingsSection
+                eventId={eventId}
+                restrictions={doNotPairRows || []}
+                subscribers={eventSubscribers || []}
+              />
+            </div>
           </section>
         )}
 
@@ -254,24 +267,6 @@ export default async function EventSettingsPage({
             </div>
           </section>
         )}
-
-        {/* Restricted Pairings — Admin and Super Admin */}
-        <section className="mt-8">
-          <h2 className="text-lg font-semibold text-gray-900">
-            Restricted Pairings
-          </h2>
-          <p className="mt-1 text-sm text-gray-500">
-            These golfers will never be placed in the same group. This restriction
-            applies in both directions regardless of selection order.
-          </p>
-          <div className="mt-3 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-            <RestrictedPairingsSection
-              eventId={eventId}
-              restrictions={doNotPairRows || []}
-              subscribers={eventSubscribers || []}
-            />
-          </div>
-        </section>
 
         {/* Danger Zone — Super Admin Only */}
         {isSuperAdmin && (
