@@ -83,7 +83,7 @@ export default async function EventSettingsPage({
     .from("event_subscriptions")
     .select("profile_id, profile:profiles(id, first_name, last_name)")
     .eq("event_id", eventId)
-    .eq("status", "active");
+    .eq("is_active", true);
 
   // Fetch existing restricted pairings for this event
   const { data: doNotPairRows } = await supabase
