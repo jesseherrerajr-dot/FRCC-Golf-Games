@@ -316,6 +316,18 @@ export interface GroupingOptions {
   recentPairings: Map<string, number[]>;
   /** Whether to shuffle golfer order for randomization */
   shuffle: boolean;
+  /** Restricted pairs that must never share a group (pairKey() format). Highest priority constraint. */
+  restrictedPairs?: Set<string>;
+}
+
+/** A do-not-pair restriction between two golfers for an event */
+export interface DoNotPairRestriction {
+  id: string;
+  event_id: string;
+  profile_id_1: string;
+  profile_id_2: string;
+  created_by: string | null;
+  created_at: string;
 }
 
 /** Input to the grouping engine — one per confirmed golfer */

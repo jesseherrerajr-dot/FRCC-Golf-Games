@@ -23,6 +23,32 @@ import { formatInitialLastName } from "./format";
 // ============================================================
 
 /**
+ * Fetch restricted (do-not-pair) golfer pairs for an event.
+ * Returns a Set of pairKey() strings (order-normalized UUID pairs).
+ * Used by the grouping engine as the highest-priority constraint.
+ */
+export async function fetchDoNotPairRestrictions(
+  supabase: SupabaseClient,
+  eventId: string
+): Promise<Set<string>> {
+  const { data, error } = await supabase
+    .from("event_do_not_pair")
+    .select("profile_id_1, profile_id_2")
+    .eq("event_id", eventId);
+
+  if (error) {
+    console.error("Error fetching do-not-pair restrictions:", error);
+    return new Set();
+  }
+
+  const result = new Set<string>();
+  for (const row of (data || []) as Array<{ profile_id_1: string; profile_id_2: string }>) {
+    result.add(pairKey(row.profile_id_1, row.profile_id_2));
+  }
+  return result;
+}
+
+/**
  * Fetch confirmed golfers for a schedule with their per-week tee time preference
  * and resolved handicap index.
  *

@@ -40,6 +40,7 @@ export const DEFAULT_GROUPING_OPTIONS: GroupingOptions = {
   teeTimeHistory: new Map(),
   recentPairings: new Map(),
   shuffle: false,
+  restrictedPairs: new Set(),
 };
 
 // ============================================================
@@ -191,8 +192,15 @@ export function applyScoreModifiers(
       }
       const existing = adjusted.get(key) || 0;
       adjusted.set(key, existing + penalty);
-      // Note: scores can go negative — this is intentional.
-      // A negative score means the engine actively avoids pairing these golfers.
+    }
+  }
+
+  // Apply restricted pairs as maximum-weight negative scores (highest priority constraint).
+  // For the harmony/greedy method, this makes the algorithm essentially never pick
+  // restricted pairs together unless the field size makes it unavoidable.
+  if (options.restrictedPairs && options.restrictedPairs.size > 0) {
+    for (const key of options.restrictedPairs) {
+      adjusted.set(key, -99999);
     }
   }
 
@@ -415,16 +423,24 @@ export function generateGroupings(
 
   // Dispatch to handicap-based algorithms
   if (isHandicapMethod(method)) {
+    let handicapResult: GroupingResult;
     switch (method) {
       case 'flight_foursomes':
-        return generateFlightFoursomes(golfers, opts);
+        handicapResult = generateFlightFoursomes(golfers, opts);
+        break;
       case 'balanced_foursomes':
-        return generateBalancedFoursomes(golfers, opts);
+        handicapResult = generateBalancedFoursomes(golfers, opts);
+        break;
       case 'flight_teams':
-        return generateFlightTeams(golfers, opts);
+        handicapResult = generateFlightTeams(golfers, opts);
+        break;
       case 'balanced_teams':
-        return generateBalancedTeams(golfers, opts);
+        handicapResult = generateBalancedTeams(golfers, opts);
+        break;
+      default:
+        handicapResult = generateFlightFoursomes(golfers, opts);
     }
+    return separateRestrictedPairs(handicapResult, opts.restrictedPairs);
   }
 
   // Step 1: Calculate group sizes (Level 2)
@@ -529,7 +545,10 @@ export function generateGroupings(
     }
   }
 
-  return { groups, assignments, totalHarmonyScore, method: 'harmony' };
+  return separateRestrictedPairs(
+    { groups, assignments, totalHarmonyScore, method: 'harmony' },
+    opts.restrictedPairs
+  );
 }
 
 // ============================================================
@@ -972,4 +991,130 @@ function shuffleArray<T>(arr: T[]): void {
     const j = Math.floor(Math.random() * (i + 1));
     [arr[i], arr[j]] = [arr[j], arr[i]];
   }
+}
+
+// ============================================================
+// Restricted Pairs Post-Processing (Level 0 — Hard Constraint)
+// ============================================================
+
+/**
+ * Post-processing pass that separates any restricted pairs that ended up
+ * in the same group. Applied after all algorithm variants as a universal
+ * safety net (especially needed for handicap methods where the sort order
+ * may place restricted golfers in adjacent positions).
+ *
+ * For the harmony/greedy method, the -99999 score penalty in applyScoreModifiers
+ * already makes it unlikely, but this pass is the hard guarantee.
+ *
+ * Best effort: if no valid swap exists (e.g., field too small, every possible
+ * swap would create a different violation), the pair remains together gracefully.
+ */
+function separateRestrictedPairs(
+  result: GroupingResult,
+  restrictedPairs?: Set<string>
+): GroupingResult {
+  if (!restrictedPairs || restrictedPairs.size === 0) return result;
+
+  // Deep-clone groups so we can mutate freely
+  const groups: GroupResult[] = result.groups.map(g => ({
+    ...g,
+    golfers: [...g.golfers],
+    teams: g.teams?.map(t => ({ ...t, golfers: [...t.golfers] })),
+  }));
+
+  let changed = true;
+  let passes = 0;
+  const MAX_PASSES = 10; // guard against degenerate cases
+
+  while (changed && passes < MAX_PASSES) {
+    changed = false;
+    passes++;
+
+    for (let gi = 0; gi < groups.length; gi++) {
+      const group = groups[gi];
+      let swappedThisGroup = false;
+
+      for (let pi = 0; pi < group.golfers.length && !swappedThisGroup; pi++) {
+        for (let pj = pi + 1; pj < group.golfers.length && !swappedThisGroup; pj++) {
+          if (!restrictedPairs.has(pairKey(group.golfers[pi], group.golfers[pj]))) continue;
+
+          const targetId = group.golfers[pj];
+
+          // Try to swap targetId with a golfer from another group
+          for (let gi2 = 0; gi2 < groups.length; gi2++) {
+            if (gi2 === gi) continue;
+            const otherGroup = groups[gi2];
+            let swapped = false;
+
+            for (let pk = 0; pk < otherGroup.golfers.length && !swapped; pk++) {
+              const candidateId = otherGroup.golfers[pk];
+
+              // Check: would the swap create any new violations in either group?
+              const newGroup = group.golfers.map((id, idx) => idx === pj ? candidateId : id);
+              const newOther = otherGroup.golfers.map((id, idx) => idx === pk ? targetId : id);
+
+              const groupViolation = newGroup.some((a, ai) =>
+                newGroup.slice(ai + 1).some(b => restrictedPairs.has(pairKey(a, b)))
+              );
+              const otherViolation = newOther.some((a, ai) =>
+                newOther.slice(ai + 1).some(b => restrictedPairs.has(pairKey(a, b)))
+              );
+
+              if (!groupViolation && !otherViolation) {
+                // Commit the swap in golfers arrays
+                group.golfers[pj] = candidateId;
+                otherGroup.golfers[pk] = targetId;
+
+                // Keep team arrays consistent: update any team that references either golfer
+                if (group.teams) {
+                  for (const team of group.teams) {
+                    const idx = team.golfers.indexOf(targetId);
+                    if (idx !== -1) team.golfers[idx] = candidateId;
+                  }
+                }
+                if (otherGroup.teams) {
+                  for (const team of otherGroup.teams) {
+                    const idx = team.golfers.indexOf(candidateId);
+                    if (idx !== -1) team.golfers[idx] = targetId;
+                  }
+                }
+
+                swapped = true;
+                swappedThisGroup = true;
+                changed = true;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Rebuild assignments from updated groups
+  const teamMap = new Map<string, number>();
+  for (const group of groups) {
+    if (group.teams) {
+      for (const team of group.teams) {
+        for (const profileId of team.golfers) {
+          teamMap.set(profileId, team.teamNumber);
+        }
+      }
+    }
+  }
+
+  const assignments: GroupingAssignment[] = [];
+  for (const group of groups) {
+    for (const profileId of group.golfers) {
+      const assignment: GroupingAssignment = {
+        groupNumber: group.groupNumber,
+        teeOrder: group.teeOrder,
+        profileId,
+      };
+      const teamNumber = teamMap.get(profileId);
+      if (teamNumber !== undefined) assignment.teamNumber = teamNumber;
+      assignments.push(assignment);
+    }
+  }
+
+  return { ...result, groups, assignments };
 }

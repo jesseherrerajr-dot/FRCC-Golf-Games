@@ -17,6 +17,8 @@ import {
   updateFeatureFlags,
   updateGroupingPreferences,
   updateHandicapSyncEnabled,
+  addDoNotPairRestriction,
+  removeDoNotPairRestriction,
   deactivateEvent,
   reactivateEvent,
   permanentlyDeleteEvent,
@@ -2114,6 +2116,167 @@ export function DangerZone({
               </button>
             </div>
           </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// Restricted Pairings Section
+// ============================================================
+
+export function RestrictedPairingsSection({
+  eventId,
+  restrictions,
+  subscribers,
+}: {
+  eventId: string;
+  restrictions: any[];
+  subscribers: any[];
+}) {
+  const [isPending, startTransition] = useTransition();
+  const [selectedId1, setSelectedId1] = useState("");
+  const [selectedId2, setSelectedId2] = useState("");
+  const [message, setMessage] = useState<string | null>(null);
+
+  // Supabase returns joined relations as arrays — unwrap to single object
+  const unwrap = (val: any) => Array.isArray(val) ? val[0] ?? null : val;
+
+  // Build sorted golfer list from active subscribers
+  const golfers = (subscribers || [])
+    .map((s) => unwrap(s.profile))
+    .filter(Boolean)
+    .map((p: any) => ({
+      id: p.id as string,
+      name: `${p.last_name}, ${p.first_name}`,
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  const handleAdd = () => {
+    if (!selectedId1 || !selectedId2) {
+      setMessage("Please select two different golfers.");
+      return;
+    }
+    if (selectedId1 === selectedId2) {
+      setMessage("Please select two different golfers.");
+      return;
+    }
+
+    startTransition(async () => {
+      const result = await addDoNotPairRestriction(eventId, selectedId1, selectedId2);
+      if (result.error) {
+        setMessage(result.error);
+      } else {
+        setSelectedId1("");
+        setSelectedId2("");
+        setMessage(null);
+      }
+    });
+  };
+
+  const handleRemove = (restrictionId: string) => {
+    startTransition(async () => {
+      const result = await removeDoNotPairRestriction(eventId, restrictionId);
+      if (result.error) {
+        setMessage(result.error);
+      }
+    });
+  };
+
+  // Build a lookup of which golfer IDs are already paired in a restriction
+  // to filter dropdown options (exclude the other golfer in an existing pair)
+  const usedPairs = new Set<string>();
+  for (const r of restrictions) {
+    usedPairs.add(`${r.profile_id_1}:${r.profile_id_2}`);
+    usedPairs.add(`${r.profile_id_2}:${r.profile_id_1}`);
+  }
+
+  const golferName = (raw: any) => {
+    const profile = unwrap(raw);
+    return profile ? `${profile.first_name} ${profile.last_name}` : "Unknown";
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Existing restrictions list */}
+      {restrictions.length === 0 ? (
+        <p className="text-sm text-gray-500">No restrictions added yet.</p>
+      ) : (
+        <ul className="divide-y divide-gray-100">
+          {restrictions.map((r) => (
+            <li key={r.id} className="flex items-center justify-between gap-4 py-3">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-sm font-medium text-gray-900 truncate">
+                  {golferName(r.profile1)}
+                </span>
+                <span className="text-xs text-gray-400 shrink-0">and</span>
+                <span className="text-sm font-medium text-gray-900 truncate">
+                  {golferName(r.profile2)}
+                </span>
+              </div>
+              <button
+                onClick={() => handleRemove(r.id)}
+                disabled={isPending}
+                className="shrink-0 text-sm text-red-600 hover:text-red-800 disabled:opacity-50"
+                aria-label={`Remove restriction between ${golferName(r.profile1)} and ${golferName(r.profile2)}`}
+              >
+                Remove
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {/* Add restriction form */}
+      <div className="border-t border-gray-100 pt-5">
+        <p className="text-sm font-medium text-gray-700 mb-3">Add restriction</p>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <select
+            value={selectedId1}
+            onChange={(e) => {
+              setSelectedId1(e.target.value);
+              setMessage(null);
+            }}
+            className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
+          >
+            <option value="">Select golfer…</option>
+            {golfers
+              .filter((g) => g.id !== selectedId2)
+              .map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.name}
+                </option>
+              ))}
+          </select>
+          <span className="self-center text-sm text-gray-500 shrink-0">and</span>
+          <select
+            value={selectedId2}
+            onChange={(e) => {
+              setSelectedId2(e.target.value);
+              setMessage(null);
+            }}
+            className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
+          >
+            <option value="">Select golfer…</option>
+            {golfers
+              .filter((g) => g.id !== selectedId1)
+              .map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.name}
+                </option>
+              ))}
+          </select>
+          <button
+            onClick={handleAdd}
+            disabled={isPending || !selectedId1 || !selectedId2 || selectedId1 === selectedId2}
+            className="shrink-0 rounded-md bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700 disabled:opacity-50"
+          >
+            Add Restriction
+          </button>
+        </div>
+        {message && (
+          <p className="mt-2 text-sm text-red-600">{message}</p>
         )}
       </div>
     </div>

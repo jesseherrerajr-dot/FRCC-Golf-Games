@@ -835,3 +835,73 @@ export async function permanentlyDeleteEvent(eventId: string, confirmName: strin
     return { error: "Failed to permanently delete event. Some related data may still exist." };
   }
 }
+
+// ============================================================
+// Restricted Pairings (Do-Not-Pair)
+// ============================================================
+
+export async function addDoNotPairRestriction(
+  eventId: string,
+  profileId1: string,
+  profileId2: string
+) {
+  const { profile, adminEvents } = await requireAdmin();
+  if (!hasEventAccess(profile, adminEvents, eventId)) {
+    return { error: "Not authorized for this event" };
+  }
+
+  if (profileId1 === profileId2) {
+    return { error: "Cannot restrict a golfer from themselves" };
+  }
+
+  // Normalize order: always store lower UUID first
+  const [id1, id2] = profileId1 < profileId2
+    ? [profileId1, profileId2]
+    : [profileId2, profileId1];
+
+  const supabase = await createAdminClient();
+  const { error } = await supabase
+    .from("event_do_not_pair")
+    .insert({
+      event_id: eventId,
+      profile_id_1: id1,
+      profile_id_2: id2,
+      created_by: profile.id,
+    });
+
+  if (error) {
+    if (error.code === "23505") {
+      return { error: "This restriction already exists" };
+    }
+    console.error("Add do-not-pair restriction error:", error);
+    return { error: "Failed to add restriction" };
+  }
+
+  revalidatePath(`/admin/events/${eventId}/settings`);
+  return { success: true };
+}
+
+export async function removeDoNotPairRestriction(
+  eventId: string,
+  restrictionId: string
+) {
+  const { profile, adminEvents } = await requireAdmin();
+  if (!hasEventAccess(profile, adminEvents, eventId)) {
+    return { error: "Not authorized for this event" };
+  }
+
+  const supabase = await createAdminClient();
+  const { error } = await supabase
+    .from("event_do_not_pair")
+    .delete()
+    .eq("id", restrictionId)
+    .eq("event_id", eventId);
+
+  if (error) {
+    console.error("Remove do-not-pair restriction error:", error);
+    return { error: "Failed to remove restriction" };
+  }
+
+  revalidatePath(`/admin/events/${eventId}/settings`);
+  return { success: true };
+}
