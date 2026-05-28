@@ -22,6 +22,7 @@ import { isHandicapMethod } from "@/types/events";
 import {
   fetchConfirmedGolfers,
   fetchPartnerPreferences,
+  fetchDoNotPairRestrictions,
   storeGroupings,
   fetchStoredGroupings,
   fetchApprovedGuests,
@@ -684,6 +685,8 @@ async function handleGolferConfirmation(
         ? await fetchRecentPairings(supabase, eventId, 8)
         : new Map();
 
+      const restrictedPairs = await fetchDoNotPairRestrictions(supabase, eventId);
+
       const groupingOptions: GroupingOptions = {
         groupingMethod,
         flightTeamPairing,
@@ -693,9 +696,10 @@ async function handleGolferConfirmation(
         teeTimeHistory,
         recentPairings,
         shuffle: true,
+        restrictedPairs,
       };
 
-      console.log(`Grouping options: method=${groupingMethod}, partner=${partnerPrefMode}, teeTime=${teeTimePrefMode}, variety=${promoteVariety}`);
+      console.log(`Grouping options: method=${groupingMethod}, partner=${partnerPrefMode}, teeTime=${teeTimePrefMode}, variety=${promoteVariety}, restrictions=${restrictedPairs.size}`);
 
       const groupingResult = generateGroupings(golfers, preferences, groupingOptions);
       const approvedGuestsForGrouping = await fetchApprovedGuests(supabase, schedule.id);
@@ -1057,7 +1061,7 @@ async function handleProShopDetail(
       await sendEmail({
         to: uniqueToEmails,
         replyTo: primaryAdminEmail,
-        subject: `${event.name}: ${formattedDate}: Player Details & Suggested Groups`,
+        subject: `${event.name}: ${formattedDate}: Suggested Groups`,
         html: proShopHtml,
       });
 

@@ -15,6 +15,7 @@ import { generateGroupings } from "@/lib/grouping-engine";
 import {
   fetchConfirmedGolfers,
   fetchPartnerPreferences,
+  fetchDoNotPairRestrictions,
   storeGroupings,
   fetchStoredGroupings,
   fetchApprovedGuests,
@@ -296,7 +297,18 @@ export async function sendGolferConfirmationNow(scheduleId: string) {
       try {
         const golfers = await fetchConfirmedGolfers(supabase, schedule.id);
         const preferences = await fetchPartnerPreferences(supabase, event.id);
-        const groupingResult = generateGroupings(golfers, preferences, true);
+        const restrictedPairs = await fetchDoNotPairRestrictions(supabase, event.id);
+        const groupingResult = generateGroupings(golfers, preferences, {
+          groupingMethod: 'harmony',
+          flightTeamPairing: 'similar',
+          partnerPreferenceMode: 'full',
+          teeTimePreferenceMode: 'full',
+          promoteVariety: false,
+          teeTimeHistory: new Map(),
+          recentPairings: new Map(),
+          shuffle: true,
+          restrictedPairs,
+        });
         const approvedGuestsForGrouping = await fetchApprovedGuests(supabase, schedule.id);
         const guestPairs = approvedGuestsForGrouping.map((g) => ({
           guestRequestId: g.guestRequestId,
@@ -571,7 +583,7 @@ export async function sendProShopDetailNow(scheduleId: string) {
     await sendEmail({
       to: uniqueToEmails,
       replyTo: primaryAdminEmail,
-      subject: `${event.name}: ${formattedDate}: Player Details & Suggested Groups`,
+      subject: `${event.name}: ${formattedDate}: Suggested Groups`,
       html: proShopHtml,
     });
 

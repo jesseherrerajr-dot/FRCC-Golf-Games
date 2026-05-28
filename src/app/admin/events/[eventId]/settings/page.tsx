@@ -10,6 +10,7 @@ import {
   GroupingPreferencesForm,
   HandicapSyncForm,
   FeatureFlagsForm,
+  RestrictedPairingsSection,
   DangerZone,
 } from "./components";
 import { getLatestSyncStatus } from "@/lib/handicap-sync";
@@ -76,6 +77,20 @@ export default async function EventSettingsPage({
     .eq("status", "active")
     .eq("is_guest", false)
     .order("last_name");
+
+  // Fetch active subscribers for this event (for restricted pairings dropdowns)
+  const { data: eventSubscribers } = await supabase
+    .from("event_subscriptions")
+    .select("profile_id, profile:profiles(id, first_name, last_name)")
+    .eq("event_id", eventId)
+    .eq("is_active", true);
+
+  // Fetch existing restricted pairings for this event
+  const { data: doNotPairRows } = await supabase
+    .from("event_do_not_pair")
+    .select("id, profile_id_1, profile_id_2, profile1:profiles!event_do_not_pair_profile_id_1_fkey(first_name, last_name), profile2:profiles!event_do_not_pair_profile_id_2_fkey(first_name, last_name)")
+    .eq("event_id", eventId)
+    .order("created_at");
 
   // Fetch handicap sync status (non-fatal)
   let syncStatus = null;
@@ -176,6 +191,19 @@ export default async function EventSettingsPage({
             </p>
             <div className="mt-3 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
               <GroupingPreferencesForm event={event} />
+            </div>
+
+            <h3 className="mt-6 text-sm font-semibold text-gray-900">Restricted Pairings</h3>
+            <p className="mt-1 text-sm text-gray-500">
+              These golfers will never be placed in the same group. This restriction
+              applies in both directions regardless of selection order.
+            </p>
+            <div className="mt-3 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+              <RestrictedPairingsSection
+                eventId={eventId}
+                restrictions={doNotPairRows || []}
+                subscribers={eventSubscribers || []}
+              />
             </div>
           </section>
         )}
