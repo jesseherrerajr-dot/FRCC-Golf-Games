@@ -6,6 +6,7 @@ import { generateSchedulesForEvent } from "@/lib/schedule-gen";
 import { getSiteUrl } from "@/lib/format";
 import { sendEmail, rateLimitDelay, generateGameCancelledEmail } from "@/lib/email";
 import { formatGameDateMonthDay } from "@/lib/format";
+import { createAdminClient } from "@/lib/supabase/server";
 import type { Event } from "@/types/events";
 
 export async function generateSchedules(eventId: string) {
@@ -66,10 +67,12 @@ export async function toggleGameStatus(
 
     // Send cancellation emails when toggling to "cancelled"
     if (newStatus === "cancelled" && schedule.status !== "cancelled") {
-      // Fire-and-forget so the admin UI doesn't wait
-      sendCancellationEmails(supabase, eventId, scheduleId, schedule.game_date, cancelReason).catch(
-        (err) => console.error("Cancellation email error:", err)
-      );
+      try {
+        await sendCancellationEmails(eventId, scheduleId, schedule.game_date, cancelReason);
+      } catch (err) {
+        // Log but don't fail — status was already updated
+        console.error("Cancellation email error:", err);
+      }
     }
 
     revalidatePath(`/admin/events/${eventId}/schedule`);
@@ -84,14 +87,13 @@ export async function toggleGameStatus(
  * Send cancellation notification emails to all active golfers
  * subscribed to this event.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function sendCancellationEmails(
-  supabase: any,
   eventId: string,
   scheduleId: string,
   gameDate: string,
   cancelReason?: string
 ) {
+  const supabase = createAdminClient();
   const siteUrl = getSiteUrl();
 
   // Get event details
@@ -116,11 +118,12 @@ async function sendCancellationEmails(
     .limit(1)
     .maybeSingle();
 
-  // Get all active golfers subscribed to this event
+  // Get all active, subscribed golfers for this event
   const { data: subscribers } = await supabase
     .from("event_subscriptions")
     .select("profile:profiles(id, email, first_name, last_name, status)")
-    .eq("event_id", eventId);
+    .eq("event_id", eventId)
+    .eq("is_active", true);
 
   const activeSubscribers = ((subscribers || []) as Record<string, unknown>[]).filter((s) => {
     const p = s.profile as {
@@ -179,7 +182,7 @@ async function sendCancellationEmails(
   await supabase.from("email_log").insert({
     event_id: eventId,
     schedule_id: scheduleId,
-    email_type: "custom",
+    email_type: "no_game",
     subject: `[${eventName}] Game Cancelled — ${formattedDate}`,
     recipient_count: sentCount,
   });
