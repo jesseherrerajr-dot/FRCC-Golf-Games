@@ -1,8 +1,26 @@
 # The Penalty Box — Feature Spec
 
-> **Status:** Concept — Ready for technical planning
-> **Working title:** The Penalty Box
+> **Status:** Fully implemented (migrations 032–033, May–June 2026)
+> **Working title:** The Penalty Box (configurable per event)
 > **Purpose:** A lighthearted, gamified penalty system for event admins to playfully call out golfers who are being obnoxious (excessive pairing requests, late-night admin texts, etc.). Pure comedy — no real impact on RSVP or gameplay. 99% humor, 1% behavior modification.
+
+## Implementation Notes
+
+All pages, components, email flows, and database tables described in this spec have been built and deployed. The spec below reflects the final v1 implementation. Key deviations from original spec:
+- Holes are named "Hole 1", "Hole 2", "Hole 3" (no nicknames — "The Gimme", "The Snake" are removed).
+- The gatekeeper image on Hole 3 is a custom per-event image uploaded by admins (not auto-generated).
+- Multi-golfer penalties: admins can send multiple golfers to the Penalty Box in a single action.
+- The Penalty Box display name is configurable per event via Event Settings → Feature Flags (`events.penalty_box_name`, default `'The Penalty Box'`, migration 033).
+
+**New files:**
+- `src/app/penalty-box/[slug]/page.tsx` — Public Penalty Box page (server component)
+- `src/app/penalty-box/[slug]/penalty-box-client.tsx` — Interactive inmate list + history
+- `src/app/penalty-box/[slug]/actions.ts` — Server actions (escape, witness selection, apology)
+- `src/app/penalty-box/[slug]/escape/[penaltyId]/page.tsx` + `escape-game-client.tsx` — 3-hole mini golf escape game
+- `src/app/penalty-box/[slug]/witness/[token]/page.tsx` + `witness-flow-client.tsx` — Tokenized witness flow
+- `src/app/admin/events/[eventId]/penalty-box-admin.tsx` — Admin panel (send to PB, manage, release)
+- `src/lib/penalty-box.ts` — Business logic
+- `src/lib/penalty-box-emails.ts` — Email templates and send helpers
 
 ---
 

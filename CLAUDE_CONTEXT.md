@@ -31,6 +31,9 @@ A companion to CLAUDE.md. Where CLAUDE.md is the technical specification and imp
 - Registration event scoping fix — golfers registering via event-specific join links are now correctly subscribed to only that event on approval
 - Guest Workflow — configurable per-event guest limits (1–3), optional email/phone/GHIN, past guest auto-fill, admin one-click approve/decline via tokenized email links, reply-all GHIN follow-up, pending request alerts before cutoff. See `docs/GUEST_WORKFLOW_SPEC.md`.
 - Money Leaderboard — tracks weekly dollar winnings alongside Stableford points. Points/Money toggle on the Leaderboard tab. Data entry via conversational workflow (admin pastes weekly winner email, Claude parses and inserts). Migration 030.
+- Restricted Pairings (Do-Not-Pair) — admin-only feature to prevent specific golfer pairs from being grouped together. Enforced via `-99999` score penalty (harmony method) + universal `separateRestrictedPairs` post-processing pass (all methods). Managed via `RestrictedPairingsSection` in Event Settings → Grouping Engine section. Migration 034.
+- Penalty Box — fully implemented gamified penalty system. Power meter mini golf escape game, character witnesses with tokenized voting links, apology flow, release notifications. Per-event feature flag + configurable display name. Migrations 032–033.
+- Cancellation email bug fix — `sendCancellationEmails` was fire-and-forget (killed by Vercel before sending). Fixed by awaiting it, adding `is_active=true` filter, correcting `email_type` from `"custom"` to `"no_game"`, and switching to `createAdminClient()`.
 
 **What's on the roadmap (see CLAUDE.md Roadmap for details):**
 1. League Leaderboard & Season Scoring — Phase 2 (score entry pending Golf Genius report format)
@@ -101,7 +104,7 @@ These are final decisions reflected in the codebase and not open for reconsidera
 See the Roadmap section of CLAUDE.md for the current prioritized list. Key items:
 
 1. **Email template review** — Audit all automated emails for copy, formatting, and links.
-3. **Guest workflow** — Complete the guest request system (architecture exists, feature-flagged OFF).
+3. ~~**Guest workflow**~~ — ✅ Complete. See `docs/GUEST_WORKFLOW_SPEC.md`.
 4. **Priority email batching** — For when distribution approaches the 100/day Resend limit.
 5. **Public "Who's Playing" view** — Unlisted shareable page showing the "In" list without login.
 6. **Golfer engagement & gamification stats** — Participation streaks, response rate scores, badges.
@@ -375,3 +378,20 @@ See the Roadmap section of CLAUDE.md for the current prioritized list. Key items
 - **Conversational data entry** — admin pastes the weekly winner email into a Cowork chat, Claude parses and confirms totals, then inserts via SQL. No admin UI needed.
 - **$0 vs. DNP distinction** — `$0` means the golfer played but won nothing; `DNP` means they didn't play that week. Determined by cross-referencing `league_scores` (points) to know who played.
 - **Keep self-registered profile for duplicates** — when merging duplicate golfer accounts, prefer the profile the golfer created themselves (their chosen email) over the admin-created one.
+
+### Session: ~May–June 2026
+
+**Context:** Penalty Box feature, Restricted Pairings, cancellation email bug fix.
+
+**Changes made:**
+1. **Penalty Box** — Built the full gamified penalty system. Power meter mini golf escape game (3 holes, tap-to-stop mechanic, hole 3 clown reveal scripted to always reject). Character witness flow via tokenized email links (no login required). Yes/no vote with required comment. 3-no-vote apology flow. Admin one-click release. Release announcement to all subscribers with time served + witness testimonies. Repeat offender escalation (3 → 5 → 7 witnesses). Per-event feature flag (`penalty_box_enabled`) + configurable display name (`penalty_box_name`, default "The Penalty Box"). 6 new `email_log` types (penalty_issued, penalty_witness_request, penalty_witness_no, penalty_witness_timeout, penalty_apology, penalty_released). Migrations 032–033.
+
+2. **Restricted Pairings (Do-Not-Pair)** — Admin-only constraint to prevent specific golfer pairs from ever being grouped together. Enforced at two levels: (1) `-99999` pair score in `applyScoreModifiers` (handles harmony/greedy), (2) `separateRestrictedPairs` post-processing pass on all 5 methods. UUIDs stored order-normalized (profile_id_1 < profile_id_2). `RestrictedPairingsSection` component in Event Settings → Grouping Engine section. Migration 034.
+
+3. **Cancellation email bug fix** — Three bugs prevented cancellation emails from ever being delivered: (a) `sendCancellationEmails` was called without `await` in a Next.js Server Action — Vercel kills the function before the async work completes; (b) missing `.eq("is_active", true)` on the subscriber query; (c) `email_type: "custom"` should have been `"no_game"`. Also switched to `createAdminClient()` for consistency.
+
+**Key decisions:**
+- **Two-layer restricted pairs enforcement** — the `-99999` score alone is sufficient for harmony/greedy, but the `separateRestrictedPairs` post-processing pass provides a hard guarantee for handicap methods (where adjacency in the sorted list can force a restricted pair into the same group regardless of scores). Best-effort: if no valid swap exists, the pair remains together gracefully rather than throwing.
+- **Restricted pairings in Grouping Engine section, not Feature Flags** — because the feature is directly tied to how the grouping engine places golfers. Accessible to both event admins and super admins.
+- **Penalty Box feature flag in Event Settings → Feature Flags** — consistent with how guest requests are controlled. Super admin only.
+- **Cancellation emails must be awaited** — any async email send inside a Server Action that isn't awaited will be killed by Vercel's serverless lifecycle before it completes. This is now a documented constraint.
