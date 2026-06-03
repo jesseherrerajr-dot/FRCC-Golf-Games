@@ -125,6 +125,10 @@ export interface Event {
   // GHIN Handicap Sync
   handicap_sync_enabled: boolean;
 
+  // Penalty Box feature
+  penalty_box_enabled: boolean;
+  penalty_box_name: string; // default "The Penalty Box", configurable per event
+
   is_active: boolean;
   created_at: string;
   updated_at: string;

@@ -1,7 +1,7 @@
 # Grouping Engine — Final Specification
 
-**Status:** Fully implemented — 5 grouping methods (harmony + 4 handicap-based), DB layer, cron integration, pro shop email with grouped roster + preference columns.
-**Date:** March 21, 2026 (updated)
+**Status:** Fully implemented — 5 grouping methods (harmony + 4 handicap-based), DB layer, cron integration, pro shop email with grouped roster + preference columns, restricted pairings (do-not-pair) constraint.
+**Date:** March 21, 2026 (updated June 2, 2026 — restricted pairings)
 **Owner:** Jesse Herrera
 
 ---
@@ -28,6 +28,19 @@ Generate suggested foursome groupings for each weekly event after RSVP cutoff. G
 ---
 
 ## 3. Constraint Hierarchy
+
+### Level 0 — Restricted Pairings / Do-Not-Pair (Absolute Hard Constraint)
+
+- **Source:** `event_do_not_pair` table. Admin-only — golfers have no visibility into this feature.
+- A restricted pair **must never appear in the same group**, regardless of grouping method.
+- Applied at two points in the engine:
+  1. **Score penalty (`applyScoreModifiers`):** For the harmony/greedy method, each restricted pair receives a score of `-99999`, making placement together extremely unlikely during the greedy pass.
+  2. **Post-processing pass (`separateRestrictedPairs`):** Applied universally after ALL algorithm variants. Detects any restricted pair in the same group and attempts to swap one member with a golfer from another group such that neither the original nor the target group would have a new violation. Up to 10 passes are attempted. If no valid swap exists (e.g., field too small, every swap creates another violation), the pair remains together gracefully — the engine never throws.
+- UUIDs are order-normalized in the database (`profile_id_1 < profile_id_2`) to enforce uniqueness regardless of selection order.
+- **Why two enforcement layers:** The score penalty handles harmony/greedy naturally; the post-processing pass is the hard guarantee for all five methods, including the handicap-based methods where adjacent sort positions may force a restricted pair into the same group.
+- **Managed via:** `RestrictedPairingsSection` component in Event Settings (Grouping Engine section). Both event admins and super admins can manage restrictions for their events.
+- **Database functions:** `fetchDoNotPairRestrictions(supabase, eventId)` returns a `Set<string>` of order-normalized `pairKey()` strings.
+- **Server actions:** `addDoNotPairRestriction`, `removeDoNotPairRestriction` in `src/app/admin/events/[eventId]/settings/actions.ts`.
 
 ### Level 1 — Guest-Host Pairing (Hard Constraint)
 - A guest MUST be in the same group as their sponsoring golfer.
@@ -175,6 +188,7 @@ The **harmony multiplier** scales all raw pair scores before the greedy algorith
 3. **Build pair scores** from partner preferences, then **apply score modifiers:**
    - Multiply all raw pair scores by the harmony multiplier (from partner preference mode).
    - Apply variety penalties from recent pairings (if promote variety is enabled).
+   - Set restricted pair scores to `-99999` (overrides all other scoring — applied last).
 4. **Partition golfers into tee time pools** (`early`, `late`, `no_preference`) applying the tee time preference mode:
    - `off`: All golfers go to `no_preference`.
    - `light`: Sort by priority score (infrequent requesters first), demote bottom 50% to `no_preference`.
@@ -186,6 +200,7 @@ The **harmony multiplier** scales all raw pair scores before the greedy algorith
    - `no_preference` golfers fill remaining slots.
    - Within each assignment, use greedy partner scoring with **per-group cap enforcement**.
 6. **Output:** Ordered list of groups, each with an ordered list of golfers, group number, and tee position. Reported harmony scores use raw (unmodified) pair scores for admin visibility.
+7. **Post-processing:** `separateRestrictedPairs` runs on the final result, swapping any restricted pair members across groups. Applied to all 5 methods.
 
 ### Guest Handling (Implemented):
 - After the engine assigns golfers to groups, approved guests are placed into their host's group.
@@ -315,6 +330,22 @@ ON public.groupings FOR SELECT
 USING (profile_id = auth.uid());
 ```
 
+### Migration 034: Restricted Pairings (Do-Not-Pair)
+```sql
+CREATE TABLE IF NOT EXISTS public.event_do_not_pair (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  event_id uuid NOT NULL REFERENCES public.events(id) ON DELETE CASCADE,
+  profile_id_1 uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  profile_id_2 uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  created_by uuid REFERENCES public.profiles(id),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT no_self_pair CHECK (profile_id_1 <> profile_id_2),
+  CONSTRAINT ordered_pair CHECK (profile_id_1 < profile_id_2),
+  UNIQUE (event_id, profile_id_1, profile_id_2)
+);
+```
+RLS: event admins and super admins only — no golfer access.
+
 ### Migration 019: Handicap-Based Grouping Methods
 ```sql
 ALTER TABLE public.events ADD COLUMN grouping_method text NOT NULL DEFAULT 'harmony'
@@ -339,7 +370,11 @@ ALTER TABLE public.groupings ADD COLUMN team_number smallint;
 
 ### Modified Files:
 - `src/lib/email.ts` — Pro shop email with grouped roster, 6-column table (Name, Email, Phone, GHIN, HCP, Tee Time, Player Pref), guest labels, preference annotations. Accepts optional `groupingMethod` to vary description text.
-- `src/app/api/cron/email-scheduler/route.ts` — Runs grouping engine at golfer confirmation time (when `allow_auto_grouping` is true), fetches stored groupings for pro shop email. No separate cron entry needed. Forces partner/tee time prefs off for handicap methods.
+- `src/app/api/cron/email-scheduler/route.ts` — Runs grouping engine at golfer confirmation time (when `allow_auto_grouping` is true), fetches stored groupings for pro shop email. No separate cron entry needed. Forces partner/tee time prefs off for handicap methods. Passes `restrictedPairs` to grouping engine.
+- `src/app/admin/rsvp/[scheduleId]/email-actions.ts` — Manual "send groupings email" path also passes `restrictedPairs` to the engine.
+- `src/app/admin/events/[eventId]/settings/actions.ts` — Added `addDoNotPairRestriction` and `removeDoNotPairRestriction` server actions.
+- `src/app/admin/events/[eventId]/settings/components.tsx` — Added `RestrictedPairingsSection` component. Located in the Grouping Engine section (not Feature Flags).
+- `src/app/admin/events/[eventId]/settings/page.tsx` — Fetches `event_do_not_pair` restrictions and active subscribers, passes to `RestrictedPairingsSection`.
 - `src/types/events.ts` — Grouping types (GroupingMethod, FlightTeamPairing, isHandicapMethod, isTeamMethod, DEFAULT_HANDICAP_INDEX, GROUPING_METHOD_LABELS, FLIGHT_TEAM_PAIRING_LABELS), Event type with grouping fields
 - `src/app/preferences/page.tsx` — Ranked partner list with up/down arrow reordering, email hidden from display (searchable only), partner search filtered to active + subscribed to same event only
 - `src/app/admin/events/[eventId]/settings/components.tsx` — Grouping method radio selector, flight team pairing sub-selector, amber override warning banner, greyed-out controls for handicap methods
@@ -389,6 +424,7 @@ These items are acknowledged and designed for but NOT included in this build:
 ## 9. Open Questions (for future phases)
 
 - Should golfers eventually see their grouping on the dashboard or in an email?
-- Should admins be able to "lock" certain pairings before the engine runs (e.g., "always put these two together")?
+- ~~Should admins be able to prevent certain pairings (do-not-pair)?~~ **Done** — `event_do_not_pair` table + restricted pairings constraint (migration 034). The inverse (always pair together) is not yet built.
+- Should admins be able to "lock" must-pair groupings before the engine runs (e.g., "always put these two together")?
 - What's the threshold for enabling round robin? (3 weeks of data? 4?)
 - Should the engine re-run if an admin makes a post-cutoff RSVP change?
