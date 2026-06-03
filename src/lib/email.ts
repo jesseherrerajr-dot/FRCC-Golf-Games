@@ -281,11 +281,6 @@ export function generateProShopEmail({
             return `
             <tr>
               <td style="${tdStyle}">${m.firstName} ${m.lastName}${guestLabel}</td>
-              <td style="${tdStyle}">${m.email || "—"}</td>
-              <td style="${tdStyle}">${formatPhoneDisplay(m.phone)}</td>
-              <td style="${tdStyle}">${m.ghinNumber || "—"}</td>
-              <td style="${tdStyle} text-align: center;">${m.handicapIndex != null ? m.handicapIndex.toFixed(1) : "—"}</td>
-              <td style="${tdStyle} text-align: center;">${m.lowHiValue != null ? m.lowHiValue.toFixed(1) : "—"}</td>
               <td style="${tdStyle} text-align: center;">${teePref}</td>
               <td style="${tdStyle} text-align: center;">${playerPref}</td>
             </tr>`;
@@ -294,7 +289,7 @@ export function generateProShopEmail({
 
         return `
           <tr>
-            <td colspan="7" style="padding: 10px 8px 6px 8px; font-weight: 600; color: #1b2a4a; font-size: 14px; border-top: 2px solid #3d7676; background: #f0f3f7;">
+            <td colspan="3" style="padding: 10px 8px 6px 8px; font-weight: 600; color: #1b2a4a; font-size: 14px; border-top: 2px solid #3d7676; background: #f0f3f7;">
               Group ${group.groupNumber}
             </td>
           </tr>
@@ -318,11 +313,6 @@ export function generateProShopEmail({
         <thead>
           <tr style="background: #f0f3f7;">
             <th style="${thStyle}">Name</th>
-            <th style="${thStyle}">Email</th>
-            <th style="${thStyle}">Phone</th>
-            <th style="${thStyle}">GHIN</th>
-            <th style="${thStyle} text-align: center;">HCP</th>
-            <th style="${thStyle} text-align: center;">Low H.I.</th>
             <th style="${thStyle} text-align: center;">Tee Time</th>
             <th style="${thStyle} text-align: center;">Player Pref</th>
           </tr>
@@ -345,11 +335,6 @@ export function generateProShopEmail({
         return `
       <tr>
         <td style="${tdStyle}">${p.first_name} ${p.last_name}${guestLabel}</td>
-        <td style="${tdStyle}">${p.email}</td>
-        <td style="${tdStyle}">${formatPhoneDisplay(p.phone)}</td>
-        <td style="${tdStyle}">${p.ghin_number}</td>
-        <td style="${tdStyle} text-align: center;">${p.handicap_index != null ? p.handicap_index.toFixed(1) : "—"}</td>
-        <td style="${tdStyle} text-align: center;">${p.low_hi_value != null ? Number(p.low_hi_value).toFixed(1) : "—"}</td>
       </tr>`;
       }
     )
@@ -365,11 +350,6 @@ export function generateProShopEmail({
         <thead>
           <tr style="background: #f0f3f7;">
             <th style="${thStyle}">Name</th>
-            <th style="${thStyle}">Email</th>
-            <th style="${thStyle}">Phone</th>
-            <th style="${thStyle}">GHIN</th>
-            <th style="${thStyle} text-align: center;">HCP</th>
-            <th style="${thStyle} text-align: center;">Low H.I.</th>
           </tr>
         </thead>
         <tbody>
