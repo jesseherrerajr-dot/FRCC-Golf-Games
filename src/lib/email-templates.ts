@@ -319,8 +319,6 @@ export function generateProShopDetailEmail(
       <thead>
         <tr style="background: #f3f4f6; border-bottom: 2px solid #d1d5db;">
           <th style="padding: 12px; text-align: left; font-size: 12px; color: #6b7280; text-transform: uppercase;">Name</th>
-          <th style="padding: 12px; text-align: left; font-size: 12px; color: #6b7280; text-transform: uppercase;">Phone</th>
-          <th style="padding: 12px; text-align: left; font-size: 12px; color: #6b7280; text-transform: uppercase;">GHIN</th>
         </tr>
       </thead>
       <tbody>
@@ -332,8 +330,6 @@ export function generateProShopDetailEmail(
     playerTableHtml += `
       <tr style="background: ${bgColor}; border-bottom: 1px solid #e5e7eb;">
         <td style="padding: 10px; font-size: 14px;">${formatFullName(player.first_name, player.last_name)}</td>
-        <td style="padding: 10px; font-size: 14px;">${formatPhoneDisplay(player.phone)}</td>
-        <td style="padding: 10px; font-size: 14px;">${player.ghin_number || "—"}</td>
       </tr>
     `;
   });
@@ -341,7 +337,7 @@ export function generateProShopDetailEmail(
   if (guests && guests.length > 0) {
     playerTableHtml += `
       <tr style="background: #fef3c7; border-top: 2px solid #f59e0b;">
-        <td colspan="3" style="padding: 10px; font-weight: bold; font-size: 13px; color: #92400e;">GUESTS:</td>
+        <td colspan="1" style="padding: 10px; font-weight: bold; font-size: 13px; color: #92400e;">GUESTS:</td>
       </tr>
     `;
 
@@ -350,8 +346,6 @@ export function generateProShopDetailEmail(
       playerTableHtml += `
         <tr style="background: ${bgColor}; border-bottom: 1px solid #fde68a;">
           <td style="padding: 10px; font-size: 14px;">${guest.guest_name} <span style="font-size: 12px; color: #6b7280;">(guest of ${guest.requested_by})</span></td>
-          <td style="padding: 10px; font-size: 14px;">${formatPhoneDisplay(guest.guest_phone)}</td>
-          <td style="padding: 10px; font-size: 14px;">${guest.guest_ghin_number || "—"}</td>
         </tr>
       `;
     });
@@ -397,7 +391,7 @@ export function generateProShopDetailEmail(
   </div>
 
   <h2 style="color: #065f46; font-size: 18px; margin: 30px 0 16px 0;">
-    Player Details:
+    Players:
   </h2>
 
   ${playerTableHtml}
