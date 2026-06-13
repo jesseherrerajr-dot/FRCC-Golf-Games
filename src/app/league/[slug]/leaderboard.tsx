@@ -50,6 +50,10 @@ export function Leaderboard({
 
       if (sortField === "rank" || sortField === "total") {
         cmp = a.totalPoints - b.totalPoints;
+      } else if (sortField === "avg") {
+        const aAvg = a.countingWeeks.length > 0 ? a.totalPoints / a.countingWeeks.length : -1;
+        const bAvg = b.countingWeeks.length > 0 ? b.totalPoints / b.countingWeeks.length : -1;
+        cmp = aAvg - bAvg;
       } else if (sortField === "golfer") {
         cmp = `${a.lastName} ${a.firstName}`.localeCompare(
           `${b.lastName} ${b.firstName}`
@@ -156,9 +160,11 @@ export function Leaderboard({
                   <SortIcon field="total" />
                 </th>
                 <th
-                  className="sticky right-0 z-20 bg-gray-50 px-3 py-2 text-center text-xs font-semibold uppercase tracking-wider text-gray-500 min-w-[60px] border-l border-gray-200"
+                  className="sticky right-0 z-20 bg-gray-50 px-3 py-2 text-center text-xs font-semibold uppercase tracking-wider text-gray-500 cursor-pointer hover:text-gray-700 min-w-[60px] border-l border-gray-200"
+                  onClick={() => handleSort("avg")}
                 >
                   Avg
+                  <SortIcon field="avg" />
                 </th>
               </tr>
               {/* Row 2: Dates */}
