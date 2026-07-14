@@ -1,5 +1,5 @@
 import { createClient, createAdminClient } from "@/lib/supabase/server";
-import type { LeagueConfig, LeagueTab, LeagueScore, LeaderboardEntry, LeagueMoneyScore, MoneyLeaderboardEntry } from "@/types/events";
+import type { LeagueConfig, LeagueTab, LeagueScore, LeaderboardEntry, LeagueMoneyScore, MoneyLeaderboardEntry, QualificationStatus } from "@/types/events";
 
 /**
  * Fetch league config for an event by slug.
@@ -152,14 +152,41 @@ export function computeSeasonWeeks(
 }
 
 /**
+ * Determine which season weeks have not yet been played (no golfer has a
+ * recorded score for that date) and identify the earliest such week.
+ *
+ * Used to compute season-prize qualification status: a week only counts as
+ * "remaining" once the whole group has yet to play it — this is more robust
+ * than comparing against today's date, since it stays correct even if a
+ * week's scores haven't been imported yet or a week was rained out.
+ */
+export function getRemainingWeeksInfo(
+  seasonWeeks: string[],
+  scores: LeagueScore[]
+): { remainingWeeks: number; nextUnplayedWeek: string | null } {
+  const playedWeeks = new Set(scores.map((s) => s.game_date));
+  const unplayed = seasonWeeks.filter((w) => !playedWeeks.has(w));
+
+  return {
+    remainingWeeks: unplayed.length,
+    nextUnplayedWeek: unplayed.length > 0 ? unplayed[0] : null,
+  };
+}
+
+/**
  * Build the leaderboard from scores and golfer data.
  * Applies best-N-of-M logic and computes ranks.
+ *
+ * @param remainingWeeks - Number of scheduled season weeks not yet played by
+ *   the group. Used to determine whether a golfer below min_rounds_to_qualify
+ *   can still reach it ("bubble") or is mathematically eliminated.
  */
 export function buildLeaderboard(
   golfers: { id: string; first_name: string; last_name: string; low_hi_value: number | null }[],
   scores: LeagueScore[],
   bestN: number | null,
-  minRoundsToQualify: number | null
+  minRoundsToQualify: number | null,
+  remainingWeeks: number = 0
 ): LeaderboardEntry[] {
   // Group scores by profile_id
   const scoresByGolfer = new Map<string, LeagueScore[]>();
@@ -197,6 +224,19 @@ export function buildLeaderboard(
       ? roundsPlayed >= minRoundsToQualify
       : true;
 
+    // Season-prize qualification status. Only meaningful when a minimum
+    // rounds requirement is configured for the event.
+    let qualificationStatus: QualificationStatus | null = null;
+    if (minRoundsToQualify) {
+      if (roundsPlayed >= minRoundsToQualify) {
+        qualificationStatus = "qualified";
+      } else if (roundsPlayed + remainingWeeks >= minRoundsToQualify) {
+        qualificationStatus = "bubble";
+      } else {
+        qualificationStatus = "eliminated";
+      }
+    }
+
     return {
       rank: 0, // computed below
       profileId: golfer.id,
@@ -208,6 +248,7 @@ export function buildLeaderboard(
       totalPoints,
       roundsPlayed,
       isQualified,
+      qualificationStatus,
     };
   });
 
@@ -258,14 +299,42 @@ export async function getLeagueMoneyScores(
 }
 
 /**
+ * Fetch the season-long payout row(s) for an event, if entered.
+ *
+ * Season payouts are stored in the same `league_money_scores` table as
+ * weekly winnings, distinguished by `metadata->>'type' = 'season'` rather
+ * than a weekly `game_date`. This avoids a schema change (the table already
+ * has a `metadata` jsonb column reserved for exactly this kind of future
+ * field) and keeps season payouts alongside weekly ones for easy admin
+ * querying, while the metadata flag — not the game_date value — is what the
+ * app uses to tell them apart, so the sentinel date's exact value never
+ * matters and can't accidentally collide with a real week.
+ */
+export async function getSeasonMoneyScores(eventId: string): Promise<LeagueMoneyScore[]> {
+  const admin = createAdminClient();
+
+  const { data } = await admin
+    .from("league_money_scores")
+    .select("*")
+    .eq("event_id", eventId)
+    .contains("metadata", { type: "season" });
+
+  return (data || []) as LeagueMoneyScore[];
+}
+
+/**
  * Build the money leaderboard from scores and golfer data.
  * Simpler than points leaderboard — every dollar counts (no best-N-of-M).
  * Golfers who played but won nothing show $0; golfers who didn't play show DNP.
+ *
+ * @param seasonMoneyScores - Season-long payout rows (see getSeasonMoneyScores).
+ *   Counted into totalAmount when present; seasonAmount is null until entered.
  */
 export function buildMoneyLeaderboard(
   golfers: { id: string; first_name: string; last_name: string }[],
   moneyScores: LeagueMoneyScore[],
-  pointsScores: LeagueScore[]
+  pointsScores: LeagueScore[],
+  seasonMoneyScores: LeagueMoneyScore[] = []
 ): MoneyLeaderboardEntry[] {
   // Group money scores by profile_id
   const moneyByGolfer = new Map<string, LeagueMoneyScore[]>();
@@ -273,6 +342,12 @@ export function buildMoneyLeaderboard(
     const existing = moneyByGolfer.get(score.profile_id) || [];
     existing.push(score);
     moneyByGolfer.set(score.profile_id, existing);
+  }
+
+  // Season payout by profile_id (one row per golfer, if entered)
+  const seasonByGolfer = new Map<string, number>();
+  for (const score of seasonMoneyScores) {
+    seasonByGolfer.set(score.profile_id, score.amount);
   }
 
   // Build set of (profile_id, game_date) pairs where the golfer played (from points scores)
@@ -302,7 +377,11 @@ export function buildMoneyLeaderboard(
       }
     }
 
-    const totalAmount = golferMoney.reduce((sum, s) => sum + s.amount, 0);
+    const seasonAmount = seasonByGolfer.has(golfer.id)
+      ? seasonByGolfer.get(golfer.id)!
+      : null;
+    const totalAmount =
+      golferMoney.reduce((sum, s) => sum + s.amount, 0) + (seasonAmount ?? 0);
     const weeksWon = golferMoney.filter((s) => s.amount > 0).length;
 
     return {
@@ -313,6 +392,7 @@ export function buildMoneyLeaderboard(
       weeklyAmounts,
       totalAmount,
       weeksWon,
+      seasonAmount,
     };
   });
 

@@ -11,6 +11,7 @@ export interface SerializedMoneyLeaderboardEntry {
   weeklyAmounts: Record<string, number>;
   totalAmount: number;
   weeksWon: number;
+  seasonAmount: number | null;
 }
 
 interface MoneyLeaderboardProps {
@@ -54,6 +55,8 @@ export function MoneyLeaderboard({
 
       if (sortField === "rank" || sortField === "total") {
         cmp = a.totalAmount - b.totalAmount;
+      } else if (sortField === "season") {
+        cmp = (a.seasonAmount ?? -1) - (b.seasonAmount ?? -1);
       } else if (sortField === "golfer") {
         cmp = `${a.lastName} ${a.firstName}`.localeCompare(
           `${b.lastName} ${b.firstName}`
@@ -179,6 +182,13 @@ export function MoneyLeaderboard({
                   </th>
                 ))}
                 <th
+                  className="px-2 py-2 text-center text-xs font-semibold uppercase tracking-wider text-gray-500 cursor-pointer hover:text-gray-700 min-w-[68px] border-l border-gray-200"
+                  onClick={() => handleSort("season")}
+                >
+                  Season
+                  <SortIcon field="season" />
+                </th>
+                <th
                   className="sticky right-0 z-20 bg-gray-50 px-3 py-2 text-center text-xs font-semibold uppercase tracking-wider text-gray-500 cursor-pointer hover:text-gray-700 min-w-[68px] border-l border-gray-200"
                   onClick={() => handleSort("total")}
                 >
@@ -198,6 +208,7 @@ export function MoneyLeaderboard({
                     {formatWeekDate(week)}
                   </th>
                 ))}
+                <th className="px-2 py-1 border-l border-gray-200" />
                 <th className="sticky right-0 z-20 bg-gray-50/50 px-3 py-1 border-l border-gray-200" />
               </tr>
             </thead>
@@ -246,6 +257,22 @@ export function MoneyLeaderboard({
                         </td>
                       );
                     })}
+                    {/* Season payout */}
+                    <td className="px-2 py-2.5 text-center tabular-nums border-l border-gray-200">
+                      {entry.seasonAmount != null ? (
+                        <span
+                          className={
+                            entry.seasonAmount > 0
+                              ? "text-green-700 font-medium"
+                              : "text-gray-400"
+                          }
+                        >
+                          {formatDollars(entry.seasonAmount)}
+                        </span>
+                      ) : (
+                        <span className="text-gray-300">&mdash;</span>
+                      )}
+                    </td>
                     {/* Total */}
                     <td className="sticky right-0 z-10 bg-inherit px-3 py-2.5 text-center font-bold text-navy-900 border-l border-gray-200">
                       {hasData ? (
@@ -263,7 +290,7 @@ export function MoneyLeaderboard({
               {sortedEntries.length === 0 && (
                 <tr>
                   <td
-                    colSpan={seasonWeeks.length + 3}
+                    colSpan={seasonWeeks.length + 4}
                     className="px-4 py-8 text-center text-sm text-gray-500"
                   >
                     No golfers subscribed to this event yet.
@@ -278,6 +305,10 @@ export function MoneyLeaderboard({
       {/* Footnotes */}
       <div className="mt-3 space-y-1 text-xs text-gray-400">
         <p>DNP = Did Not Play &bull; $0 = Played but no winnings</p>
+        <p>
+          Season = season-long prize payout (top finishers only), separate
+          from weekly winnings. Shown once entered at season end.
+        </p>
       </div>
     </div>
   );

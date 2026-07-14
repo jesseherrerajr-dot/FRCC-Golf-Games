@@ -18,6 +18,7 @@ export interface SerializedLeaderboardEntry {
   totalPoints: number;
   roundsPlayed: number;
   isQualified: boolean;
+  qualificationStatus: "qualified" | "bubble" | "eliminated" | null;
 }
 
 interface LeagueTabsProps {
@@ -28,6 +29,8 @@ interface LeagueTabsProps {
   bestN: number | null;
   totalM: number | null;
   minRoundsToQualify: number | null;
+  /** Earliest season week with no recorded scores yet (null if season complete) */
+  nextUnplayedWeek: string | null;
 }
 
 type LeaderboardView = "points" | "money";
@@ -40,6 +43,7 @@ export function LeagueTabs({
   bestN,
   totalM,
   minRoundsToQualify,
+  nextUnplayedWeek,
 }: LeagueTabsProps) {
   const [activeTab, setActiveTab] = useState(tabs[0]?.tab_key || "");
   const [leaderboardView, setLeaderboardView] =
@@ -113,6 +117,7 @@ export function LeagueTabs({
                 bestN={bestN}
                 totalM={totalM}
                 minRoundsToQualify={minRoundsToQualify}
+                nextUnplayedWeek={nextUnplayedWeek}
               />
             ) : (
               <MoneyLeaderboard
