@@ -100,6 +100,22 @@ export function MoneyLeaderboard({
     }));
   }, [entries, sortField, sortDir]);
 
+  // Column totals for the grand-total footer row: per-week sums, the season
+  // payout sum, and the overall grand total. DNP weeks (undefined) contribute
+  // nothing; $0 weeks contribute 0.
+  const columnTotals = useMemo(() => {
+    const weekly: Record<string, number> = {};
+    for (const week of seasonWeeks) {
+      weekly[week] = entries.reduce(
+        (sum, e) => sum + (e.weeklyAmounts[week] ?? 0),
+        0
+      );
+    }
+    const season = entries.reduce((sum, e) => sum + (e.seasonAmount ?? 0), 0);
+    const grand = entries.reduce((sum, e) => sum + e.totalAmount, 0);
+    return { weekly, season, grand };
+  }, [entries, seasonWeeks]);
+
   const SortIcon = ({ field }: { field: SortField }) => {
     if (sortField !== field) {
       return (
@@ -302,6 +318,33 @@ export function MoneyLeaderboard({
                 </tr>
               )}
             </tbody>
+            {sortedEntries.length > 0 && (
+              <tfoot>
+                {/* Grand total row: sums each column across all golfers. */}
+                <tr className="bg-gray-100 border-t-2 border-gray-300 font-bold text-navy-900">
+                  <td className="sticky left-0 z-10 bg-gray-100 px-3 py-2.5" />
+                  <td className="sticky left-[48px] z-10 bg-gray-100 px-3 py-2.5 text-xs uppercase tracking-wider text-gray-500 whitespace-nowrap">
+                    Total
+                  </td>
+                  {seasonWeeks.map((week) => (
+                    <td
+                      key={`total-${week}`}
+                      className="px-2 py-2.5 text-center tabular-nums text-green-700"
+                    >
+                      {formatDollars(columnTotals.weekly[week])}
+                    </td>
+                  ))}
+                  {/* Season payout total */}
+                  <td className="w-[88px] sm:sticky sm:right-[88px] sm:z-10 bg-gray-100 px-2 py-2.5 text-center tabular-nums text-green-700 border-l border-gray-200">
+                    {formatDollars(columnTotals.season)}
+                  </td>
+                  {/* Grand total */}
+                  <td className="w-[88px] sm:sticky sm:right-0 sm:z-10 bg-gray-100 px-2 py-2.5 text-center tabular-nums text-green-700 border-l border-gray-200">
+                    {formatDollars(columnTotals.grand)}
+                  </td>
+                </tr>
+              </tfoot>
+            )}
           </table>
         </div>
       </div>
