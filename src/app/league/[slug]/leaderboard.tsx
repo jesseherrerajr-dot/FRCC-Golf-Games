@@ -190,17 +190,17 @@ export function Leaderboard({
                 </th>
                 <th
                   className="px-3 py-2 text-center text-xs font-semibold uppercase tracking-wider text-gray-500 cursor-pointer hover:text-gray-700 min-w-[60px] border-l border-gray-200"
-                  onClick={() => handleSort("total")}
-                >
-                  Total
-                  <SortIcon field="total" />
-                </th>
-                <th
-                  className="sticky right-0 z-20 bg-gray-50 px-3 py-2 text-center text-xs font-semibold uppercase tracking-wider text-gray-500 cursor-pointer hover:text-gray-700 min-w-[60px] border-l border-gray-200"
                   onClick={() => handleSort("avg")}
                 >
                   Avg
                   <SortIcon field="avg" />
+                </th>
+                <th
+                  className="px-3 py-2 text-center text-xs font-semibold uppercase tracking-wider text-gray-500 cursor-pointer hover:text-gray-700 min-w-[60px] border-l border-gray-200"
+                  onClick={() => handleSort("total")}
+                >
+                  Total
+                  <SortIcon field="total" />
                 </th>
               </tr>
               {/* Row 2: Dates */}
@@ -218,7 +218,7 @@ export function Leaderboard({
                 ))}
                 <th className="px-2 py-1 border-l border-gray-200" />
                 <th className="px-3 py-1 border-l border-gray-200" />
-                <th className="sticky right-0 z-20 bg-gray-50/50 px-3 py-1 border-l border-gray-200" />
+                <th className="px-3 py-1 border-l border-gray-200" />
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -286,19 +286,19 @@ export function Leaderboard({
                     <td className="px-2 py-2.5 text-center text-gray-300 border-l border-gray-200">
                       &mdash;
                     </td>
-                    {/* Total */}
-                    <td className="px-3 py-2.5 text-center font-bold text-navy-900 border-l border-gray-200">
-                      {entry.roundsPlayed > 0 ? entry.totalPoints : (
-                        <span className="text-gray-300">&mdash;</span>
-                      )}
-                    </td>
                     {/* Avg */}
-                    <td className="sticky right-0 z-10 bg-inherit px-3 py-2.5 text-center tabular-nums text-navy-900 border-l border-gray-200">
+                    <td className="px-3 py-2.5 text-center tabular-nums text-navy-900 border-l border-gray-200">
                       {entry.countingWeeks.length > 0 ? (
                         <span className="font-medium">
                           {(entry.totalPoints / entry.countingWeeks.length).toFixed(1)}
                         </span>
                       ) : (
+                        <span className="text-gray-300">&mdash;</span>
+                      )}
+                    </td>
+                    {/* Total */}
+                    <td className="px-3 py-2.5 text-center font-bold text-navy-900 border-l border-gray-200">
+                      {entry.roundsPlayed > 0 ? entry.totalPoints : (
                         <span className="text-gray-300">&mdash;</span>
                       )}
                     </td>

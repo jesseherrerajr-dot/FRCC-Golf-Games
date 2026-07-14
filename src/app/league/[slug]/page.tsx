@@ -87,7 +87,9 @@ export default async function LeagueInfoPage({ params }: PageProps) {
 
   return (
     <main className="min-h-screen px-4 py-8">
-      <div className="mx-auto max-w-4xl">
+      {/* max-w-5xl (not 4xl) so the full 10-week + Season/Avg/Total grid fits
+          without clipping the rightmost Total column on desktop. */}
+      <div className="mx-auto max-w-5xl">
         <Breadcrumbs
           items={[
             { label: "Home", href: "/home" },
