@@ -6,10 +6,12 @@ import {
   getLeagueTabs,
   getLeagueScores,
   getLeagueMoneyScores,
+  getSeasonMoneyScores,
   getSubscribedGolfers,
   computeSeasonWeeks,
   buildLeaderboard,
   buildMoneyLeaderboard,
+  getRemainingWeeksInfo,
 } from "@/lib/league";
 import { LeagueTabs } from "./league-tabs";
 
@@ -39,10 +41,11 @@ export default async function LeagueInfoPage({ params }: PageProps) {
   const { config, event } = result;
 
   // Fetch tabs, scores, money scores, and golfers in parallel
-  const [tabs, scores, moneyScores, golfers] = await Promise.all([
+  const [tabs, scores, moneyScores, seasonMoneyScores, golfers] = await Promise.all([
     getLeagueTabs(event.id),
     getLeagueScores(event.id, config.season_start, config.season_end),
     getLeagueMoneyScores(event.id, config.season_start, config.season_end),
+    getSeasonMoneyScores(event.id),
     getSubscribedGolfers(event.id),
   ]);
 
@@ -52,16 +55,29 @@ export default async function LeagueInfoPage({ params }: PageProps) {
       ? computeSeasonWeeks(config.season_start, config.total_m)
       : [];
 
+  // Determine how many scheduled season weeks remain unplayed, so we can
+  // tell golfers below the minimum whether they can still qualify.
+  const { remainingWeeks, nextUnplayedWeek } = getRemainingWeeksInfo(
+    seasonWeeks,
+    scores
+  );
+
   // Build leaderboard data
   const leaderboard = buildLeaderboard(
     golfers,
     scores,
     config.best_n,
-    config.min_rounds_to_qualify
+    config.min_rounds_to_qualify,
+    remainingWeeks
   );
 
   // Build money leaderboard data
-  const moneyLeaderboard = buildMoneyLeaderboard(golfers, moneyScores, scores);
+  const moneyLeaderboard = buildMoneyLeaderboard(
+    golfers,
+    moneyScores,
+    scores,
+    seasonMoneyScores
+  );
 
   // Serialize leaderboard for client component (Set → Array)
   const serializedLeaderboard = leaderboard.map((entry) => ({
@@ -96,6 +112,7 @@ export default async function LeagueInfoPage({ params }: PageProps) {
             bestN={config.best_n}
             totalM={config.total_m}
             minRoundsToQualify={config.min_rounds_to_qualify}
+            nextUnplayedWeek={nextUnplayedWeek}
           />
         </div>
       </div>

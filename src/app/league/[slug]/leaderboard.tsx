@@ -10,10 +10,13 @@ interface LeaderboardProps {
   bestN: number | null;
   totalM: number | null;
   minRoundsToQualify: number | null;
+  /** Earliest season week with no recorded scores yet (null if season complete) */
+  nextUnplayedWeek: string | null;
 }
 
 type SortField = "rank" | "golfer" | "total" | string; // string for week dates
 type SortDir = "asc" | "desc";
+type QualificationStatus = "qualified" | "bubble" | "eliminated";
 
 /**
  * Format a date string "YYYY-MM-DD" as "M/D" for compact column headers.
@@ -23,12 +26,42 @@ function formatWeekDate(dateStr: string): string {
   return `${month}/${day}`;
 }
 
+/** Tailwind classes for the season-qualification badge, by status. */
+function qualificationBadgeClasses(status: QualificationStatus): string {
+  switch (status) {
+    case "qualified":
+      return "inline-block w-fit rounded px-1.5 py-0.5 text-[10px] font-medium bg-teal-50 text-teal-700";
+    case "bubble":
+      return "inline-block w-fit rounded px-1.5 py-0.5 text-[10px] font-medium bg-amber-50 text-amber-700";
+    case "eliminated":
+      return "inline-block w-fit rounded px-1.5 py-0.5 text-[10px] font-medium bg-gray-50 text-gray-400";
+  }
+}
+
+/** Display label for the season-qualification badge, by status. */
+function qualificationBadgeLabel(
+  status: QualificationStatus,
+  nextUnplayedWeek: string | null
+): string {
+  switch (status) {
+    case "qualified":
+      return "Qualified";
+    case "bubble":
+      return nextUnplayedWeek
+        ? `Must Play ${formatWeekDate(nextUnplayedWeek)}`
+        : "On the Bubble";
+    case "eliminated":
+      return "Not Qualified";
+  }
+}
+
 export function Leaderboard({
   entries,
   seasonWeeks,
   bestN,
   totalM,
   minRoundsToQualify,
+  nextUnplayedWeek,
 }: LeaderboardProps) {
   const [sortField, setSortField] = useState<SortField>("total");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
@@ -152,6 +185,9 @@ export function Leaderboard({
                     <SortIcon field={week} />
                   </th>
                 ))}
+                <th className="px-2 py-2 text-center text-xs font-semibold uppercase tracking-wider text-gray-400 min-w-[60px] border-l border-gray-200">
+                  Season
+                </th>
                 <th
                   className="px-3 py-2 text-center text-xs font-semibold uppercase tracking-wider text-gray-500 cursor-pointer hover:text-gray-700 min-w-[60px] border-l border-gray-200"
                   onClick={() => handleSort("total")}
@@ -180,6 +216,7 @@ export function Leaderboard({
                     {formatWeekDate(week)}
                   </th>
                 ))}
+                <th className="px-2 py-1 border-l border-gray-200" />
                 <th className="px-3 py-1 border-l border-gray-200" />
                 <th className="sticky right-0 z-20 bg-gray-50/50 px-3 py-1 border-l border-gray-200" />
               </tr>
@@ -202,7 +239,23 @@ export function Leaderboard({
                     </td>
                     {/* Golfer name */}
                     <td className="sticky left-[48px] z-10 bg-inherit px-3 py-2.5 font-medium text-navy-900 whitespace-nowrap">
-                      {formatInitialLastName(entry.firstName, entry.lastName)}
+                      <div className="flex flex-col gap-0.5">
+                        <span>
+                          {formatInitialLastName(entry.firstName, entry.lastName)}
+                        </span>
+                        {minRoundsToQualify && entry.qualificationStatus && (
+                          <span
+                            className={qualificationBadgeClasses(
+                              entry.qualificationStatus
+                            )}
+                          >
+                            {qualificationBadgeLabel(
+                              entry.qualificationStatus,
+                              nextUnplayedWeek
+                            )}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     {/* Low H.I. */}
                     <td className="px-2 py-2.5 text-center tabular-nums text-gray-600 text-xs">
@@ -229,6 +282,10 @@ export function Leaderboard({
                         </td>
                       );
                     })}
+                    {/* Season (not applicable to points standings) */}
+                    <td className="px-2 py-2.5 text-center text-gray-300 border-l border-gray-200">
+                      &mdash;
+                    </td>
                     {/* Total */}
                     <td className="px-3 py-2.5 text-center font-bold text-navy-900 border-l border-gray-200">
                       {entry.roundsPlayed > 0 ? entry.totalPoints : (
@@ -252,7 +309,7 @@ export function Leaderboard({
               {sortedEntries.length === 0 && (
                 <tr>
                   <td
-                    colSpan={seasonWeeks.length + 5}
+                    colSpan={seasonWeeks.length + 6}
                     className="px-4 py-8 text-center text-sm text-gray-500"
                   >
                     No golfers subscribed to this event yet.
@@ -267,6 +324,7 @@ export function Leaderboard({
       {/* Footnotes */}
       <div className="mt-3 space-y-1 text-xs text-gray-400">
         <p>DNP = Did Not Play</p>
+        <p>Season = not applicable to points standings (see Money view for season-long payouts).</p>
         {bestN && totalM && (
           <p>
             Total = Best {bestN} of {totalM} weekly scores.
@@ -276,7 +334,15 @@ export function Leaderboard({
         {minRoundsToQualify && (
           <p>
             Must play at least {minRoundsToQualify} weeks to qualify for season
-            prizes.
+            prizes (weekly prizes are unaffected).{" "}
+            <span className="text-teal-700 font-medium">Qualified</span> = min
+            rounds already met.{" "}
+            <span className="text-amber-700 font-medium">
+              Must Play {nextUnplayedWeek ? formatWeekDate(nextUnplayedWeek) : "Final Week"}
+            </span>{" "}
+            = still eligible if they play the remaining week(s).{" "}
+            <span className="text-gray-400 font-medium">Not Qualified</span> =
+            not enough remaining weeks left to reach the minimum.
           </p>
         )}
       </div>

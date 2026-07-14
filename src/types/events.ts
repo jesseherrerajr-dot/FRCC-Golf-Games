@@ -441,6 +441,15 @@ export interface LeagueScore {
   updated_at: string;
 }
 
+/**
+ * Season-long prize qualification status for a golfer, based on
+ * min_rounds_to_qualify and how many scheduled season weeks remain unplayed.
+ * - "qualified": already meets min_rounds_to_qualify — locked in regardless of future weeks.
+ * - "bubble": below the minimum, but can still reach it by playing remaining weeks.
+ * - "eliminated": below the minimum with not enough remaining weeks left to reach it.
+ */
+export type QualificationStatus = "qualified" | "bubble" | "eliminated";
+
 /** Computed leaderboard row for display */
 export interface LeaderboardEntry {
   rank: number;
@@ -459,6 +468,8 @@ export interface LeaderboardEntry {
   roundsPlayed: number;
   /** Whether golfer meets min_rounds_to_qualify */
   isQualified: boolean;
+  /** Season-prize qualification status (null if min_rounds_to_qualify is not configured) */
+  qualificationStatus: QualificationStatus | null;
 }
 
 /** Weekly money winnings per golfer */
@@ -482,10 +493,12 @@ export interface MoneyLeaderboardEntry {
   lastName: string;
   /** Map of game_date → dollar amount won */
   weeklyAmounts: Record<string, number>;
-  /** Sum of all weekly amounts */
+  /** Sum of all weekly amounts plus season payout (if entered) */
   totalAmount: number;
   /** Number of weeks with winnings > 0 */
   weeksWon: number;
+  /** Season-long prize payout (top finishers only). Null until entered post-season. */
+  seasonAmount: number | null;
 }
 
 // ============================================================
