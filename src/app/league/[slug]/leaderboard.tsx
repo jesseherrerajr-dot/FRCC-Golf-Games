@@ -152,51 +152,58 @@ export function Leaderboard({
       <div className="rounded-lg border border-gray-200 bg-white shadow-sm overflow-hidden">
         {/* Scrollable table wrapper */}
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          {/* table-fixed so the explicit column widths are honored exactly —
+              required for the stacked right-pinned summary columns to abut
+              without gaps (auto layout shrinks widths to content). */}
+          <table className="w-full text-sm table-fixed">
             <thead>
               {/* Row 1: Week numbers */}
               <tr className="bg-gray-50 border-b border-gray-200">
                 <th
-                  className="sticky left-0 z-20 bg-gray-50 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 cursor-pointer hover:text-gray-700 min-w-[48px]"
+                  className="sticky left-0 z-20 bg-gray-50 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 cursor-pointer hover:text-gray-700 w-[48px]"
                   onClick={() => handleSort("rank")}
                 >
                   Rank
                   <SortIcon field="rank" />
                 </th>
                 <th
-                  className="sticky left-[48px] z-20 bg-gray-50 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 cursor-pointer hover:text-gray-700 min-w-[120px]"
+                  className="sticky left-[48px] z-20 bg-gray-50 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 cursor-pointer hover:text-gray-700 w-[150px]"
                   onClick={() => handleSort("golfer")}
                 >
                   Golfer
                   <SortIcon field="golfer" />
                 </th>
                 <th
-                  className="px-2 py-2 text-center text-xs font-semibold uppercase tracking-wider text-gray-500 min-w-[56px]"
+                  className="px-2 py-2 text-center text-xs font-semibold uppercase tracking-wider text-gray-500 w-[56px]"
                 >
                   Low H.I.
                 </th>
                 {seasonWeeks.map((week, i) => (
                   <th
                     key={week}
-                    className="px-2 py-2 text-center text-xs font-semibold uppercase tracking-wider text-gray-500 cursor-pointer hover:text-gray-700 min-w-[52px]"
+                    className="px-2 py-2 text-center text-xs font-semibold uppercase tracking-wider text-gray-500 cursor-pointer hover:text-gray-700 w-[52px]"
                     onClick={() => handleSort(week)}
                   >
                     Wk {i + 1}
                     <SortIcon field={week} />
                   </th>
                 ))}
-                <th className="px-2 py-2 text-center text-xs font-semibold uppercase tracking-wider text-gray-400 min-w-[60px] border-l border-gray-200">
+                {/* Summary columns pinned to the right (sm+). Stacked with
+                    exact right-offsets = sum of the widths to their right, so
+                    they never overlap each other. Static (scroll) below sm,
+                    where 5 pinned columns can't fit a phone's width. */}
+                <th className="w-[80px] sm:sticky sm:right-[156px] sm:z-20 bg-gray-50 px-2 py-2 text-center text-xs font-semibold uppercase tracking-wider text-gray-400 border-l border-gray-200">
                   Season
                 </th>
                 <th
-                  className="px-3 py-2 text-center text-xs font-semibold uppercase tracking-wider text-gray-500 cursor-pointer hover:text-gray-700 min-w-[60px] border-l border-gray-200"
+                  className="w-[84px] sm:sticky sm:right-[72px] sm:z-20 bg-gray-50 px-2 py-2 text-center text-xs font-semibold uppercase tracking-wider text-gray-500 cursor-pointer hover:text-gray-700 border-l border-gray-200"
                   onClick={() => handleSort("total")}
                 >
                   Total
                   <SortIcon field="total" />
                 </th>
                 <th
-                  className="sticky right-0 z-20 bg-gray-50 px-3 py-2 text-center text-xs font-semibold uppercase tracking-wider text-gray-500 cursor-pointer hover:text-gray-700 min-w-[60px] border-l border-gray-200"
+                  className="w-[72px] sm:sticky sm:right-0 sm:z-20 bg-gray-50 px-2 py-2 text-center text-xs font-semibold uppercase tracking-wider text-gray-500 cursor-pointer hover:text-gray-700 border-l border-gray-200"
                   onClick={() => handleSort("avg")}
                 >
                   Avg
@@ -205,8 +212,8 @@ export function Leaderboard({
               </tr>
               {/* Row 2: Dates */}
               <tr className="bg-gray-50/50 border-b border-gray-300">
-                <th className="sticky left-0 z-20 bg-gray-50/50 px-3 py-1" />
-                <th className="sticky left-[48px] z-20 bg-gray-50/50 px-3 py-1" />
+                <th className="sticky left-0 z-20 bg-gray-50 px-3 py-1" />
+                <th className="sticky left-[48px] z-20 bg-gray-50 px-3 py-1" />
                 <th className="bg-gray-50/50 px-2 py-1" />
                 {seasonWeeks.map((week) => (
                   <th
@@ -216,9 +223,9 @@ export function Leaderboard({
                     {formatWeekDate(week)}
                   </th>
                 ))}
-                <th className="px-2 py-1 border-l border-gray-200" />
-                <th className="px-3 py-1 border-l border-gray-200" />
-                <th className="sticky right-0 z-20 bg-gray-50/50 px-3 py-1 border-l border-gray-200" />
+                <th className="w-[80px] sm:sticky sm:right-[156px] sm:z-20 bg-gray-50 px-2 py-1 border-l border-gray-200" />
+                <th className="w-[84px] sm:sticky sm:right-[72px] sm:z-20 bg-gray-50 px-2 py-1 border-l border-gray-200" />
+                <th className="w-[72px] sm:sticky sm:right-0 sm:z-20 bg-gray-50 px-2 py-1 border-l border-gray-200" />
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -227,7 +234,7 @@ export function Leaderboard({
                 return (
                   <tr
                     key={entry.profileId}
-                    className={idx % 2 === 0 ? "bg-white" : "bg-gray-50/30"}
+                    className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}
                   >
                     {/* Rank */}
                     <td className="sticky left-0 z-10 bg-inherit px-3 py-2.5 text-center font-semibold text-navy-900">
@@ -283,17 +290,17 @@ export function Leaderboard({
                       );
                     })}
                     {/* Season (not applicable to points standings) */}
-                    <td className="px-2 py-2.5 text-center text-gray-300 border-l border-gray-200">
+                    <td className="w-[80px] sm:sticky sm:right-[156px] sm:z-10 bg-inherit px-2 py-2.5 text-center text-gray-300 border-l border-gray-200">
                       &mdash;
                     </td>
                     {/* Total */}
-                    <td className="px-3 py-2.5 text-center font-bold text-navy-900 border-l border-gray-200">
+                    <td className="w-[84px] sm:sticky sm:right-[72px] sm:z-10 bg-inherit px-2 py-2.5 text-center font-bold text-navy-900 border-l border-gray-200">
                       {entry.roundsPlayed > 0 ? entry.totalPoints : (
                         <span className="text-gray-300">&mdash;</span>
                       )}
                     </td>
                     {/* Avg */}
-                    <td className="sticky right-0 z-10 bg-inherit px-3 py-2.5 text-center tabular-nums text-navy-900 border-l border-gray-200">
+                    <td className="w-[72px] sm:sticky sm:right-0 sm:z-10 bg-inherit px-2 py-2.5 text-center tabular-nums text-navy-900 border-l border-gray-200">
                       {entry.countingWeeks.length > 0 ? (
                         <span className="font-medium">
                           {(entry.totalPoints / entry.countingWeeks.length).toFixed(1)}

@@ -153,19 +153,21 @@ export function MoneyLeaderboard({
     <div>
       <div className="rounded-lg border border-gray-200 bg-white shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          {/* table-fixed so explicit column widths are honored exactly, letting
+              the right-pinned Season/Total columns abut without gaps. */}
+          <table className="w-full text-sm table-fixed">
             <thead>
               {/* Row 1: Week numbers */}
               <tr className="bg-gray-50 border-b border-gray-200">
                 <th
-                  className="sticky left-0 z-20 bg-gray-50 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 cursor-pointer hover:text-gray-700 min-w-[48px]"
+                  className="sticky left-0 z-20 bg-gray-50 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 cursor-pointer hover:text-gray-700 w-[48px]"
                   onClick={() => handleSort("rank")}
                 >
                   Rank
                   <SortIcon field="rank" />
                 </th>
                 <th
-                  className="sticky left-[48px] z-20 bg-gray-50 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 cursor-pointer hover:text-gray-700 min-w-[120px]"
+                  className="sticky left-[48px] z-20 bg-gray-50 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 cursor-pointer hover:text-gray-700 w-[150px]"
                   onClick={() => handleSort("golfer")}
                 >
                   Golfer
@@ -174,22 +176,24 @@ export function MoneyLeaderboard({
                 {seasonWeeks.map((week, i) => (
                   <th
                     key={week}
-                    className="px-2 py-2 text-center text-xs font-semibold uppercase tracking-wider text-gray-500 cursor-pointer hover:text-gray-700 min-w-[56px]"
+                    className="px-2 py-2 text-center text-xs font-semibold uppercase tracking-wider text-gray-500 cursor-pointer hover:text-gray-700 w-[56px]"
                     onClick={() => handleSort(week)}
                   >
                     Wk {i + 1}
                     <SortIcon field={week} />
                   </th>
                 ))}
+                {/* Summary columns pinned to the right (sm+), stacked at exact
+                    offsets so they never overlap. Static (scroll) below sm. */}
                 <th
-                  className="px-2 py-2 text-center text-xs font-semibold uppercase tracking-wider text-gray-500 cursor-pointer hover:text-gray-700 min-w-[68px] border-l border-gray-200"
+                  className="w-[88px] sm:sticky sm:right-[88px] sm:z-20 bg-gray-50 px-2 py-2 text-center text-xs font-semibold uppercase tracking-wider text-gray-500 cursor-pointer hover:text-gray-700 border-l border-gray-200"
                   onClick={() => handleSort("season")}
                 >
                   Season
                   <SortIcon field="season" />
                 </th>
                 <th
-                  className="sticky right-0 z-20 bg-gray-50 px-3 py-2 text-center text-xs font-semibold uppercase tracking-wider text-gray-500 cursor-pointer hover:text-gray-700 min-w-[68px] border-l border-gray-200"
+                  className="w-[88px] sm:sticky sm:right-0 sm:z-20 bg-gray-50 px-2 py-2 text-center text-xs font-semibold uppercase tracking-wider text-gray-500 cursor-pointer hover:text-gray-700 border-l border-gray-200"
                   onClick={() => handleSort("total")}
                 >
                   Total
@@ -198,8 +202,8 @@ export function MoneyLeaderboard({
               </tr>
               {/* Row 2: Dates */}
               <tr className="bg-gray-50/50 border-b border-gray-300">
-                <th className="sticky left-0 z-20 bg-gray-50/50 px-3 py-1" />
-                <th className="sticky left-[48px] z-20 bg-gray-50/50 px-3 py-1" />
+                <th className="sticky left-0 z-20 bg-gray-50 px-3 py-1" />
+                <th className="sticky left-[48px] z-20 bg-gray-50 px-3 py-1" />
                 {seasonWeeks.map((week) => (
                   <th
                     key={`date-${week}`}
@@ -208,8 +212,8 @@ export function MoneyLeaderboard({
                     {formatWeekDate(week)}
                   </th>
                 ))}
-                <th className="px-2 py-1 border-l border-gray-200" />
-                <th className="sticky right-0 z-20 bg-gray-50/50 px-3 py-1 border-l border-gray-200" />
+                <th className="w-[88px] sm:sticky sm:right-[88px] sm:z-20 bg-gray-50 px-2 py-1 border-l border-gray-200" />
+                <th className="w-[88px] sm:sticky sm:right-0 sm:z-20 bg-gray-50 px-2 py-1 border-l border-gray-200" />
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -219,7 +223,7 @@ export function MoneyLeaderboard({
                 return (
                   <tr
                     key={entry.profileId}
-                    className={idx % 2 === 0 ? "bg-white" : "bg-gray-50/30"}
+                    className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}
                   >
                     {/* Rank */}
                     <td className="sticky left-0 z-10 bg-inherit px-3 py-2.5 text-center font-semibold text-navy-900">
@@ -258,7 +262,7 @@ export function MoneyLeaderboard({
                       );
                     })}
                     {/* Season payout */}
-                    <td className="px-2 py-2.5 text-center tabular-nums border-l border-gray-200">
+                    <td className="w-[88px] sm:sticky sm:right-[88px] sm:z-10 bg-inherit px-2 py-2.5 text-center tabular-nums border-l border-gray-200">
                       {entry.seasonAmount != null ? (
                         <span
                           className={
@@ -274,7 +278,7 @@ export function MoneyLeaderboard({
                       )}
                     </td>
                     {/* Total */}
-                    <td className="sticky right-0 z-10 bg-inherit px-3 py-2.5 text-center font-bold text-navy-900 border-l border-gray-200">
+                    <td className="w-[88px] sm:sticky sm:right-0 sm:z-10 bg-inherit px-2 py-2.5 text-center font-bold text-navy-900 border-l border-gray-200">
                       {hasData ? (
                         <span className={entry.totalAmount > 0 ? "text-green-700" : ""}>
                           {formatDollars(entry.totalAmount)}
