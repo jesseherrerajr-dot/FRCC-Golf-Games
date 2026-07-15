@@ -81,8 +81,10 @@ export async function createEvent(formData: FormData) {
       const [y, m, d] = (eventData.start_date as string)
         .split("-")
         .map(Number);
+      // Last game = start + (weeks - 1) * 7. start_date is the first game,
+      // so a 10-week season ends on the 10th game, not one week later.
       const end = new Date(y, m - 1, d);
-      end.setDate(end.getDate() + (eventData.duration_weeks as number) * 7);
+      end.setDate(end.getDate() + ((eventData.duration_weeks as number) - 1) * 7);
       eventData.end_date = `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, "0")}-${String(end.getDate()).padStart(2, "0")}`;
     }
   } else if (durationMode === "end_date") {

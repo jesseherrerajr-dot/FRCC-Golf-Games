@@ -68,9 +68,11 @@ export async function updateEventBasicSettings(
         : null;
       // Calculate end_date
       if (updates.start_date && updates.duration_weeks) {
+        // Last game = start + (weeks - 1) * 7. start_date is the first game,
+        // so a 10-week season ends on the 10th game, not one week later.
         const [y, m, d] = (updates.start_date as string).split("-").map(Number);
         const end = new Date(y, m - 1, d);
-        end.setDate(end.getDate() + (updates.duration_weeks as number) * 7);
+        end.setDate(end.getDate() + ((updates.duration_weeks as number) - 1) * 7);
         updates.end_date = `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, "0")}-${String(end.getDate()).padStart(2, "0")}`;
       }
     } else if (durationMode === "end_date") {

@@ -17,8 +17,9 @@ import {
 import { sendAdminAlert } from "@/lib/admin-alerts";
 import { sendPushToUsers } from "@/lib/push";
 import { generateGroupings, DEFAULT_GROUPING_OPTIONS } from "@/lib/grouping-engine";
-import type { GroupingOptions, GroupingPartnerPrefMode, GroupingTeeTimePrefMode, GroupingMethod, FlightTeamPairing } from "@/types/events";
+import type { GroupingOptions, GroupingPartnerPrefMode, GroupingTeeTimePrefMode, GroupingMethod, FlightTeamPairing, Event } from "@/types/events";
 import { isHandicapMethod } from "@/types/events";
+import { calculateEventEndDate } from "@/lib/schedule-gen";
 import {
   fetchConfirmedGolfers,
   fetchPartnerPreferences,
@@ -118,6 +119,20 @@ export async function GET(request: Request) {
       if (event.start_date && gameDateString < event.start_date) {
         console.log(
           `Skipping event ${event.name} — game date ${gameDateString} is before event start date ${event.start_date}`
+        );
+        continue;
+      }
+
+      // Skip events that have ended (game date is past the event's end date).
+      // Without this guard, an active event with enabled invite schedules would
+      // send a new invite every week forever — ensureSchedule creates a fresh
+      // schedule row for whatever "next game day" is computed, regardless of the
+      // configured season length. calculateEventEndDate handles all duration
+      // modes (indefinite → null → no end guard).
+      const eventEndDate = calculateEventEndDate(event as unknown as Event);
+      if (eventEndDate && gameDateString > eventEndDate) {
+        console.log(
+          `Skipping event ${event.name} — game date ${gameDateString} is past event end date ${eventEndDate}`
         );
         continue;
       }

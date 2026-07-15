@@ -395,3 +395,21 @@ See the Roadmap section of CLAUDE.md for the current prioritized list. Key items
 - **Restricted pairings in Grouping Engine section, not Feature Flags** — because the feature is directly tied to how the grouping engine places golfers. Accessible to both event admins and super admins.
 - **Penalty Box feature flag in Event Settings → Feature Flags** — consistent with how guest requests are controlled. Super admin only.
 - **Cancellation emails must be awaited** — any async email send inside a Server Action that isn't awaited will be killed by Vercel's serverless lifecycle before it completes. This is now a documented constraint.
+
+### Session: July 14, 2026
+
+**Context:** After the Thursday League's 10-week season (May 7 – July 9) ended, an unexpected invite went out for July 16, and Jesse wanted to confirm no further invites would fire before the next series.
+
+**Investigation:** Two compounding bugs. (1) The season end date was computed off-by-one: `fixed_weeks` used `start_date + duration_weeks * 7`, which lands one week past the final game — a 10-week season from May 7 resolved to July 16 instead of the 10th game on July 9. (2) More seriously, the `email-scheduler` cron had a start-date guard but **no end-date guard**. Because the scheduler computes "next game day" generically and `ensureSchedule()` creates a schedule row on demand (default status `scheduled`, `invite_sent=false`), an active event with enabled email schedules would send a fresh invite every week forever — July 23, July 30, and so on. Cancelling July 16 did nothing to prevent July 23.
+
+**Changes made:**
+1. **Off-by-one fix** — `calculateEventEndDate()` (`schedule-gen.ts`) and the matching end-date math in the create-event and settings actions now use `start_date + (duration_weeks - 1) * 7`. A 10-week season correctly ends on its 10th game.
+2. **End-date guard in scheduler** — `email-scheduler` now skips any event whose upcoming game date is past `calculateEventEndDate(event)` (mirrors the existing start-date guard). Indefinite events return null and are never bounded.
+3. **Regression test** — new `src/lib/schedule-gen.test.ts` (Node built-in test runner) asserts the May 7 / 10-week season ends July 9 and generates exactly 10 game dates, never July 16.
+4. **Data corrections** — disabled all four Thursday League email schedules (off until the next series) and corrected the stored `events.end_date` from 2026-07-16 to 2026-07-09.
+
+**Key decisions:**
+- **Disable email schedules, don't deactivate the event** — deactivating (`is_active=false`) would have hidden the completed-season leaderboard, since `getLeagueConfigBySlug()` filters on `is_active=true`. Disabling the four `email_schedules` rows stops all weekly emails while keeping the event and its leaderboard live.
+- **Guard on both boundaries** — the scheduler must enforce start *and* end. The end guard is the durable fix; the off-by-one was a secondary contributor.
+
+**Lesson learned:** Any generic "next occurrence" scheduler that creates rows on demand needs an explicit upper bound. Start-date guards alone let a finite season run forever.

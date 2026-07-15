@@ -19,9 +19,12 @@ export function calculateEventEndDate(event: Event): string | null {
     event.start_date &&
     event.duration_weeks
   ) {
+    // The season's last game is (duration_weeks - 1) weeks after the first
+    // game. start_date is the first game day, so a 10-week season starting
+    // May 7 ends on the 10th game (July 9), NOT start + 10*7 (July 16).
     const [year, month, day] = event.start_date.split("-").map(Number);
     const start = new Date(year, month - 1, day);
-    start.setDate(start.getDate() + event.duration_weeks * 7);
+    start.setDate(start.getDate() + (event.duration_weeks - 1) * 7);
     return formatDateString(start);
   }
 
