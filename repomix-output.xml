@@ -32,7 +32,7 @@ The content is organized as follows:
 <notes>
 - Some files may have been excluded based on .gitignore rules and Repomix's configuration
 - Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
-- Files matching these patterns are excluded: node_modules, .next, .git, public/assets, package-lock.json, .claude
+- Files matching these patterns are excluded: node_modules, .next, .git, public/assets, package-lock.json, .claude, src/app/api/cron/invite, src/app/api/cron/reminder, src/app/api/cron/confirmation
 - Files matching patterns in .gitignore are excluded
 - Files matching default ignore patterns are excluded
 - Files are sorted by Git change count (files with more changes are at the bottom)
@@ -146,13 +146,7 @@ src/
       activity/
         route.ts
       cron/
-        confirmation/
-          route.ts
         email-scheduler/
-          route.ts
-        invite/
-          route.ts
-        reminder/
           route.ts
       guest-approve/
         [token]/
@@ -7511,76 +7505,6 @@ export function getClientIp(headers: Headers): string | null {
 }
 </file>
 
-<file path="src/lib/schedule-gen.test.ts">
-/**
- * Unit tests for schedule generation date math.
- *
- * Run with: npx tsx --test src/lib/schedule-gen.test.ts
- * (Uses Node.js built-in test runner — no Vitest/Jest needed)
- */
-
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
-import { calculateEventEndDate, generateGameDates } from "./schedule-gen";
-import type { Event } from "@/types/events";
-
-function makeEvent(overrides: Partial<Event>): Event {
-  return {
-    duration_mode: "indefinite",
-    start_date: null,
-    duration_weeks: null,
-    end_date: null,
-    day_of_week: 4,
-    frequency: "weekly",
-    ...overrides,
-  } as Event;
-}
-
-describe("calculateEventEndDate", () => {
-  it("returns null for indefinite events", () => {
-    assert.equal(calculateEventEndDate(makeEvent({ duration_mode: "indefinite" })), null);
-  });
-
-  it("returns the stored end_date for end_date mode", () => {
-    const e = makeEvent({ duration_mode: "end_date", end_date: "2026-07-09" });
-    assert.equal(calculateEventEndDate(e), "2026-07-09");
-  });
-
-  it("fixed_weeks: 10 weeks from May 7 ends on the 10th game (July 9, NOT July 16)", () => {
-    const e = makeEvent({
-      duration_mode: "fixed_weeks",
-      start_date: "2026-05-07",
-      duration_weeks: 10,
-    });
-    // Regression test for the off-by-one that sent an 11th invite (July 16).
-    assert.equal(calculateEventEndDate(e), "2026-07-09");
-  });
-
-  it("fixed_weeks: a 1-week season ends on its start date", () => {
-    const e = makeEvent({
-      duration_mode: "fixed_weeks",
-      start_date: "2026-05-07",
-      duration_weeks: 1,
-    });
-    assert.equal(calculateEventEndDate(e), "2026-05-07");
-  });
-
-  it("fixed_weeks end date yields exactly duration_weeks game dates", () => {
-    const e = makeEvent({
-      duration_mode: "fixed_weeks",
-      start_date: "2026-05-07",
-      duration_weeks: 10,
-    });
-    const end = calculateEventEndDate(e)!;
-    const dates = generateGameDates(4, "weekly", "2026-05-07", end);
-    assert.equal(dates.length, 10);
-    assert.equal(dates[0], "2026-05-07");
-    assert.equal(dates[9], "2026-07-09");
-    assert.ok(!dates.includes("2026-07-16"));
-  });
-});
-</file>
-
 <file path="src/lib/schedule.ts">
 import { getUpcomingGameDatePacific } from "@/lib/timezone";
 import { createAdminClient } from "@/lib/supabase/server";
@@ -12762,269 +12686,6 @@ export async function updateWeekSettings(
 }
 </file>
 
-<file path="src/app/admin/events/new/actions.ts">
-"use server";
-
-import { requireSuperAdmin } from "@/lib/auth";
-import { createClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
-import type { AlertType } from "@/types/events";
-
-export async function createEvent(formData: FormData) {
-  await requireSuperAdmin();
-  const supabase = await createClient();
-
-  const name = (formData.get("name") as string)?.trim();
-  if (!name) return { error: "Event name is required" };
-
-  // Generate slug
-  const rawSlug = (formData.get("slug") as string)?.trim();
-  const slug = rawSlug
-    ? rawSlug.toLowerCase().replace(/[^a-z0-9-]/g, "").replace(/^-|-$/g, "")
-    : name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-
-  // Build event row
-  const eventData: Record<string, unknown> = {
-    name,
-    slug: slug || null,
-    description: (formData.get("description") as string)?.trim() || null,
-    frequency: formData.get("frequency") as string,
-    day_of_week: parseInt(formData.get("day_of_week") as string),
-    default_capacity: parseInt(formData.get("default_capacity") as string),
-    timezone: "America/Los_Angeles",
-
-    // Duration
-    duration_mode: formData.get("duration_mode") as string,
-
-    // Email schedule
-    invite_day: parseInt(formData.get("invite_day") as string),
-    invite_time: formData.get("invite_time") as string,
-    num_reminders: parseInt(formData.get("num_reminders") as string) || 0,
-    cutoff_day: parseInt(formData.get("cutoff_day") as string),
-    cutoff_time: formData.get("cutoff_time") as string,
-
-    // Game time settings
-    game_type: (formData.get("game_type") as string) || "18_holes",
-    first_tee_time: (formData.get("first_tee_time") as string) || "07:30",
-
-    // Feature flags — all OFF for MVP
-    allow_guest_requests: false,
-    allow_tee_time_preferences: false,
-    allow_playing_partner_preferences: false,
-  };
-
-  // Conditional email fields — only set when their toggles are on
-  const reminderEnabled = formData.get("reminder_enabled") !== "false";
-  const proShopEnabled = formData.get("pro_shop_enabled") === "true";
-
-  if (reminderEnabled && eventData.num_reminders as number >= 1) {
-    eventData.reminder_day = parseInt(formData.get("reminder_day") as string);
-    eventData.reminder_time = formData.get("reminder_time") as string;
-  }
-
-  if (proShopEnabled) {
-    const confDay = formData.get("confirmation_day");
-    const confTime = formData.get("confirmation_time");
-    if (confDay != null && confTime != null) {
-      eventData.confirmation_day = parseInt(confDay as string);
-      eventData.confirmation_time = confTime as string;
-    }
-  }
-
-  // Min players
-  const minPlayers = formData.get("min_players") as string;
-  if (minPlayers) eventData.min_players = parseInt(minPlayers);
-
-  // Duration specifics
-  const durationMode = eventData.duration_mode as string;
-  if (durationMode === "fixed_weeks") {
-    eventData.start_date = formData.get("start_date") || null;
-    eventData.duration_weeks = formData.get("duration_weeks")
-      ? parseInt(formData.get("duration_weeks") as string)
-      : null;
-    if (eventData.start_date && eventData.duration_weeks) {
-      const [y, m, d] = (eventData.start_date as string)
-        .split("-")
-        .map(Number);
-      // Last game = start + (weeks - 1) * 7. start_date is the first game,
-      // so a 10-week season ends on the 10th game, not one week later.
-      const end = new Date(y, m - 1, d);
-      end.setDate(end.getDate() + ((eventData.duration_weeks as number) - 1) * 7);
-      eventData.end_date = `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, "0")}-${String(end.getDate()).padStart(2, "0")}`;
-    }
-  } else if (durationMode === "end_date") {
-    eventData.end_date = formData.get("end_date") || null;
-  }
-
-  // Reminder 2/3 (only when reminders are enabled)
-  const numReminders = eventData.num_reminders as number;
-  if (reminderEnabled && numReminders >= 2) {
-    eventData.reminder2_day = parseInt(
-      formData.get("reminder2_day") as string
-    );
-    eventData.reminder2_time = formData.get("reminder2_time") as string;
-  }
-  if (reminderEnabled && numReminders >= 3) {
-    eventData.reminder3_day = parseInt(
-      formData.get("reminder3_day") as string
-    );
-    eventData.reminder3_time = formData.get("reminder3_time") as string;
-  }
-
-  try {
-    // 1. Insert event
-    const { data: event, error: eventError } = await supabase
-      .from("events")
-      .insert(eventData)
-      .select()
-      .single();
-
-    if (eventError) throw eventError;
-
-    const eventId = event.id;
-    const gameDow = event.day_of_week;
-
-    // Helper: calculate send_day_offset
-    const calcOffset = (sendDow: number): number => {
-      let offset = sendDow - gameDow;
-      if (offset > 0) offset -= 7;
-      return offset;
-    };
-
-    // 2. Create email_schedules rows
-    // Golfer confirmation fires at cutoff time (same time slot)
-    const emailSchedules = [
-      {
-        event_id: eventId,
-        email_type: "invite",
-        send_day_offset: calcOffset(event.invite_day),
-        send_time: event.invite_time,
-        priority_order: 1,
-        is_enabled: true,
-      },
-      {
-        event_id: eventId,
-        email_type: "golfer_confirmation",
-        send_day_offset: calcOffset(event.cutoff_day),
-        send_time: event.cutoff_time,
-        priority_order: 1,
-        is_enabled: true,
-      },
-    ];
-
-    // Pro shop detail — uses confirmation_day/time, default OFF
-    if (event.confirmation_day != null && event.confirmation_time) {
-      emailSchedules.push({
-        event_id: eventId,
-        email_type: "pro_shop_detail",
-        send_day_offset: calcOffset(event.confirmation_day),
-        send_time: event.confirmation_time,
-        priority_order: 1,
-        is_enabled: proShopEnabled,
-      });
-    } else {
-      // No pro shop time configured — create disabled row at cutoff time
-      emailSchedules.push({
-        event_id: eventId,
-        email_type: "pro_shop_detail",
-        send_day_offset: calcOffset(event.cutoff_day),
-        send_time: event.cutoff_time,
-        priority_order: 1,
-        is_enabled: false,
-      });
-    }
-
-    // Add reminder rows
-    if (reminderEnabled && numReminders >= 1) {
-      emailSchedules.push({
-        event_id: eventId,
-        email_type: "reminder",
-        send_day_offset: calcOffset(event.reminder_day),
-        send_time: event.reminder_time,
-        priority_order: 1,
-        is_enabled: true,
-      });
-    }
-    if (reminderEnabled && numReminders >= 2 && event.reminder2_day != null) {
-      emailSchedules.push({
-        event_id: eventId,
-        email_type: "reminder",
-        send_day_offset: calcOffset(event.reminder2_day),
-        send_time: event.reminder2_time,
-        priority_order: 2,
-        is_enabled: true,
-      });
-    }
-    if (reminderEnabled && numReminders >= 3 && event.reminder3_day != null) {
-      emailSchedules.push({
-        event_id: eventId,
-        email_type: "reminder",
-        send_day_offset: calcOffset(event.reminder3_day),
-        send_time: event.reminder3_time,
-        priority_order: 3,
-        is_enabled: true,
-      });
-    }
-
-    await supabase.from("email_schedules").insert(emailSchedules);
-
-    // 3. Create default alert settings
-    const alertDefaults: {
-      event_id: string;
-      alert_type: AlertType;
-      is_enabled: boolean;
-      config: Record<string, unknown> | null;
-    }[] = [
-      {
-        event_id: eventId,
-        alert_type: "new_registration",
-        is_enabled: true,
-        config: null,
-      },
-      {
-        event_id: eventId,
-        alert_type: "capacity_reached",
-        is_enabled: true,
-        config: null,
-      },
-      {
-        event_id: eventId,
-        alert_type: "spot_opened",
-        is_enabled: false,
-        config: null,
-      },
-      {
-        event_id: eventId,
-        alert_type: "low_response",
-        is_enabled: true,
-        config: { day: 4, time: "17:00" },
-      },
-    ];
-
-    await supabase.from("event_alert_settings").insert(alertDefaults);
-
-    // 4. Assign primary admin if specified
-    const primaryAdminId = formData.get("primary_admin_id") as string;
-    if (primaryAdminId) {
-      await supabase.from("event_admins").insert({
-        event_id: eventId,
-        profile_id: primaryAdminId,
-        role: "primary",
-      });
-    }
-
-    redirect(`/admin/events/${eventId}/settings`);
-  } catch (error) {
-    // redirect() throws a special error — let it propagate
-    if (error instanceof Error && error.message === "NEXT_REDIRECT") {
-      throw error;
-    }
-    console.error("Create event error:", error);
-    return { error: "Failed to create event" };
-  }
-}
-</file>
-
 <file path="src/app/admin/golfers/add/add-golfer-form.tsx">
 "use client";
 
@@ -14017,313 +13678,6 @@ export async function POST(request: Request) {
     // Never fail the request — this is non-critical telemetry
     return NextResponse.json({ ok: true });
   }
-}
-</file>
-
-<file path="src/app/api/cron/invite/route.ts">
-import { NextResponse } from "next/server";
-import {
-  createAdminClient,
-  getUpcomingGameDate,
-  ensureSchedule,
-  ensureRsvps,
-} from "@/lib/schedule";
-import { sendEmail, generateInviteEmail, sendAdminSummaryEmail, rateLimitDelay } from "@/lib/email";
-import { formatGameDateMonthDay, getSiteUrl } from "@/lib/format";
-
-/**
- * Monday Invite Cron
- * Sends weekly invite emails to all active, subscribed golfers.
- * Also callable manually via GET for testing.
- *
- * Query params:
- *   ?test=true — dry run, logs but doesn't send emails
- */
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const isTest = searchParams.get("test") === "true";
-  const siteUrl = getSiteUrl();
-
-  // Verify cron secret (fail-closed: reject if CRON_SECRET is not configured)
-  const cronSecret = process.env.CRON_SECRET;
-  if (!cronSecret) {
-    console.error("CRON_SECRET environment variable is not set — rejecting request");
-    return NextResponse.json({ error: "Server misconfiguration" }, { status: 500 });
-  }
-  const authHeader = request.headers.get("authorization");
-  if (authHeader !== `Bearer ${cronSecret}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const supabase = createAdminClient();
-
-  // Get all active events
-  const { data: events } = await supabase
-    .from("events")
-    .select("*")
-    .eq("is_active", true);
-
-  if (!events?.length) {
-    return NextResponse.json({ message: "No active events" });
-  }
-
-  const results = [];
-
-  for (const event of events) {
-    // Get the upcoming game date
-    const gameDate = getUpcomingGameDate(event.day_of_week);
-
-    // Ensure schedule exists
-    const schedule = await ensureSchedule(supabase, event.id, gameDate);
-    if (!schedule) {
-      results.push({ event: event.name, error: "Failed to create schedule" });
-      continue;
-    }
-
-    // If game is cancelled, send cancellation notice instead
-    if (schedule.status === "cancelled") {
-      results.push({ event: event.name, skipped: "Game cancelled" });
-      continue;
-    }
-
-    // If invite already sent, skip
-    if (schedule.invite_sent) {
-      results.push({ event: event.name, skipped: "Invite already sent" });
-      continue;
-    }
-
-    // Ensure RSVP rows exist for all subscribers
-    const rsvps = await ensureRsvps(supabase, schedule.id, event.id);
-
-    // Send invite to each golfer
-    let sentCount = 0;
-    const sentNames: string[] = [];
-    for (const rsvp of rsvps) {
-      const profile = rsvp.profile as {
-        first_name: string;
-        last_name: string;
-        email: string;
-      };
-      if (!profile?.email) continue;
-
-      const html = generateInviteEmail({
-        golferName: profile.first_name,
-        eventName: event.name,
-        gameDate: schedule.game_date,
-        rsvpToken: rsvp.token,
-        siteUrl,
-      });
-
-      if (isTest) {
-        console.log(`[TEST] Would send invite to ${profile.email}`);
-        sentNames.push(`${profile.first_name} ${profile.last_name}`);
-      } else {
-        const result = await sendEmail({
-          to: profile.email,
-          subject: `${event.name}: ${formatGameDateMonthDay(schedule.game_date)} — Are You In?`,
-          html,
-        });
-        if (result.success) {
-          sentCount++;
-          sentNames.push(`${profile.first_name} ${profile.last_name}`);
-        }
-        await rateLimitDelay();
-      }
-    }
-
-    // Mark invite as sent
-    if (!isTest) {
-      await supabase
-        .from("event_schedules")
-        .update({ invite_sent: true })
-        .eq("id", schedule.id);
-
-      // Log to email_log
-      await supabase.from("email_log").insert({
-        event_id: event.id,
-        schedule_id: schedule.id,
-        email_type: "invite",
-        subject: `${event.name}: Weekly Invite`,
-        recipient_count: sentCount,
-      });
-
-      // Send admin summary
-      await sendAdminSummaryEmail({
-        eventId: event.id,
-        eventName: event.name,
-        gameDate: schedule.game_date,
-        emailType: "invite",
-        recipientNames: sentNames,
-        totalSent: sentCount,
-      });
-    }
-
-    results.push({
-      event: event.name,
-      gameDate,
-      rsvpCount: rsvps.length,
-      sentCount: isTest ? `${rsvps.length} (test mode)` : sentCount,
-    });
-  }
-
-  return NextResponse.json({ results });
-}
-</file>
-
-<file path="src/app/api/cron/reminder/route.ts">
-import { NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/schedule";
-import { sendEmail, generateReminderEmail, sendAdminSummaryEmail, rateLimitDelay } from "@/lib/email";
-import { getTodayPacific, getDateOffsetPacific } from "@/lib/timezone";
-import { formatGameDateMonthDay, getSiteUrl } from "@/lib/format";
-
-/**
- * Thursday Reminder Cron
- * Sends reminders ONLY to golfers who haven't responded or said "Not Sure Yet."
- */
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const isTest = searchParams.get("test") === "true";
-  const siteUrl = getSiteUrl();
-
-  // Verify cron secret (fail-closed: reject if CRON_SECRET is not configured)
-  const cronSecret = process.env.CRON_SECRET;
-  if (!cronSecret) {
-    console.error("CRON_SECRET environment variable is not set — rejecting request");
-    return NextResponse.json({ error: "Server misconfiguration" }, { status: 500 });
-  }
-  const authHeader = request.headers.get("authorization");
-  if (authHeader !== `Bearer ${cronSecret}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const supabase = createAdminClient();
-
-  // Find schedules that have had invites sent but not reminders,
-  // with game dates in the next 3 days (covers Thursday → Saturday)
-  // Uses Pacific Time so late-night PT doesn't accidentally shift to the next day
-  const today = getTodayPacific();
-  const maxDate = getDateOffsetPacific(3);
-
-  const { data: schedules } = await supabase
-    .from("event_schedules")
-    .select("*, event:events(*)")
-    .eq("invite_sent", true)
-    .eq("reminder_sent", false)
-    .eq("status", "scheduled")
-    .gte("game_date", today)
-    .lte("game_date", maxDate);
-
-  if (!schedules?.length) {
-    return NextResponse.json({ message: "No reminders to send" });
-  }
-
-  const results = [];
-
-  for (const schedule of schedules) {
-    const event = schedule.event;
-
-    // Get RSVPs that need reminders: no_response or not_sure
-    const { data: rsvps } = await supabase
-      .from("rsvps")
-      .select("*, profile:profiles(id, first_name, last_name, email, phone)")
-      .eq("schedule_id", schedule.id)
-      .in("status", ["no_response", "not_sure"]);
-
-    if (!rsvps?.length) {
-      await supabase
-        .from("event_schedules")
-        .update({ reminder_sent: true })
-        .eq("id", schedule.id);
-      results.push({ event: event.name, skipped: "Everyone has responded" });
-      continue;
-    }
-
-    // Get count of spots remaining
-    const { count: inCount } = await supabase
-      .from("rsvps")
-      .select("*", { count: "exact", head: true })
-      .eq("schedule_id", schedule.id)
-      .eq("status", "in");
-
-    const capacity = schedule.capacity || event.default_capacity || 16;
-    const spotsRemaining = Math.max(0, capacity - (inCount || 0));
-
-    let sentCount = 0;
-    const sentNames: string[] = [];
-    const rsvpStatuses: string[] = [];
-    for (const rsvp of rsvps) {
-      const profile = rsvp.profile as {
-        first_name: string;
-        last_name?: string;
-        email: string;
-      };
-      if (!profile?.email) continue;
-
-      const html = generateReminderEmail({
-        golferName: profile.first_name,
-        eventName: event.name,
-        gameDate: schedule.game_date,
-        rsvpToken: rsvp.token,
-        siteUrl,
-        spotsRemaining,
-      });
-
-      const displayName = `${profile.first_name} ${profile.last_name || ""}`.trim();
-      const statusLabel = rsvp.status === "not_sure" ? "Not Sure" : "No Response";
-
-      if (isTest) {
-        console.log(`[TEST] Would send reminder to ${profile.email}`);
-        sentNames.push(`${displayName} (${statusLabel})`);
-      } else {
-        const result = await sendEmail({
-          to: profile.email,
-          subject: `${event.name}: ${formatGameDateMonthDay(schedule.game_date)} — Last Chance to RSVP`,
-          html,
-        });
-        if (result.success) {
-          sentCount++;
-          sentNames.push(`${displayName} (${statusLabel})`);
-        }
-        await rateLimitDelay();
-      }
-    }
-
-    if (!isTest) {
-      await supabase
-        .from("event_schedules")
-        .update({ reminder_sent: true })
-        .eq("id", schedule.id);
-
-      await supabase.from("email_log").insert({
-        event_id: event.id,
-        schedule_id: schedule.id,
-        email_type: "reminder",
-        subject: `${event.name}: Reminder`,
-        recipient_count: sentCount,
-      });
-
-      // Send admin summary with who got reminded and why
-      await sendAdminSummaryEmail({
-        eventId: event.id,
-        eventName: event.name,
-        gameDate: schedule.game_date,
-        emailType: "reminder",
-        recipientNames: sentNames,
-        totalSent: sentCount,
-        additionalInfo: `${spotsRemaining} spot${spotsRemaining !== 1 ? "s" : ""} still available. Reminders sent to golfers who had not responded or said "Not Sure."`,
-      });
-    }
-
-    results.push({
-      event: event.name,
-      gameDate: schedule.game_date,
-      remindersSent: isTest ? `${rsvps.length} (test mode)` : sentCount,
-      spotsRemaining,
-    });
-  }
-
-  return NextResponse.json({ results });
 }
 </file>
 
@@ -19436,6 +18790,76 @@ describe('Handicap method: harmony method still works with groupingMethod param'
 });
 </file>
 
+<file path="src/lib/schedule-gen.test.ts">
+/**
+ * Unit tests for schedule generation date math.
+ *
+ * Run with: npx tsx --test src/lib/schedule-gen.test.ts
+ * (Uses Node.js built-in test runner — no Vitest/Jest needed)
+ */
+
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
+import { calculateEventEndDate, generateGameDates } from "./schedule-gen";
+import type { Event } from "@/types/events";
+
+function makeEvent(overrides: Partial<Event>): Event {
+  return {
+    duration_mode: "indefinite",
+    start_date: null,
+    duration_weeks: null,
+    end_date: null,
+    day_of_week: 4,
+    frequency: "weekly",
+    ...overrides,
+  } as Event;
+}
+
+describe("calculateEventEndDate", () => {
+  it("returns null for indefinite events", () => {
+    assert.equal(calculateEventEndDate(makeEvent({ duration_mode: "indefinite" })), null);
+  });
+
+  it("returns the stored end_date for end_date mode", () => {
+    const e = makeEvent({ duration_mode: "end_date", end_date: "2026-07-09" });
+    assert.equal(calculateEventEndDate(e), "2026-07-09");
+  });
+
+  it("fixed_weeks: 10 weeks from May 7 ends on the 10th game (July 9, NOT July 16)", () => {
+    const e = makeEvent({
+      duration_mode: "fixed_weeks",
+      start_date: "2026-05-07",
+      duration_weeks: 10,
+    });
+    // Regression test for the off-by-one that sent an 11th invite (July 16).
+    assert.equal(calculateEventEndDate(e), "2026-07-09");
+  });
+
+  it("fixed_weeks: a 1-week season ends on its start date", () => {
+    const e = makeEvent({
+      duration_mode: "fixed_weeks",
+      start_date: "2026-05-07",
+      duration_weeks: 1,
+    });
+    assert.equal(calculateEventEndDate(e), "2026-05-07");
+  });
+
+  it("fixed_weeks end date yields exactly duration_weeks game dates", () => {
+    const e = makeEvent({
+      duration_mode: "fixed_weeks",
+      start_date: "2026-05-07",
+      duration_weeks: 10,
+    });
+    const end = calculateEventEndDate(e)!;
+    const dates = generateGameDates(4, "weekly", "2026-05-07", end);
+    assert.equal(dates.length, 10);
+    assert.equal(dates[0], "2026-05-07");
+    assert.equal(dates[9], "2026-07-09");
+    assert.ok(!dates.includes("2026-07-16"));
+  });
+});
+</file>
+
 <file path="src/lib/schedule-gen.ts">
 import type { Event } from "@/types/events";
 import { getTodayPacific } from "@/lib/timezone";
@@ -22160,6 +21584,269 @@ export function ActivePenaltiesAdmin({
 }
 </file>
 
+<file path="src/app/admin/events/new/actions.ts">
+"use server";
+
+import { requireSuperAdmin } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
+import type { AlertType } from "@/types/events";
+
+export async function createEvent(formData: FormData) {
+  await requireSuperAdmin();
+  const supabase = await createClient();
+
+  const name = (formData.get("name") as string)?.trim();
+  if (!name) return { error: "Event name is required" };
+
+  // Generate slug
+  const rawSlug = (formData.get("slug") as string)?.trim();
+  const slug = rawSlug
+    ? rawSlug.toLowerCase().replace(/[^a-z0-9-]/g, "").replace(/^-|-$/g, "")
+    : name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+
+  // Build event row
+  const eventData: Record<string, unknown> = {
+    name,
+    slug: slug || null,
+    description: (formData.get("description") as string)?.trim() || null,
+    frequency: formData.get("frequency") as string,
+    day_of_week: parseInt(formData.get("day_of_week") as string),
+    default_capacity: parseInt(formData.get("default_capacity") as string),
+    timezone: "America/Los_Angeles",
+
+    // Duration
+    duration_mode: formData.get("duration_mode") as string,
+
+    // Email schedule
+    invite_day: parseInt(formData.get("invite_day") as string),
+    invite_time: formData.get("invite_time") as string,
+    num_reminders: parseInt(formData.get("num_reminders") as string) || 0,
+    cutoff_day: parseInt(formData.get("cutoff_day") as string),
+    cutoff_time: formData.get("cutoff_time") as string,
+
+    // Game time settings
+    game_type: (formData.get("game_type") as string) || "18_holes",
+    first_tee_time: (formData.get("first_tee_time") as string) || "07:30",
+
+    // Feature flags — all OFF for MVP
+    allow_guest_requests: false,
+    allow_tee_time_preferences: false,
+    allow_playing_partner_preferences: false,
+  };
+
+  // Conditional email fields — only set when their toggles are on
+  const reminderEnabled = formData.get("reminder_enabled") !== "false";
+  const proShopEnabled = formData.get("pro_shop_enabled") === "true";
+
+  if (reminderEnabled && eventData.num_reminders as number >= 1) {
+    eventData.reminder_day = parseInt(formData.get("reminder_day") as string);
+    eventData.reminder_time = formData.get("reminder_time") as string;
+  }
+
+  if (proShopEnabled) {
+    const confDay = formData.get("confirmation_day");
+    const confTime = formData.get("confirmation_time");
+    if (confDay != null && confTime != null) {
+      eventData.confirmation_day = parseInt(confDay as string);
+      eventData.confirmation_time = confTime as string;
+    }
+  }
+
+  // Min players
+  const minPlayers = formData.get("min_players") as string;
+  if (minPlayers) eventData.min_players = parseInt(minPlayers);
+
+  // Duration specifics
+  const durationMode = eventData.duration_mode as string;
+  if (durationMode === "fixed_weeks") {
+    eventData.start_date = formData.get("start_date") || null;
+    eventData.duration_weeks = formData.get("duration_weeks")
+      ? parseInt(formData.get("duration_weeks") as string)
+      : null;
+    if (eventData.start_date && eventData.duration_weeks) {
+      const [y, m, d] = (eventData.start_date as string)
+        .split("-")
+        .map(Number);
+      // Last game = start + (weeks - 1) * 7. start_date is the first game,
+      // so a 10-week season ends on the 10th game, not one week later.
+      const end = new Date(y, m - 1, d);
+      end.setDate(end.getDate() + ((eventData.duration_weeks as number) - 1) * 7);
+      eventData.end_date = `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, "0")}-${String(end.getDate()).padStart(2, "0")}`;
+    }
+  } else if (durationMode === "end_date") {
+    eventData.end_date = formData.get("end_date") || null;
+  }
+
+  // Reminder 2/3 (only when reminders are enabled)
+  const numReminders = eventData.num_reminders as number;
+  if (reminderEnabled && numReminders >= 2) {
+    eventData.reminder2_day = parseInt(
+      formData.get("reminder2_day") as string
+    );
+    eventData.reminder2_time = formData.get("reminder2_time") as string;
+  }
+  if (reminderEnabled && numReminders >= 3) {
+    eventData.reminder3_day = parseInt(
+      formData.get("reminder3_day") as string
+    );
+    eventData.reminder3_time = formData.get("reminder3_time") as string;
+  }
+
+  try {
+    // 1. Insert event
+    const { data: event, error: eventError } = await supabase
+      .from("events")
+      .insert(eventData)
+      .select()
+      .single();
+
+    if (eventError) throw eventError;
+
+    const eventId = event.id;
+    const gameDow = event.day_of_week;
+
+    // Helper: calculate send_day_offset
+    const calcOffset = (sendDow: number): number => {
+      let offset = sendDow - gameDow;
+      if (offset > 0) offset -= 7;
+      return offset;
+    };
+
+    // 2. Create email_schedules rows
+    // Golfer confirmation fires at cutoff time (same time slot)
+    const emailSchedules = [
+      {
+        event_id: eventId,
+        email_type: "invite",
+        send_day_offset: calcOffset(event.invite_day),
+        send_time: event.invite_time,
+        priority_order: 1,
+        is_enabled: true,
+      },
+      {
+        event_id: eventId,
+        email_type: "golfer_confirmation",
+        send_day_offset: calcOffset(event.cutoff_day),
+        send_time: event.cutoff_time,
+        priority_order: 1,
+        is_enabled: true,
+      },
+    ];
+
+    // Pro shop detail — uses confirmation_day/time, default OFF
+    if (event.confirmation_day != null && event.confirmation_time) {
+      emailSchedules.push({
+        event_id: eventId,
+        email_type: "pro_shop_detail",
+        send_day_offset: calcOffset(event.confirmation_day),
+        send_time: event.confirmation_time,
+        priority_order: 1,
+        is_enabled: proShopEnabled,
+      });
+    } else {
+      // No pro shop time configured — create disabled row at cutoff time
+      emailSchedules.push({
+        event_id: eventId,
+        email_type: "pro_shop_detail",
+        send_day_offset: calcOffset(event.cutoff_day),
+        send_time: event.cutoff_time,
+        priority_order: 1,
+        is_enabled: false,
+      });
+    }
+
+    // Add reminder rows
+    if (reminderEnabled && numReminders >= 1) {
+      emailSchedules.push({
+        event_id: eventId,
+        email_type: "reminder",
+        send_day_offset: calcOffset(event.reminder_day),
+        send_time: event.reminder_time,
+        priority_order: 1,
+        is_enabled: true,
+      });
+    }
+    if (reminderEnabled && numReminders >= 2 && event.reminder2_day != null) {
+      emailSchedules.push({
+        event_id: eventId,
+        email_type: "reminder",
+        send_day_offset: calcOffset(event.reminder2_day),
+        send_time: event.reminder2_time,
+        priority_order: 2,
+        is_enabled: true,
+      });
+    }
+    if (reminderEnabled && numReminders >= 3 && event.reminder3_day != null) {
+      emailSchedules.push({
+        event_id: eventId,
+        email_type: "reminder",
+        send_day_offset: calcOffset(event.reminder3_day),
+        send_time: event.reminder3_time,
+        priority_order: 3,
+        is_enabled: true,
+      });
+    }
+
+    await supabase.from("email_schedules").insert(emailSchedules);
+
+    // 3. Create default alert settings
+    const alertDefaults: {
+      event_id: string;
+      alert_type: AlertType;
+      is_enabled: boolean;
+      config: Record<string, unknown> | null;
+    }[] = [
+      {
+        event_id: eventId,
+        alert_type: "new_registration",
+        is_enabled: true,
+        config: null,
+      },
+      {
+        event_id: eventId,
+        alert_type: "capacity_reached",
+        is_enabled: true,
+        config: null,
+      },
+      {
+        event_id: eventId,
+        alert_type: "spot_opened",
+        is_enabled: false,
+        config: null,
+      },
+      {
+        event_id: eventId,
+        alert_type: "low_response",
+        is_enabled: true,
+        config: { day: 4, time: "17:00" },
+      },
+    ];
+
+    await supabase.from("event_alert_settings").insert(alertDefaults);
+
+    // 4. Assign primary admin if specified
+    const primaryAdminId = formData.get("primary_admin_id") as string;
+    if (primaryAdminId) {
+      await supabase.from("event_admins").insert({
+        event_id: eventId,
+        profile_id: primaryAdminId,
+        role: "primary",
+      });
+    }
+
+    redirect(`/admin/events/${eventId}/settings`);
+  } catch (error) {
+    // redirect() throws a special error — let it propagate
+    if (error instanceof Error && error.message === "NEXT_REDIRECT") {
+      throw error;
+    }
+    console.error("Create event error:", error);
+    return { error: "Failed to create event" };
+  }
+}
+</file>
+
 <file path="src/app/admin/events/new/create-event-form.tsx">
 "use client";
 
@@ -24243,259 +23930,6 @@ export async function permanentlyDeleteGolfer(profileId: string, confirmEmail: s
     console.error("Permanently delete golfer error:", error);
     return { error: "Failed to permanently delete golfer. Some related data may still exist." };
   }
-}
-</file>
-
-<file path="src/app/api/cron/confirmation/route.ts">
-import { NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/schedule";
-import {
-  sendEmail,
-  generateConfirmationEmail,
-  generateProShopEmail,
-  sendAdminSummaryEmail,
-} from "@/lib/email";
-import { getTodayPacific, getDateOffsetPacific } from "@/lib/timezone";
-import { formatGameDateMonthDay, formatSponsorName } from "@/lib/format";
-
-/**
- * Friday Confirmation Cron
- * Sends two emails:
- *   1. Golfer confirmation (TO: confirmed players, CC: admins + pro shop)
- *   2. Pro shop detail email (TO: pro shop, CC: admins) with full contact info + GHIN
- */
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const isTest = searchParams.get("test") === "true";
-
-  // Verify cron secret (fail-closed: reject if CRON_SECRET is not configured)
-  const cronSecret = process.env.CRON_SECRET;
-  if (!cronSecret) {
-    console.error("CRON_SECRET environment variable is not set — rejecting request");
-    return NextResponse.json({ error: "Server misconfiguration" }, { status: 500 });
-  }
-  const authHeader = request.headers.get("authorization");
-  if (authHeader !== `Bearer ${cronSecret}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const supabase = createAdminClient();
-
-  // Find schedules that have had invites sent, not yet confirmed,
-  // with game dates in the next 2 days (Friday → Saturday)
-  // Uses Pacific Time so late-night PT doesn't accidentally shift to the next day
-  const today = getTodayPacific();
-  const maxDate = getDateOffsetPacific(2);
-
-  const { data: schedules } = await supabase
-    .from("event_schedules")
-    .select("*, event:events(*)")
-    .eq("invite_sent", true)
-    .eq("confirmation_sent", false)
-    .eq("status", "scheduled")
-    .gte("game_date", today)
-    .lte("game_date", maxDate);
-
-  if (!schedules?.length) {
-    return NextResponse.json({ message: "No confirmations to send" });
-  }
-
-  const results = [];
-
-  for (const schedule of schedules) {
-    const event = schedule.event;
-
-    // Get confirmed ("in") RSVPs with full profile info
-    const { data: confirmedRsvps } = await supabase
-      .from("rsvps")
-      .select(
-        "*, profile:profiles(id, first_name, last_name, email, phone, ghin_number)"
-      )
-      .eq("schedule_id", schedule.id)
-      .eq("status", "in")
-      .order("responded_at", { ascending: true });
-
-    if (!confirmedRsvps?.length) {
-      results.push({ event: event.name, skipped: "No confirmed players" });
-      continue;
-    }
-
-    // Get approved guests for this schedule
-    const { data: approvedGuests } = await supabase
-      .from("guest_requests")
-      .select("*, requested_by_profile:profiles!guest_requests_requested_by_fkey(first_name, last_name)")
-      .eq("schedule_id", schedule.id)
-      .eq("status", "approved");
-
-    // Build player lists
-    const confirmedPlayers = confirmedRsvps.map((r: Record<string, unknown>) => {
-      const profile = r.profile as {
-        first_name: string;
-        last_name: string;
-        email: string;
-        phone: string;
-        ghin_number: string;
-      };
-      return { ...profile, is_guest: false };
-    });
-
-    const guestPlayers = (approvedGuests || []).map((g: Record<string, unknown>) => {
-      const sponsor = g.requested_by_profile as { first_name: string; last_name: string };
-      return {
-        first_name: g.guest_first_name as string,
-        last_name: g.guest_last_name as string,
-        email: g.guest_email as string,
-        phone: (g.guest_phone as string) || "",
-        ghin_number: g.guest_ghin_number as string,
-        is_guest: true,
-        sponsor_name: sponsor ? formatSponsorName(sponsor.first_name, sponsor.last_name) : "Golfer",
-      };
-    });
-
-    const allPlayers = [...confirmedPlayers, ...guestPlayers].sort((a, b) =>
-      a.last_name.localeCompare(b.last_name) || a.first_name.localeCompare(b.first_name)
-    );
-
-    // Get admin emails
-    const { data: eventAdmins } = await supabase
-      .from("event_admins")
-      .select("role, profile:profiles(email)")
-      .eq("event_id", event.id);
-
-    const { data: superAdmins } = await supabase
-      .from("profiles")
-      .select("email")
-      .eq("is_super_admin", true);
-
-    const primaryAdmin = eventAdmins?.find(
-      (a: Record<string, unknown>) => a.role === "primary"
-    );
-    const primaryAdminEmail = (primaryAdmin?.profile as unknown as { email: string })?.email;
-
-    const adminEmails = [
-      ...(superAdmins || []).map((a: { email: string }) => a.email),
-      ...(eventAdmins || []).map(
-        (a: Record<string, unknown>) => (a.profile as unknown as { email: string })?.email
-      ),
-    ].filter((e): e is string => !!e);
-
-    const uniqueAdminEmails = [...new Set(adminEmails)];
-
-    // Get pro shop contacts (from global directory via junction)
-    const { data: proShopLinks } = await supabase
-      .from("event_pro_shop_contact_links")
-      .select("contact:pro_shop_contacts_directory(email)")
-      .eq("event_id", event.id);
-
-    const proShopEmails = (proShopLinks || [])
-      .map((link: Record<string, unknown>) => (link.contact as { email: string })?.email)
-      .filter((e): e is string => !!e);
-
-    // All CC recipients (admins + pro shop)
-    const ccEmails = [...new Set([...uniqueAdminEmails, ...proShopEmails])];
-
-    // Golfer email addresses
-    const golferEmails = allPlayers.map((p) => p.email).filter(Boolean);
-
-    const formattedDate = formatGameDateMonthDay(schedule.game_date);
-
-    // --- Email 1: Golfer Confirmation ---
-    const confirmationHtml = generateConfirmationEmail({
-      eventName: event.name,
-      gameDate: schedule.game_date,
-      confirmedPlayers: allPlayers,
-      adminNote: schedule.admin_notes,
-    });
-
-    if (isTest) {
-      console.log(`[TEST] Would send confirmation to ${golferEmails.length} golfers, CC: ${ccEmails.join(", ")}`);
-    } else {
-      await sendEmail({
-        to: golferEmails,
-        cc: ccEmails,
-        replyTo: primaryAdminEmail,
-        subject: `${event.name}: ${formattedDate}: Registration Confirmation`,
-        html: confirmationHtml,
-      });
-    }
-
-    // --- Email 2: Pro Shop Detail ---
-    if (proShopEmails.length > 0) {
-      const proShopHtml = generateProShopEmail({
-        eventName: event.name,
-        gameDate: schedule.game_date,
-        players: allPlayers,
-      });
-
-      if (isTest) {
-        console.log(`[TEST] Would send pro shop detail to ${proShopEmails.join(", ")}`);
-      } else {
-        await sendEmail({
-          to: proShopEmails,
-          cc: uniqueAdminEmails,
-          replyTo: primaryAdminEmail,
-          subject: `${event.name}: ${formattedDate}: Suggested Groups`,
-          html: proShopHtml,
-        });
-      }
-    }
-
-    // Mark confirmation as sent
-    if (!isTest) {
-      await supabase
-        .from("event_schedules")
-        .update({ confirmation_sent: true })
-        .eq("id", schedule.id);
-
-      await supabase.from("email_log").insert([
-        {
-          event_id: event.id,
-          schedule_id: schedule.id,
-          email_type: "confirmation_golfer",
-          subject: `${event.name}: Confirmation`,
-          recipient_count: golferEmails.length,
-        },
-        ...(proShopEmails.length > 0
-          ? [
-              {
-                event_id: event.id,
-                schedule_id: schedule.id,
-                email_type: "confirmation_proshop" as const,
-                subject: `${event.name}: Suggested Groupings`,
-                recipient_count: proShopEmails.length,
-              },
-            ]
-          : []),
-      ]);
-
-      // Send admin summary
-      const confirmedNames = allPlayers.map((p) =>
-        p.is_guest
-          ? `${p.first_name} ${p.last_name} (Guest of ${(p as Record<string, unknown>).sponsor_name || "Golfer"})`
-          : `${p.first_name} ${p.last_name}`
-      );
-      await sendAdminSummaryEmail({
-        eventId: event.id,
-        eventName: event.name,
-        gameDate: schedule.game_date,
-        emailType: "confirmation",
-        recipientNames: confirmedNames,
-        totalSent: golferEmails.length,
-        additionalInfo: proShopEmails.length > 0
-          ? `Pro shop detail email also sent to ${proShopEmails.length} pro shop contact${proShopEmails.length !== 1 ? "s" : ""}.`
-          : undefined,
-      });
-    }
-
-    results.push({
-      event: event.name,
-      gameDate: schedule.game_date,
-      confirmedPlayers: allPlayers.length,
-      emailsSent: isTest ? "test mode" : true,
-    });
-  }
-
-  return NextResponse.json({ results });
 }
 </file>
 
@@ -27165,8 +26599,8 @@ next-env.d.ts
 # repomix (generated codebase snapshot for LLM context)
 repomix-output.xml
 
-# claude worktrees (may contain secrets)
-.claude/worktrees/
+# claude local tooling/config (worktrees may contain secrets)
+.claude/
 </file>
 
 <file path="docs/HANDICAP_SYNC_SPEC.md">
@@ -45318,424 +44752,6 @@ async function checkPendingGuestRequests(
 // ============================================================
 </file>
 
-<file path="CLAUDE_CONTEXT.md">
-# CLAUDE_CONTEXT.md
-
-A companion to CLAUDE.md. Where CLAUDE.md is the technical specification and implementation guide, this file captures project context, decisions, preferences, and working patterns that help Claude provide better assistance across sessions.
-
----
-
-## 1. Project Overview
-
-**What it is:** FRCC Golf Games — an automated golf participation tracker for recurring games at Fairbanks Ranch Country Club (FRCC). Manages weekly invites, RSVP tracking, waitlists, guest requests, and automated communications.
-
-**The goal:** Minimize human intervention in weekly game coordination while keeping admins in control of key decisions (waitlist management, guest approvals, cancellations). Replace the manual email/spreadsheet workflow the group was using previously.
-
-**Current status:** Production since February 24, 2026 (v1.0 launch). 50+ active users across the first event (FRCC Saturday Morning Group). A second event (FRCC Thursday League) is being onboarded. The platform has been running reliably through multiple weekly RSVP cycles.
-
-**What's complete:**
-- Phases 1–2 (Foundation + Weekly RSVP Cycle) — fully shipped
-- Phase 4 (Admin Tools & Communication) — mostly complete, powering the production workflow
-- Grouping engine — 5 methods (harmony + 4 handicap-based: flight foursomes, balanced ABCD foursomes, flight 2-person teams, balanced 2-person teams). 50+ unit tests, cron integration, suggested groupings email integration, repeat foursome prevention, tee time preference limits, partner preference weighting
-- Playing partner preferences — ranked 1–10 with per-event scoping
-- Tee time preferences — per-week on RSVP page
-- Multi-event architecture — designed and implemented, second event being onboarded
-- PWA install flow with push notification support
-- Configurable email schedules per event (6 Vercel cron slots)
-- Weather integration — Open-Meteo API, golfability scoring, displayed on RSVP pages, home page, and in emails
-- GHIN Handicap Sync — automated fetch from GHIN API (`api2.ghin.com`), per-event toggle, displayed on home page, profile, both golfer directories, golfer detail pages, and suggested groupings email. Handicap history recorded in `handicap_history` table for trend tracking.
-- Global Pro Shop Contact Directory — contacts added once globally, linked per-event. "Suggested Groupings Email" (renamed from "Pro Shop Detail") with configurable recipients (pro shop contacts, event admins, confirmed golfers).
-- Admin Reports — super-admin-only reports page with Golfer Engagement, Platform Activity, Response Timing, and Profile Completeness reports
-- Activity Tracking — login and page view logging infrastructure (activity_log table, ActivityTracker component)
-- Profile Completion Nudge — RSVP token page detects missing phone/GHIN and shows amber banner with link to profile page
-- Admin "Add Golfer to Game" — RSVP management page lets admins add subscribed golfers who missed the invite cycle (e.g., recently approved)
-- Registration event scoping fix — golfers registering via event-specific join links are now correctly subscribed to only that event on approval
-- Guest Workflow — configurable per-event guest limits (1–3), optional email/phone/GHIN, past guest auto-fill, admin one-click approve/decline via tokenized email links, reply-all GHIN follow-up, pending request alerts before cutoff. See `docs/GUEST_WORKFLOW_SPEC.md`.
-- Money Leaderboard — tracks weekly dollar winnings alongside Stableford points. Points/Money toggle on the Leaderboard tab. Data entry via conversational workflow (admin pastes weekly winner email, Claude parses and inserts). Migration 030.
-- Restricted Pairings (Do-Not-Pair) — admin-only feature to prevent specific golfer pairs from being grouped together. Enforced via `-99999` score penalty (harmony method) + universal `separateRestrictedPairs` post-processing pass (all methods). Managed via `RestrictedPairingsSection` in Event Settings → Grouping Engine section. Migration 034.
-- Penalty Box — fully implemented gamified penalty system. Power meter mini golf escape game, character witnesses with tokenized voting links, apology flow, release notifications. Per-event feature flag + configurable display name. Migrations 032–033.
-- Cancellation email bug fix — `sendCancellationEmails` was fire-and-forget (killed by Vercel before sending). Fixed by awaiting it, adding `is_active=true` filter, correcting `email_type` from `"custom"` to `"no_game"`, and switching to `createAdminClient()`.
-
-**What's on the roadmap (see CLAUDE.md Roadmap for details):**
-1. League Leaderboard & Season Scoring — Phase 2 (score entry pending Golf Genius report format)
-2. Email template review
-3. ~~Guest workflow~~ ✅ COMPLETE
-4. Golfer engagement & gamification stats
-5. Waitlist end-to-end testing & refinement
-6. SMS / WhatsApp notifications
-
----
-
-## 2. What's Been Decided
-
-These are final decisions reflected in the codebase and not open for reconsideration:
-
-**Architecture & Infrastructure:**
-- Free-tier stack: Vercel Hobby, Supabase Free, Resend Free. No paid upgrades planned until limits are hit.
-- Vercel Hobby limits are hard constraints: 6 daily crons max, no sub-daily frequency, 60-second function timeout.
-- Single-endpoint cron pattern: all 6 cron entries hit `/api/cron/email-scheduler`, which checks all events for due emails within a time window. This is the workaround for Hobby's daily-only cron restriction.
-- All times are Pacific Time (America/Los_Angeles). Vercel runs UTC. Use centralized timezone utilities from `src/lib/timezone.ts`.
-- Supabase Auth with magic link (OTP) — no passwords. Tokenized RSVP links for one-tap responses without login.
-
-**Naming & Navigation:**
-- The golfer landing page is called "Home" (route: `/home`). Legacy `/dashboard` redirects to `/home`.
-- "Admin Dashboard" is the correct name for `/admin` pages — only the golfer page was renamed.
-- Breadcrumbs on every page (except landing and login). No "Back to X" links.
-- Admin pages for "Dashboard" reference are correct and should stay.
-
-**Roles & Permissions:**
-- Three roles: Super Admin, Event Admin, Golfer. Admins are also golfers (dual-role).
-- Only super admins can: create events, assign admins, toggle feature flags, access Danger Zone.
-- Event admins are scoped to assigned events only.
-- Feature flags (guest requests, tee time prefs, partner prefs, auto-grouping) default OFF and are super-admin-only toggles.
-
-**Email & Communication:**
-- Reply-To is always the primary event admin's email.
-- All admin-targeted emails CC secondary admins and super admins.
-- Resend's default sending domain for now. Custom domain deferred.
-- Golfer confirmation email shows first-initial-last-name (e.g., "J. Herrera"). Suggested groupings email shows full details.
-- Email footer links say "Go to FRCC Golf Games" (not "Go to Dashboard" or technical URLs).
-
-**RSVP Flow:**
-- Capacity is first-come-first-served. Waitlist is admin-managed (not auto-promoted).
-- Guests only fill spots that members haven't claimed. Admin approval required.
-- After cutoff, only admins can modify RSVP status.
-- "In" list visibility is evite-style: only golfers who are "In" can see other "In" golfers.
-
-**RSVP Status Labels (admin-facing):**
-- In (not "Confirmed"), Out, Not Sure (not "Not Sure Yet"), No Reply (not "No Response"), Waitlist (not "Waitlisted"). These must be consistent across all admin surfaces.
-
-**Grouping Engine:**
-- Five methods: harmony (greedy heuristic with partner prefs), flight foursomes, balanced ABCD foursomes, flight 2-person teams, balanced 2-person teams.
-- Handicap methods use GHIN-synced handicap index (resolution: synced → 25.0 default). Override partner/tee time preferences when active.
-- Pure function design — no DB calls in the algorithm. DB layer is separate (`grouping-db.ts`).
-- Runs automatically at cutoff time via existing email-scheduler cron (no separate cron entry).
-- Feature-flagged per event (`allow_auto_grouping`). When disabled, suggested groupings email gets alphabetical roster.
-
-**Code Standards:**
-- TypeScript everywhere. Centralized formatters in `src/lib/format.ts` — never define local formatting functions.
-- RSVP status constants in `src/lib/rsvp-status.ts` — never define local status labels or colors.
-- Supabase admin client from `src/lib/supabase/server.ts` — never define local `createAdminClient()`.
-- Game dates are `YYYY-MM-DD` strings, never pass to `new Date(dateStr)` directly. Parse components.
-
----
-
-## 3. What's Still Open
-
-See the Roadmap section of CLAUDE.md for the current prioritized list. Key items:
-
-1. **Email template review** — Audit all automated emails for copy, formatting, and links.
-3. ~~**Guest workflow**~~ — ✅ Complete. See `docs/GUEST_WORKFLOW_SPEC.md`.
-4. **Priority email batching** — For when distribution approaches the 100/day Resend limit.
-5. **Public "Who's Playing" view** — Unlisted shareable page showing the "In" list without login.
-6. **Golfer engagement & gamification stats** — Participation streaks, response rate scores, badges.
-7. **Waitlist end-to-end testing** — Verify correct ordering, admin promotion flow, edge cases.
-8. **Invite-a-friend / referral registration** — Referral parameter on join link, shows referrer to admin.
-9. **SMS / text notifications** — Opt-in texts for cutoff reminders (cost evaluation needed first).
-
-**Technical debt visible in the codebase (not on the active roadmap but worth noting):**
-
-- **The `tee_time_preferences` table** — Standing preferences table exists but is ignored by the grouping engine. Only per-week RSVP tee time preferences are used. This table may be vestigial.
-- **Email scheduler complexity** — The structural audit identified `email-scheduler/route.ts` (CC ~50) as the top refactoring priority. Splitting into per-type handlers would improve maintainability.
-- **Test coverage** — Only the grouping engine has unit tests (36 tests). No integration or end-to-end tests exist.
-- **Push notification adoption** — Recently improved with Install page guidance, Help FAQ, and onboarding checklist item. Effectiveness is unknown — may need a contextual prompt if adoption is low.
-
----
-
-## 4. My Preferences & Constraints
-
-**Inferred from project files, commit history, and working sessions:**
-
-**Tone & Communication:**
-- Jesse prefers conversational, direct communication. No unnecessary formality.
-- Asks thoughtful "should we?" questions before acting — values understanding tradeoffs before committing to changes.
-- Thinks about the user experience from the golfer's perspective (not just technical correctness).
-- Prefers practical recommendations over theoretical options.
-
-**Development Style:**
-- Incremental, working changes — not large rewrites. Ship often.
-- Commits are descriptive and explain *why*, not just *what*.
-- Documentation is kept in sync with code (CLAUDE.md is actively maintained as the source of truth).
-- Mobile-first is a real priority, not a checkbox — 80%+ of users are on phones.
-
-**Technical Preferences:**
-- TypeScript strict-ish (not full strict mode, but typed where it matters).
-- Server Actions over API routes where possible (Next.js App Router pattern).
-- Centralized utilities over duplicated logic — strong preference for single-source-of-truth patterns.
-- Tailwind CSS for all styling. No CSS modules or styled-components.
-- No external UI component libraries (custom components built with Tailwind).
-
-**Constraints:**
-- Free tier everything. Budget sensitivity is real — upgrades happen only when limits are hit.
-- Single developer (Jesse) plus Claude. No team, no code review process, no CI/CD pipeline.
-- Users are non-technical golfers. UI must be self-explanatory — no training or documentation should be needed for basic flows.
-- All changes must work on Vercel Hobby. Never propose solutions requiring Pro features without flagging the constraint.
-
----
-
-## 5. Key Terms & Definitions
-
-| Term | Definition |
-|---|---|
-| **Event** | A recurring game (e.g., "FRCC Saturday Morning Group"). Independent config, schedule, capacity, admin assignments. |
-| **Super Admin** | Full platform access. Can manage all events, create events, assign admins, toggle feature flags. Also a golfer. |
-| **Event Admin (Primary)** | Manages a specific event. Reply-to address on automated emails. Can approve registrations, manage RSVPs, send custom emails. |
-| **Event Admin (Secondary)** | Same permissions as primary for the event. CC'd on all communications. Backup coverage. |
-| **Golfer** | A confirmed club member on the distribution list. Receives invites, RSVPs, manages profile. |
-| **Guest** | A non-golfer in the system (name, email, phone, GHIN) but NOT on any distribution list. Can only play when invited by a golfer for a specific week. |
-| **GHIN** | Golf Handicap & Information Network number. USGA handicap ID. Optional field. |
-| **Tokenized RSVP** | Each golfer gets a unique URL per week for one-tap RSVP without login. Tokens are unguessable. |
-| **Magic Link** | Passwordless login via email. Supabase sends a one-time code. No passwords stored. |
-| **Cutoff** | The deadline after which golfers can no longer self-service their RSVP. Only admins can make changes post-cutoff. |
-| **Waitlist** | Golfers who RSVP "In" after capacity is reached. Admin-managed — not auto-promoted. |
-| **Playing Partner Preferences** | Ranked list of up to 10 preferred partners per event. Drives the grouping engine's harmony scoring. |
-| **Grouping Engine** | Algorithm that generates suggested foursomes after RSVP cutoff. Considers partner preferences, tee time preferences, and guest-host pairing. |
-| **Golf Genius** | Third-party software the pro shop uses for tee time management. FRCC Golf Games generates suggestions; Golf Genius is the final authority. |
-| **PWA** | Progressive Web App. Users can install FRCC Golf Games to their home screen for app-like experience and push notifications. |
-| **Game On / No Game** | Admin toggle on the schedule. "No Game" cancels a week and triggers cancellation emails. |
-| **Email Cycle** | The weekly automated sequence: Invite → Reminder(s) → Cutoff/Confirmation → Suggested Groupings. |
-| **Feature Flag** | Per-event boolean toggle (super admin only) controlling whether a feature is active. Currently: guest requests, tee time prefs, partner prefs, auto-grouping. |
-
----
-
-## 6. How I Like to Work With Claude
-
-**Problem-focused sessions:** Jesse prefers to set the stage with a question or request, then focus on that problem from beginning to end. Larger chunks of work are fine when efficient, but guide through clarifying questions one at a time and walk through each step sequentially. Don't present long action plans that are hard to track — keep it step-by-step.
-
-**Answers + recommendations:** When Jesse asks a question, respond with an answer plus thoughtful clarifying questions, ideas, and recommendations. Don't just answer and wait passively.
-
-**No restricted areas, but be risk-aware:** No areas of the codebase are off-limits. Claude should know which areas are higher risk or more vulnerable and proactively flag risks and recommend prudent action plans. That said, this project is generally low-risk — even mistakes don't cause major real-life consequences.
-
-**Deploy anytime:** No preferred deploy schedule. Work happens when there's time for it.
-
-**When to execute vs. wait:** If Jesse asks for a plan or recommendation, don't execute yet — present the plan and wait for a go-ahead. If it's ambiguous, ask. Otherwise, assume Jesse wants the changes made and proceed without waiting for explicit instruction — especially if the work is easily reversible.
-
-**Copy-paste ready instructions:** When Jesse needs to perform steps manually (terminal commands, SQL queries, Vercel/Supabase console actions, etc.), always provide exact copy-paste commands and step-by-step instructions. Don't assume he'll know how to translate a general description into the right CLI syntax or UI clicks. Be explicit and sequential.
-
-**Not a software engineer:** Jesse is a capable builder but not a professional developer. He doesn't work in SQL, terminal/CLI, or code editors on a daily basis. When steps involve these tools, provide extra context — explain what a command does, what the expected output looks like, and what to do if something looks wrong. Don't assume familiarity with git flags, SQL syntax, or terminal conventions.
-
-**Know the stack and its limits:** The tech stack and free-tier constraints are fully documented in CLAUDE.md (see "Infrastructure Constraints" section). Claude should internalize these limits and never propose solutions that violate them without flagging the constraint first. Don't ask Jesse to re-confirm what tier he's on or what the limits are — that information is in the docs.
-
----
-
-## 7. Lessons Learned
-
-**Model choice matters:** Early work with Sonnet involved significant rework. Opus produces more reliable results and is the preferred model for this project going forward.
-
-**The stack has been smooth:** No major gotchas with Vercel, Supabase, or Resend beyond the well-documented timezone bugs (see CLAUDE.md Timezone Rules). Free-tier limitations exist but haven't been blockers yet. Keep costs low as long as possible.
-
-**No regrets on architecture:** The project has been enjoyable to build. The stack made it easy to get started with a functional app quickly, then iterate. Nothing feels over-engineered or unnecessary so far.
-
-**Usage tracking is now in place:** Activity logging (login events + page views) is live via the `activity_log` table. Admin Reports page shows golfer engagement, platform activity, response timing, and profile completeness. Data will accumulate over time to reveal usage patterns and identify disengaged golfers.
-
-**The app is a passion project:** Jesse genuinely enjoys working on it and wants to expand capabilities beyond what's strictly necessary. Future work is driven by interest and ambition as much as user demand.
-
----
-
-## 8. Session Log
-
-### Session: March 13, 2026
-
-**Context:** Routine maintenance and discoverability improvements.
-
-**Changes made:**
-1. **Renamed `/dashboard` route to `/home`** — Updated 27 files including all internal redirects, email templates (now say "Go to FRCC Golf Games"), help page FAQ copy, breadcrumbs, nav links, PWA manifest, and CLAUDE.md. Added backward-compatible redirect from `/dashboard` → `/home`.
-
-2. **Improved push notification discoverability** — Fixed service worker fallback URLs from `/dashboard` to `/home`. Added step 5 to Install page instructions (both iOS and Android) explaining the bell icon. Added "Push notifications" to Install page benefits section. Added new "How do I turn on push notifications?" FAQ to Help page with platform-specific guidance. Added "Turn on push notifications" to the onboarding checklist (client-side detection, only shows when browser supports push and user hasn't enabled it).
-
-3. **Updated Install page URLs** — Changed `frccgolfgames.vercel.app` references to `frccgolfgames.com`.
-
-4. **Streamlined roadmap** — Replaced the old five-phase build checklist (mostly completed items) with a clean two-section structure: "What's Been Built" (summary of everything in production) and "Roadmap" (5 prioritized items). Removed completed phase checklists, Golf Genius CSV export, UI/UX branding, SMS notifications, GHIN API integration, and custom email domain from the active roadmap.
-
-5. **Created CLAUDE_CONTEXT.md** — This file. Companion to CLAUDE.md capturing project context, decisions, preferences, and working patterns.
-
-**Key discussion points and decisions:**
-- Confirmed the app is in production (not beta) with 50+ users and a second event onboarding.
-- **Route rename analysis:** Tokenized RSVP links are safe from the `/dashboard` → `/home` rename because they use `/rsvp/[token]`. Supabase session handling means all routes behave identically for auth — middleware refreshes the session on every request. The landing page (`/`) is the only route that doesn't check auth, so email links should always point to `/home` for the smoothest logged-in experience.
-- **Push notification gap:** Identified that push notifications were essentially invisible to users — no mention in Help, Install page, onboarding, or welcome banner. The bell icon has no label and is hidden on unsupported browsers (most iOS Safari users without PWA installed). Addressed with Install page step 5, Help FAQ entry, onboarding checklist item, and benefits section bullet.
-- **Notification bell deep-dive:** The bell uses Web Push APIs (service worker + PushManager). Works on Android Chrome and desktop browsers. On iOS, only works if user has installed the PWA to their home screen first (iOS 16.4+ requirement). Component gracefully hides when unsupported (`state === "unsupported"` returns null).
-- **Email link best practice:** For email footer links, `/home` is the right destination (not `/` which shows the landing page even for logged-in users). Display text should say "Go to FRCC Golf Games" rather than exposing the URL path.
-- **Roadmap consolidation:** Removed items Jesse doesn't currently care about. The five active roadmap items are: (1) grouping engine enhancements (repeat prevention, tee time limits, admin avoidance), (2) admin reports (TBD), (3) email template review, (4) guest workflow, (5) priority email batching. Design details for grouping items are intentionally left TBD — to be addressed when each is tackled.
-- **Working preferences captured:** Jesse is not a software engineer — needs copy-paste ready commands and extra context for terminal/SQL/CLI work. Prefers step-by-step guidance over long action plans. Opus is the preferred model (Sonnet caused rework). Claude should internalize the stack constraints from CLAUDE.md rather than re-asking.
-
-### Session: March 19–20, 2026
-
-**Context:** GHIN Handicap Sync deployment, debugging, and UI expansion.
-
-**Changes made:**
-1. **Deployed GHIN Handicap Sync to production** — Committed all 15 files (handicap-sync.ts, migration 018, event settings UI, cron integration, types, spec doc). Walked through Supabase migration, Vercel env vars, and redeploy.
-
-2. **Debugged GHIN API authentication** — Multiple iterations to get the auth request body correct. Key findings: `token: "recaptcha-disabled"` required at root level, credential field is `email_or_ghin` (not `email`), endpoint is `api2.ghin.com/api/v1/golfer_login.json`. Used temporary debug arrays in cron JSON responses to troubleshoot serverless functions without log access.
-
-3. **Fixed Vercel env var issues** — Discovered `GHIN_EMAIL` and `GHIN_PASSWORD` were set at the **team level** (not available to project functions). Also found a typo (`GHIN_EMIAL` instead of `GHIN_EMAIL`). Both fixed by Jesse in Vercel project settings.
-
-4. **Added Handicap Index to golfer home page** — New row in My Profile section showing current index and last-updated date below the GHIN number.
-
-5. **Added Handicap Index to both golfer directories** — Global (Admin → Golfers) and event-scoped (Admin → Events → [Event] → Golfers) directories now show an HCP line on each golfer card with value and last-updated date.
-
-6. **Updated all documentation** — CLAUDE.md "What's Been Built" section, HANDICAP_SYNC_SPEC.md (direct HTTP client details, all display surfaces, corrected risks and modified files), and CLAUDE_CONTEXT.md.
-
-7. **Established Documentation Update Standard** — Added a new section to CLAUDE.md defining a tiered checklist for "update all product documentation" so future sessions don't require enumerating individual files. Four tiers: Always Update (CLAUDE.md, CLAUDE_CONTEXT.md, types), Feature Spec, User Help, and Situational.
-
-**Key decisions:**
-- **No npm dependency for GHIN:** The `@spicygolf/ghin` npm package was intentionally NOT used. Direct HTTP calls to `api2.ghin.com` are more maintainable and fully patchable if the API changes.
-- **Vercel env vars must be at project level:** Team-level env vars are NOT automatically available to project functions. This is now documented as a risk in the spec.
-- **Handicap sync piggybacks on email-scheduler cron:** No new cron slot needed (all 6 are already used). Sync runs within 24 hours of each scheduled event, 20 golfers per batch, stalest-first.
-- **All 11 golfer handicaps verified accurate** by Jesse after first successful sync.
-
-### Session: March 21, 2026
-
-**Context:** Handicap-based grouping methods — designed with Gemini, implemented with Claude.
-
-**Changes made:**
-1. **Added 4 handicap-based grouping methods** to the grouping engine alongside the existing harmony (partner preference) method: Flight Foursomes, Balanced ABCD Foursomes, Flight 2-Person Teams (similar/random foursome pairing sub-option), and Balanced 2-Person Teams.
-
-2. **Created migration 019** — Added `events.grouping_method`, `events.flight_team_pairing`, and `groupings.team_number` columns.
-
-3. **Updated admin Event Settings UI** — New grouping method radio selector (5 options) at the top of the Grouping Engine section. Flight team pairing sub-selector shown only for flight_teams. Amber warning banner when handicap method is active. Partner prefs, tee time prefs, and variety toggle are greyed out when overridden.
-
-4. **Updated cron/email integration** — When a handicap method is active, cron forces partner/tee time prefs off. Suggested groupings email description reflects the active method.
-
-5. **Updated DB layer** — `fetchConfirmedGolfers` resolves handicap (synced → 25.0 default). `storeGroupings` writes `team_number` for team methods.
-
-6. **Added 15 unit tests** for all new methods (type-checked clean, test runner unavailable in sandbox).
-
-**Key decisions:**
-- **Handicap resolution:** `handicap_index ?? 25.0`. GHIN-synced value is used; 25.0 default for golfers without a synced handicap.
-- **Handicap methods override partner/tee time prefs** in the engine (forced off) but UI shows them greyed out with a warning banner rather than hiding them — so admins understand what's happening.
-- **2-person team methods output complete foursomes** — the engine pairs teams into foursomes (not just teams), producing a full tee sheet.
-- **Balanced teams use outside-in pairing** at both levels: team (A+D, B+C) and foursome (lowest combined team + highest combined team).
-- **Default handicap (25.0)** used for golfers with no GHIN-synced handicap. High enough to land them in lower flights, reasonable for casual golfers.
-
-### Session: March 23, 2026
-
-**Context:** Grouping engine UX refinement, roadmap cleanup, and admin reports implementation.
-
-**Changes made:**
-1. **Grouping Engine on/off toggle** — Added master toggle (`allow_auto_grouping`) to the Grouping Engine section in Event Settings. When off, all sub-settings are greyed out and a message explains groups will follow RSVP order. When on, the full configuration UI (method selector, partner prefs, tee time prefs, variety) is available.
-
-2. **Roadmap cleanup** — Reviewed and updated the CLAUDE.md roadmap to reflect current priorities and mark completed items.
-
-3. **Admin Reports page** — Built a super-admin-only reports page (`/admin/reports`) with four interactive reports:
-   - **Golfer Engagement** — Per-golfer RSVP response rates, participation rates, consecutive no-replies, "ghost" detection (3+ weeks unresponsive). Filters: All, Ghosts, Low, Active. Sort by response rate, participation rate, or consecutive no-replies. Color-coded progress bars.
-   - **Platform Activity** — Login counts, unique users, page views, most visited pages, most active users. Based on the new `activity_log` table (last 30 days).
-   - **Response Timing** — Distribution of invite-to-response times across all events (last 8 weeks). Buckets: within 1 hour through 4+ days. Median/average stats. Insight callout about send-time optimization.
-   - **Profile Completeness** — Identifies golfers missing GHIN, phone, or handicap data. Filter by missing field type.
-
-4. **Activity tracking infrastructure** — Created `activity_log` table (migration 020), `/api/activity` POST endpoint, `ActivityTracker` client component (added to root layout). Login events logged in both OTP and magic link auth flows. Page views logged on every route change via client-side tracker.
-
-5. **Fixed TS error** — Removed invalid `.catch()` on Supabase PostgrestFilterBuilder in auth callback route.
-
-**Key decisions:**
-- **Reports are super-admin-only** for now. Can be expanded to event admins later if useful.
-- **Activity tracking is lightweight and non-blocking** — fire-and-forget pattern. Failures never block auth or navigation.
-- **Page paths are normalized** in the activity report — UUIDs and tokens are replaced with `[id]`/`[token]` for meaningful aggregation.
-- **Golfer engagement report uses 12-week lookback** — long enough for meaningful trends, short enough to reflect current behavior.
-- **Reports linked from admin dashboard** via a card in the global section.
-
-### Session: March 24, 2026
-
-**Context:** Profile data completion strategy — getting existing golfers to fill in missing phone and GHIN.
-
-**Changes made:**
-1. **Profile completion nudge on RSVP page** — Added an amber banner to `/rsvp/[token]` that detects missing profile fields (phone number, GHIN number) and prompts the golfer to complete their profile. Includes privacy reassurance and a direct "Update Profile" button linking to `/profile`. Disappears when profile is complete.
-
-2. **Handicap history table** — Created `handicap_history` table (migration 021) to record every handicap index value fetched from GHIN. Append-only, one row per golfer per sync. Updated `handicap-sync.ts` to insert a history record alongside each profile update. Added `HandicapHistoryEntry` type. Enables per-golfer trend analysis and group-level handicap distribution tracking over time.
-
-**Key decisions:**
-- **RSVP token page is the highest-traffic touchpoint** — most golfers never log into the dashboard. The nudge belongs where golfers already are every week, not behind a login.
-- **Soft nudge now, hard gate later** — current implementation is a non-blocking prompt. Future option to gate RSVP submission behind profile completion is architecturally supported (one conditional change) but deferred.
-- **Extensible field list** — the `profileMissingFields` array can be extended with additional required fields (e.g., playing partner preferences) without restructuring.
-- **Privacy reassurance included** — "This information is only shared with event admins and the pro shop" addresses the likely reason golfers skip these fields.
-- **Rejected dashboard-only approach** — Gemini recommended an onboarding checklist on the dashboard, but that only reaches the small fraction of users who log in. The RSVP page has near-100% weekly reach.
-- **Handicap history records every sync, not just changes** — Jesse wants a complete timeline for group trending. Recording every fetch (even unchanged values) lets you see stability vs. movement. The data volume is trivial (~30 rows/week for current roster, ~1,500/year).
-- **History only written on successful GHIN fetch** — if GHIN returns null/NH or the API errors, no history row is inserted. This keeps the history clean — every row represents a real GHIN-issued handicap index.
-
-### Session: April 1, 2026
-
-**Context:** Second event onboarding (FRCC Thursday League) — discovered missing UI features and display bugs during setup.
-
-**Changes made:**
-1. **Added URL slug field to admin UI** — The `slug` column existed in the database (migration 009) but was never exposed in the Event Settings or Create Event forms. Added an editable slug input to Basic Settings (with "Generate" button) and auto-generation from event name on the Create Event form. Input restricted to lowercase letters, numbers, and hyphens. Without this, new events had no self-registration join link.
-
-2. **Fixed "next game" display for events with future start_date** — Events showing schedule rows before their `start_date` (e.g., Thursday League showing April 2 when it starts April 16). Updated queries on admin dashboard, event dashboard, and emails page to filter by the later of today or `event.start_date`.
-
-3. **Fixed hardcoded placeholder names on join forms** — Registration forms (`/join` and `/join/[slug]`) had "Jesse" and "Herrera" as placeholder text, which looked like pre-populated data. Changed to generic "First name" and "Last name".
-
-**Key decisions:**
-- **No database migration needed for slug UI** — the column already existed, just needed the form fields and server action updates.
-- **Start date filtering applied at query level, not schedule generation** — even if stale schedule rows exist before the start date, they won't display. This is more resilient than trying to prevent/clean up early rows.
-- **Second event onboarding revealed gaps** — the slug field and start_date display bug were only discovered when actually setting up a new event, reinforcing the value of real-world testing.
-
-### Session: April 3, 2026
-
-**Context:** New golfer registration exposed two bugs — dual-event subscription and missing RSVP for recently approved golfers.
-
-**Changes made:**
-1. **Fixed dual-event subscription bug** — Root cause: the `handle_new_user()` database trigger (from migration 001) never extracted `registration_event_id` from user metadata, even though the column was added in migration 009. As a result, event-specific join links (`/join/[slug]`) produced NULL `registration_event_id`, which made the approval flow call `subscribeToAllActiveEvents()` instead of `subscribeToEvent()`. Three-layer fix: (a) new migration 022 updates the trigger, (b) `verifyEventJoinOtp` sets the field after OTP verification as belt-and-suspenders, (c) auth callback now checks `registration_event_id` for scoped admin alerts.
-
-2. **Fixed auth callback admin alerts** — `/auth/callback/route.ts` was always notifying all events' admins for pending registrations. Now checks `registration_event_id` and only alerts the relevant event's admins.
-
-3. **Added "Add Golfer to Game" admin feature** — New component on the RSVP management page (`add-golfer-to-game.tsx`) that lets admins add subscribed golfers who don't have an RSVP row for a specific game (e.g., golfers approved after the invite was sent). Searchable dropdown, option to add as "In" or "No Reply". Available on all non-cancelled games.
-
-**Key decisions:**
-- **Three-layer fix for registration_event_id** — trigger fix handles new users, OTP verification handles existing users re-registering, and the callback fix prevents duplicate admin alerts. Belt-and-suspenders approach because a NULL registration_event_id causes silent mis-behavior (subscribes to all events instead of one).
-- **Add Golfer to Game available at all times** — not just past cutoff. Admins may need to add a golfer mid-week for any reason.
-- **RSVP history logged for manually added golfers** — maintains participation tracking accuracy even for admin overrides.
-
-### Session: May 10, 2026
-
-**Context:** Money leaderboard feature and duplicate golfer cleanup.
-
-**Changes made:**
-1. **Money Leaderboard** — Added a money leaderboard alongside the existing Stableford points leaderboard on the league info page. New `league_money_scores` table (migration 030) stores total dollars won per golfer per week. The Leaderboard tab now has a Points/Money pill toggle. Money view uses the same grid layout (Rank, Golfer, WK1–WK10, Total) but with `$` formatting, green highlighting for winnings, `$0` for played-but-no-winnings, and `DNP` for missed weeks. No best-N-of-M — every dollar counts. New files: `money-leaderboard.tsx`, types `LeagueMoneyScore`/`MoneyLeaderboardEntry`, library functions `getLeagueMoneyScores()`/`buildMoneyLeaderboard()`.
-
-2. **Duplicate Craig Cohen cleanup** — Two profiles existed for Craig Cohen: one admin-created (`icloud.com`) with participation data, one self-registered (`me.com`) with better profile info. Merged by moving all RSVPs, league scores, groupings, and partner preferences to the self-registered profile, then deleting the admin-created one. Kept `me.com` as Craig's preferred login.
-
-3. **Week 1 money data inserted** — D. Irwin $300, B. Tashakorian $100, B. Ross $100, C. Cohen $50, T. McCartin $25, K. Stanley $25.
-
-**Key decisions:**
-- **Simple totals only** — no per-category breakdown (Stableford, Blind Draw, CTP) in the database. Each week stores one total dollar amount per golfer. Detailed breakdowns are in the weekly winner emails if anyone needs them.
-- **Conversational data entry** — admin pastes the weekly winner email into a Cowork chat, Claude parses and confirms totals, then inserts via SQL. No admin UI needed.
-- **$0 vs. DNP distinction** — `$0` means the golfer played but won nothing; `DNP` means they didn't play that week. Determined by cross-referencing `league_scores` (points) to know who played.
-- **Keep self-registered profile for duplicates** — when merging duplicate golfer accounts, prefer the profile the golfer created themselves (their chosen email) over the admin-created one.
-
-### Session: ~May–June 2026
-
-**Context:** Penalty Box feature, Restricted Pairings, cancellation email bug fix.
-
-**Changes made:**
-1. **Penalty Box** — Built the full gamified penalty system. Power meter mini golf escape game (3 holes, tap-to-stop mechanic, hole 3 clown reveal scripted to always reject). Character witness flow via tokenized email links (no login required). Yes/no vote with required comment. 3-no-vote apology flow. Admin one-click release. Release announcement to all subscribers with time served + witness testimonies. Repeat offender escalation (3 → 5 → 7 witnesses). Per-event feature flag (`penalty_box_enabled`) + configurable display name (`penalty_box_name`, default "The Penalty Box"). 6 new `email_log` types (penalty_issued, penalty_witness_request, penalty_witness_no, penalty_witness_timeout, penalty_apology, penalty_released). Migrations 032–033.
-
-2. **Restricted Pairings (Do-Not-Pair)** — Admin-only constraint to prevent specific golfer pairs from ever being grouped together. Enforced at two levels: (1) `-99999` pair score in `applyScoreModifiers` (handles harmony/greedy), (2) `separateRestrictedPairs` post-processing pass on all 5 methods. UUIDs stored order-normalized (profile_id_1 < profile_id_2). `RestrictedPairingsSection` component in Event Settings → Grouping Engine section. Migration 034.
-
-3. **Cancellation email bug fix** — Three bugs prevented cancellation emails from ever being delivered: (a) `sendCancellationEmails` was called without `await` in a Next.js Server Action — Vercel kills the function before the async work completes; (b) missing `.eq("is_active", true)` on the subscriber query; (c) `email_type: "custom"` should have been `"no_game"`. Also switched to `createAdminClient()` for consistency.
-
-**Key decisions:**
-- **Two-layer restricted pairs enforcement** — the `-99999` score alone is sufficient for harmony/greedy, but the `separateRestrictedPairs` post-processing pass provides a hard guarantee for handicap methods (where adjacency in the sorted list can force a restricted pair into the same group regardless of scores). Best-effort: if no valid swap exists, the pair remains together gracefully rather than throwing.
-- **Restricted pairings in Grouping Engine section, not Feature Flags** — because the feature is directly tied to how the grouping engine places golfers. Accessible to both event admins and super admins.
-- **Penalty Box feature flag in Event Settings → Feature Flags** — consistent with how guest requests are controlled. Super admin only.
-- **Cancellation emails must be awaited** — any async email send inside a Server Action that isn't awaited will be killed by Vercel's serverless lifecycle before it completes. This is now a documented constraint.
-
-### Session: July 14, 2026
-
-**Context:** After the Thursday League's 10-week season (May 7 – July 9) ended, an unexpected invite went out for July 16, and Jesse wanted to confirm no further invites would fire before the next series.
-
-**Investigation:** Two compounding bugs. (1) The season end date was computed off-by-one: `fixed_weeks` used `start_date + duration_weeks * 7`, which lands one week past the final game — a 10-week season from May 7 resolved to July 16 instead of the 10th game on July 9. (2) More seriously, the `email-scheduler` cron had a start-date guard but **no end-date guard**. Because the scheduler computes "next game day" generically and `ensureSchedule()` creates a schedule row on demand (default status `scheduled`, `invite_sent=false`), an active event with enabled email schedules would send a fresh invite every week forever — July 23, July 30, and so on. Cancelling July 16 did nothing to prevent July 23.
-
-**Changes made:**
-1. **Off-by-one fix** — `calculateEventEndDate()` (`schedule-gen.ts`) and the matching end-date math in the create-event and settings actions now use `start_date + (duration_weeks - 1) * 7`. A 10-week season correctly ends on its 10th game.
-2. **End-date guard in scheduler** — `email-scheduler` now skips any event whose upcoming game date is past `calculateEventEndDate(event)` (mirrors the existing start-date guard). Indefinite events return null and are never bounded.
-3. **Regression test** — new `src/lib/schedule-gen.test.ts` (Node built-in test runner) asserts the May 7 / 10-week season ends July 9 and generates exactly 10 game dates, never July 16.
-4. **Data corrections** — disabled all four Thursday League email schedules (off until the next series) and corrected the stored `events.end_date` from 2026-07-16 to 2026-07-09.
-
-**Key decisions:**
-- **Disable email schedules, don't deactivate the event** — deactivating (`is_active=false`) would have hidden the completed-season leaderboard, since `getLeagueConfigBySlug()` filters on `is_active=true`. Disabling the four `email_schedules` rows stops all weekly emails while keeping the event and its leaderboard live.
-- **Guard on both boundaries** — the scheduler must enforce start *and* end. The end guard is the durable fix; the off-by-one was a secondary contributor.
-
-**Lesson learned:** Any generic "next occurrence" scheduler that creates rows on demand needs an explicit upper bound. Start-date guards alone let a finite season run forever.
-</file>
-
 <file path="src/types/events.ts">
 // ============================================================
 // Phase 4: Event Configuration Types
@@ -46423,6 +45439,424 @@ export interface UpdateEventSettingsInput {
 }
 </file>
 
+<file path="CLAUDE_CONTEXT.md">
+# CLAUDE_CONTEXT.md
+
+A companion to CLAUDE.md. Where CLAUDE.md is the technical specification and implementation guide, this file captures project context, decisions, preferences, and working patterns that help Claude provide better assistance across sessions.
+
+---
+
+## 1. Project Overview
+
+**What it is:** FRCC Golf Games — an automated golf participation tracker for recurring games at Fairbanks Ranch Country Club (FRCC). Manages weekly invites, RSVP tracking, waitlists, guest requests, and automated communications.
+
+**The goal:** Minimize human intervention in weekly game coordination while keeping admins in control of key decisions (waitlist management, guest approvals, cancellations). Replace the manual email/spreadsheet workflow the group was using previously.
+
+**Current status:** Production since February 24, 2026 (v1.0 launch). 50+ active users across the first event (FRCC Saturday Morning Group). A second event (FRCC Thursday League) is being onboarded. The platform has been running reliably through multiple weekly RSVP cycles.
+
+**What's complete:**
+- Phases 1–2 (Foundation + Weekly RSVP Cycle) — fully shipped
+- Phase 4 (Admin Tools & Communication) — mostly complete, powering the production workflow
+- Grouping engine — 5 methods (harmony + 4 handicap-based: flight foursomes, balanced ABCD foursomes, flight 2-person teams, balanced 2-person teams). 50+ unit tests, cron integration, suggested groupings email integration, repeat foursome prevention, tee time preference limits, partner preference weighting
+- Playing partner preferences — ranked 1–10 with per-event scoping
+- Tee time preferences — per-week on RSVP page
+- Multi-event architecture — designed and implemented, second event being onboarded
+- PWA install flow with push notification support
+- Configurable email schedules per event (6 Vercel cron slots)
+- Weather integration — Open-Meteo API, golfability scoring, displayed on RSVP pages, home page, and in emails
+- GHIN Handicap Sync — automated fetch from GHIN API (`api2.ghin.com`), per-event toggle, displayed on home page, profile, both golfer directories, golfer detail pages, and suggested groupings email. Handicap history recorded in `handicap_history` table for trend tracking.
+- Global Pro Shop Contact Directory — contacts added once globally, linked per-event. "Suggested Groupings Email" (renamed from "Pro Shop Detail") with configurable recipients (pro shop contacts, event admins, confirmed golfers).
+- Admin Reports — super-admin-only reports page with Golfer Engagement, Platform Activity, Response Timing, and Profile Completeness reports
+- Activity Tracking — login and page view logging infrastructure (activity_log table, ActivityTracker component)
+- Profile Completion Nudge — RSVP token page detects missing phone/GHIN and shows amber banner with link to profile page
+- Admin "Add Golfer to Game" — RSVP management page lets admins add subscribed golfers who missed the invite cycle (e.g., recently approved)
+- Registration event scoping fix — golfers registering via event-specific join links are now correctly subscribed to only that event on approval
+- Guest Workflow — configurable per-event guest limits (1–3), optional email/phone/GHIN, past guest auto-fill, admin one-click approve/decline via tokenized email links, reply-all GHIN follow-up, pending request alerts before cutoff. See `docs/GUEST_WORKFLOW_SPEC.md`.
+- Money Leaderboard — tracks weekly dollar winnings alongside Stableford points. Points/Money toggle on the Leaderboard tab. Data entry via conversational workflow (admin pastes weekly winner email, Claude parses and inserts). Migration 030.
+- Restricted Pairings (Do-Not-Pair) — admin-only feature to prevent specific golfer pairs from being grouped together. Enforced via `-99999` score penalty (harmony method) + universal `separateRestrictedPairs` post-processing pass (all methods). Managed via `RestrictedPairingsSection` in Event Settings → Grouping Engine section. Migration 034.
+- Penalty Box — fully implemented gamified penalty system. Power meter mini golf escape game, character witnesses with tokenized voting links, apology flow, release notifications. Per-event feature flag + configurable display name. Migrations 032–033.
+- Cancellation email bug fix — `sendCancellationEmails` was fire-and-forget (killed by Vercel before sending). Fixed by awaiting it, adding `is_active=true` filter, correcting `email_type` from `"custom"` to `"no_game"`, and switching to `createAdminClient()`.
+
+**What's on the roadmap (see CLAUDE.md Roadmap for details):**
+1. League Leaderboard & Season Scoring — Phase 2 (score entry pending Golf Genius report format)
+2. Email template review
+3. ~~Guest workflow~~ ✅ COMPLETE
+4. Golfer engagement & gamification stats
+5. Waitlist end-to-end testing & refinement
+6. SMS / WhatsApp notifications
+
+---
+
+## 2. What's Been Decided
+
+These are final decisions reflected in the codebase and not open for reconsideration:
+
+**Architecture & Infrastructure:**
+- Free-tier stack: Vercel Hobby, Supabase Free, Resend Free. No paid upgrades planned until limits are hit.
+- Vercel Hobby limits are hard constraints: 6 daily crons max, no sub-daily frequency, 60-second function timeout.
+- Single-endpoint cron pattern: all 6 cron entries hit `/api/cron/email-scheduler`, which checks all events for due emails within a time window. This is the workaround for Hobby's daily-only cron restriction.
+- All times are Pacific Time (America/Los_Angeles). Vercel runs UTC. Use centralized timezone utilities from `src/lib/timezone.ts`.
+- Supabase Auth with magic link (OTP) — no passwords. Tokenized RSVP links for one-tap responses without login.
+
+**Naming & Navigation:**
+- The golfer landing page is called "Home" (route: `/home`). Legacy `/dashboard` redirects to `/home`.
+- "Admin Dashboard" is the correct name for `/admin` pages — only the golfer page was renamed.
+- Breadcrumbs on every page (except landing and login). No "Back to X" links.
+- Admin pages for "Dashboard" reference are correct and should stay.
+
+**Roles & Permissions:**
+- Three roles: Super Admin, Event Admin, Golfer. Admins are also golfers (dual-role).
+- Only super admins can: create events, assign admins, toggle feature flags, access Danger Zone.
+- Event admins are scoped to assigned events only.
+- Feature flags (guest requests, tee time prefs, partner prefs, auto-grouping) default OFF and are super-admin-only toggles.
+
+**Email & Communication:**
+- Reply-To is always the primary event admin's email.
+- All admin-targeted emails CC secondary admins and super admins.
+- Resend's default sending domain for now. Custom domain deferred.
+- Golfer confirmation email shows first-initial-last-name (e.g., "J. Herrera"). Suggested groupings email shows full details.
+- Email footer links say "Go to FRCC Golf Games" (not "Go to Dashboard" or technical URLs).
+
+**RSVP Flow:**
+- Capacity is first-come-first-served. Waitlist is admin-managed (not auto-promoted).
+- Guests only fill spots that members haven't claimed. Admin approval required.
+- After cutoff, only admins can modify RSVP status.
+- "In" list visibility is evite-style: only golfers who are "In" can see other "In" golfers.
+
+**RSVP Status Labels (admin-facing):**
+- In (not "Confirmed"), Out, Not Sure (not "Not Sure Yet"), No Reply (not "No Response"), Waitlist (not "Waitlisted"). These must be consistent across all admin surfaces.
+
+**Grouping Engine:**
+- Five methods: harmony (greedy heuristic with partner prefs), flight foursomes, balanced ABCD foursomes, flight 2-person teams, balanced 2-person teams.
+- Handicap methods use GHIN-synced handicap index (resolution: synced → 25.0 default). Override partner/tee time preferences when active.
+- Pure function design — no DB calls in the algorithm. DB layer is separate (`grouping-db.ts`).
+- Runs automatically at cutoff time via existing email-scheduler cron (no separate cron entry).
+- Feature-flagged per event (`allow_auto_grouping`). When disabled, suggested groupings email gets alphabetical roster.
+
+**Code Standards:**
+- TypeScript everywhere. Centralized formatters in `src/lib/format.ts` — never define local formatting functions.
+- RSVP status constants in `src/lib/rsvp-status.ts` — never define local status labels or colors.
+- Supabase admin client from `src/lib/supabase/server.ts` — never define local `createAdminClient()`.
+- Game dates are `YYYY-MM-DD` strings, never pass to `new Date(dateStr)` directly. Parse components.
+
+---
+
+## 3. What's Still Open
+
+See the Roadmap section of CLAUDE.md for the current prioritized list. Key items:
+
+1. **Email template review** — Audit all automated emails for copy, formatting, and links.
+3. ~~**Guest workflow**~~ — ✅ Complete. See `docs/GUEST_WORKFLOW_SPEC.md`.
+4. **Priority email batching** — For when distribution approaches the 100/day Resend limit.
+5. **Public "Who's Playing" view** — Unlisted shareable page showing the "In" list without login.
+6. **Golfer engagement & gamification stats** — Participation streaks, response rate scores, badges.
+7. **Waitlist end-to-end testing** — Verify correct ordering, admin promotion flow, edge cases.
+8. **Invite-a-friend / referral registration** — Referral parameter on join link, shows referrer to admin.
+9. **SMS / text notifications** — Opt-in texts for cutoff reminders (cost evaluation needed first).
+
+**Technical debt visible in the codebase (not on the active roadmap but worth noting):**
+
+- **The `tee_time_preferences` table** — Standing preferences table exists but is ignored by the grouping engine. Only per-week RSVP tee time preferences are used. This table may be vestigial.
+- **Email scheduler complexity** — The structural audit identified `email-scheduler/route.ts` (CC ~50) as the top refactoring priority. Splitting into per-type handlers would improve maintainability.
+- **Test coverage** — Only the grouping engine has unit tests (36 tests). No integration or end-to-end tests exist.
+- **Push notification adoption** — Recently improved with Install page guidance, Help FAQ, and onboarding checklist item. Effectiveness is unknown — may need a contextual prompt if adoption is low.
+
+---
+
+## 4. My Preferences & Constraints
+
+**Inferred from project files, commit history, and working sessions:**
+
+**Tone & Communication:**
+- Jesse prefers conversational, direct communication. No unnecessary formality.
+- Asks thoughtful "should we?" questions before acting — values understanding tradeoffs before committing to changes.
+- Thinks about the user experience from the golfer's perspective (not just technical correctness).
+- Prefers practical recommendations over theoretical options.
+
+**Development Style:**
+- Incremental, working changes — not large rewrites. Ship often.
+- Commits are descriptive and explain *why*, not just *what*.
+- Documentation is kept in sync with code (CLAUDE.md is actively maintained as the source of truth).
+- Mobile-first is a real priority, not a checkbox — 80%+ of users are on phones.
+
+**Technical Preferences:**
+- TypeScript strict-ish (not full strict mode, but typed where it matters).
+- Server Actions over API routes where possible (Next.js App Router pattern).
+- Centralized utilities over duplicated logic — strong preference for single-source-of-truth patterns.
+- Tailwind CSS for all styling. No CSS modules or styled-components.
+- No external UI component libraries (custom components built with Tailwind).
+
+**Constraints:**
+- Free tier everything. Budget sensitivity is real — upgrades happen only when limits are hit.
+- Single developer (Jesse) plus Claude. No team, no code review process, no CI/CD pipeline.
+- Users are non-technical golfers. UI must be self-explanatory — no training or documentation should be needed for basic flows.
+- All changes must work on Vercel Hobby. Never propose solutions requiring Pro features without flagging the constraint.
+
+---
+
+## 5. Key Terms & Definitions
+
+| Term | Definition |
+|---|---|
+| **Event** | A recurring game (e.g., "FRCC Saturday Morning Group"). Independent config, schedule, capacity, admin assignments. |
+| **Super Admin** | Full platform access. Can manage all events, create events, assign admins, toggle feature flags. Also a golfer. |
+| **Event Admin (Primary)** | Manages a specific event. Reply-to address on automated emails. Can approve registrations, manage RSVPs, send custom emails. |
+| **Event Admin (Secondary)** | Same permissions as primary for the event. CC'd on all communications. Backup coverage. |
+| **Golfer** | A confirmed club member on the distribution list. Receives invites, RSVPs, manages profile. |
+| **Guest** | A non-golfer in the system (name, email, phone, GHIN) but NOT on any distribution list. Can only play when invited by a golfer for a specific week. |
+| **GHIN** | Golf Handicap & Information Network number. USGA handicap ID. Optional field. |
+| **Tokenized RSVP** | Each golfer gets a unique URL per week for one-tap RSVP without login. Tokens are unguessable. |
+| **Magic Link** | Passwordless login via email. Supabase sends a one-time code. No passwords stored. |
+| **Cutoff** | The deadline after which golfers can no longer self-service their RSVP. Only admins can make changes post-cutoff. |
+| **Waitlist** | Golfers who RSVP "In" after capacity is reached. Admin-managed — not auto-promoted. |
+| **Playing Partner Preferences** | Ranked list of up to 10 preferred partners per event. Drives the grouping engine's harmony scoring. |
+| **Grouping Engine** | Algorithm that generates suggested foursomes after RSVP cutoff. Considers partner preferences, tee time preferences, and guest-host pairing. |
+| **Golf Genius** | Third-party software the pro shop uses for tee time management. FRCC Golf Games generates suggestions; Golf Genius is the final authority. |
+| **PWA** | Progressive Web App. Users can install FRCC Golf Games to their home screen for app-like experience and push notifications. |
+| **Game On / No Game** | Admin toggle on the schedule. "No Game" cancels a week and triggers cancellation emails. |
+| **Email Cycle** | The weekly automated sequence: Invite → Reminder(s) → Cutoff/Confirmation → Suggested Groupings. |
+| **Feature Flag** | Per-event boolean toggle (super admin only) controlling whether a feature is active. Currently: guest requests, tee time prefs, partner prefs, auto-grouping. |
+
+---
+
+## 6. How I Like to Work With Claude
+
+**Problem-focused sessions:** Jesse prefers to set the stage with a question or request, then focus on that problem from beginning to end. Larger chunks of work are fine when efficient, but guide through clarifying questions one at a time and walk through each step sequentially. Don't present long action plans that are hard to track — keep it step-by-step.
+
+**Answers + recommendations:** When Jesse asks a question, respond with an answer plus thoughtful clarifying questions, ideas, and recommendations. Don't just answer and wait passively.
+
+**No restricted areas, but be risk-aware:** No areas of the codebase are off-limits. Claude should know which areas are higher risk or more vulnerable and proactively flag risks and recommend prudent action plans. That said, this project is generally low-risk — even mistakes don't cause major real-life consequences.
+
+**Deploy anytime:** No preferred deploy schedule. Work happens when there's time for it.
+
+**When to execute vs. wait:** If Jesse asks for a plan or recommendation, don't execute yet — present the plan and wait for a go-ahead. If it's ambiguous, ask. Otherwise, assume Jesse wants the changes made and proceed without waiting for explicit instruction — especially if the work is easily reversible.
+
+**Copy-paste ready instructions:** When Jesse needs to perform steps manually (terminal commands, SQL queries, Vercel/Supabase console actions, etc.), always provide exact copy-paste commands and step-by-step instructions. Don't assume he'll know how to translate a general description into the right CLI syntax or UI clicks. Be explicit and sequential.
+
+**Not a software engineer:** Jesse is a capable builder but not a professional developer. He doesn't work in SQL, terminal/CLI, or code editors on a daily basis. When steps involve these tools, provide extra context — explain what a command does, what the expected output looks like, and what to do if something looks wrong. Don't assume familiarity with git flags, SQL syntax, or terminal conventions.
+
+**Know the stack and its limits:** The tech stack and free-tier constraints are fully documented in CLAUDE.md (see "Infrastructure Constraints" section). Claude should internalize these limits and never propose solutions that violate them without flagging the constraint first. Don't ask Jesse to re-confirm what tier he's on or what the limits are — that information is in the docs.
+
+---
+
+## 7. Lessons Learned
+
+**Model choice matters:** Early work with Sonnet involved significant rework. Opus produces more reliable results and is the preferred model for this project going forward.
+
+**The stack has been smooth:** No major gotchas with Vercel, Supabase, or Resend beyond the well-documented timezone bugs (see CLAUDE.md Timezone Rules). Free-tier limitations exist but haven't been blockers yet. Keep costs low as long as possible.
+
+**No regrets on architecture:** The project has been enjoyable to build. The stack made it easy to get started with a functional app quickly, then iterate. Nothing feels over-engineered or unnecessary so far.
+
+**Usage tracking is now in place:** Activity logging (login events + page views) is live via the `activity_log` table. Admin Reports page shows golfer engagement, platform activity, response timing, and profile completeness. Data will accumulate over time to reveal usage patterns and identify disengaged golfers.
+
+**The app is a passion project:** Jesse genuinely enjoys working on it and wants to expand capabilities beyond what's strictly necessary. Future work is driven by interest and ambition as much as user demand.
+
+---
+
+## 8. Session Log
+
+### Session: March 13, 2026
+
+**Context:** Routine maintenance and discoverability improvements.
+
+**Changes made:**
+1. **Renamed `/dashboard` route to `/home`** — Updated 27 files including all internal redirects, email templates (now say "Go to FRCC Golf Games"), help page FAQ copy, breadcrumbs, nav links, PWA manifest, and CLAUDE.md. Added backward-compatible redirect from `/dashboard` → `/home`.
+
+2. **Improved push notification discoverability** — Fixed service worker fallback URLs from `/dashboard` to `/home`. Added step 5 to Install page instructions (both iOS and Android) explaining the bell icon. Added "Push notifications" to Install page benefits section. Added new "How do I turn on push notifications?" FAQ to Help page with platform-specific guidance. Added "Turn on push notifications" to the onboarding checklist (client-side detection, only shows when browser supports push and user hasn't enabled it).
+
+3. **Updated Install page URLs** — Changed `frccgolfgames.vercel.app` references to `frccgolfgames.com`.
+
+4. **Streamlined roadmap** — Replaced the old five-phase build checklist (mostly completed items) with a clean two-section structure: "What's Been Built" (summary of everything in production) and "Roadmap" (5 prioritized items). Removed completed phase checklists, Golf Genius CSV export, UI/UX branding, SMS notifications, GHIN API integration, and custom email domain from the active roadmap.
+
+5. **Created CLAUDE_CONTEXT.md** — This file. Companion to CLAUDE.md capturing project context, decisions, preferences, and working patterns.
+
+**Key discussion points and decisions:**
+- Confirmed the app is in production (not beta) with 50+ users and a second event onboarding.
+- **Route rename analysis:** Tokenized RSVP links are safe from the `/dashboard` → `/home` rename because they use `/rsvp/[token]`. Supabase session handling means all routes behave identically for auth — middleware refreshes the session on every request. The landing page (`/`) is the only route that doesn't check auth, so email links should always point to `/home` for the smoothest logged-in experience.
+- **Push notification gap:** Identified that push notifications were essentially invisible to users — no mention in Help, Install page, onboarding, or welcome banner. The bell icon has no label and is hidden on unsupported browsers (most iOS Safari users without PWA installed). Addressed with Install page step 5, Help FAQ entry, onboarding checklist item, and benefits section bullet.
+- **Notification bell deep-dive:** The bell uses Web Push APIs (service worker + PushManager). Works on Android Chrome and desktop browsers. On iOS, only works if user has installed the PWA to their home screen first (iOS 16.4+ requirement). Component gracefully hides when unsupported (`state === "unsupported"` returns null).
+- **Email link best practice:** For email footer links, `/home` is the right destination (not `/` which shows the landing page even for logged-in users). Display text should say "Go to FRCC Golf Games" rather than exposing the URL path.
+- **Roadmap consolidation:** Removed items Jesse doesn't currently care about. The five active roadmap items are: (1) grouping engine enhancements (repeat prevention, tee time limits, admin avoidance), (2) admin reports (TBD), (3) email template review, (4) guest workflow, (5) priority email batching. Design details for grouping items are intentionally left TBD — to be addressed when each is tackled.
+- **Working preferences captured:** Jesse is not a software engineer — needs copy-paste ready commands and extra context for terminal/SQL/CLI work. Prefers step-by-step guidance over long action plans. Opus is the preferred model (Sonnet caused rework). Claude should internalize the stack constraints from CLAUDE.md rather than re-asking.
+
+### Session: March 19–20, 2026
+
+**Context:** GHIN Handicap Sync deployment, debugging, and UI expansion.
+
+**Changes made:**
+1. **Deployed GHIN Handicap Sync to production** — Committed all 15 files (handicap-sync.ts, migration 018, event settings UI, cron integration, types, spec doc). Walked through Supabase migration, Vercel env vars, and redeploy.
+
+2. **Debugged GHIN API authentication** — Multiple iterations to get the auth request body correct. Key findings: `token: "recaptcha-disabled"` required at root level, credential field is `email_or_ghin` (not `email`), endpoint is `api2.ghin.com/api/v1/golfer_login.json`. Used temporary debug arrays in cron JSON responses to troubleshoot serverless functions without log access.
+
+3. **Fixed Vercel env var issues** — Discovered `GHIN_EMAIL` and `GHIN_PASSWORD` were set at the **team level** (not available to project functions). Also found a typo (`GHIN_EMIAL` instead of `GHIN_EMAIL`). Both fixed by Jesse in Vercel project settings.
+
+4. **Added Handicap Index to golfer home page** — New row in My Profile section showing current index and last-updated date below the GHIN number.
+
+5. **Added Handicap Index to both golfer directories** — Global (Admin → Golfers) and event-scoped (Admin → Events → [Event] → Golfers) directories now show an HCP line on each golfer card with value and last-updated date.
+
+6. **Updated all documentation** — CLAUDE.md "What's Been Built" section, HANDICAP_SYNC_SPEC.md (direct HTTP client details, all display surfaces, corrected risks and modified files), and CLAUDE_CONTEXT.md.
+
+7. **Established Documentation Update Standard** — Added a new section to CLAUDE.md defining a tiered checklist for "update all product documentation" so future sessions don't require enumerating individual files. Four tiers: Always Update (CLAUDE.md, CLAUDE_CONTEXT.md, types), Feature Spec, User Help, and Situational.
+
+**Key decisions:**
+- **No npm dependency for GHIN:** The `@spicygolf/ghin` npm package was intentionally NOT used. Direct HTTP calls to `api2.ghin.com` are more maintainable and fully patchable if the API changes.
+- **Vercel env vars must be at project level:** Team-level env vars are NOT automatically available to project functions. This is now documented as a risk in the spec.
+- **Handicap sync piggybacks on email-scheduler cron:** No new cron slot needed (all 6 are already used). Sync runs within 24 hours of each scheduled event, 20 golfers per batch, stalest-first.
+- **All 11 golfer handicaps verified accurate** by Jesse after first successful sync.
+
+### Session: March 21, 2026
+
+**Context:** Handicap-based grouping methods — designed with Gemini, implemented with Claude.
+
+**Changes made:**
+1. **Added 4 handicap-based grouping methods** to the grouping engine alongside the existing harmony (partner preference) method: Flight Foursomes, Balanced ABCD Foursomes, Flight 2-Person Teams (similar/random foursome pairing sub-option), and Balanced 2-Person Teams.
+
+2. **Created migration 019** — Added `events.grouping_method`, `events.flight_team_pairing`, and `groupings.team_number` columns.
+
+3. **Updated admin Event Settings UI** — New grouping method radio selector (5 options) at the top of the Grouping Engine section. Flight team pairing sub-selector shown only for flight_teams. Amber warning banner when handicap method is active. Partner prefs, tee time prefs, and variety toggle are greyed out when overridden.
+
+4. **Updated cron/email integration** — When a handicap method is active, cron forces partner/tee time prefs off. Suggested groupings email description reflects the active method.
+
+5. **Updated DB layer** — `fetchConfirmedGolfers` resolves handicap (synced → 25.0 default). `storeGroupings` writes `team_number` for team methods.
+
+6. **Added 15 unit tests** for all new methods (type-checked clean, test runner unavailable in sandbox).
+
+**Key decisions:**
+- **Handicap resolution:** `handicap_index ?? 25.0`. GHIN-synced value is used; 25.0 default for golfers without a synced handicap.
+- **Handicap methods override partner/tee time prefs** in the engine (forced off) but UI shows them greyed out with a warning banner rather than hiding them — so admins understand what's happening.
+- **2-person team methods output complete foursomes** — the engine pairs teams into foursomes (not just teams), producing a full tee sheet.
+- **Balanced teams use outside-in pairing** at both levels: team (A+D, B+C) and foursome (lowest combined team + highest combined team).
+- **Default handicap (25.0)** used for golfers with no GHIN-synced handicap. High enough to land them in lower flights, reasonable for casual golfers.
+
+### Session: March 23, 2026
+
+**Context:** Grouping engine UX refinement, roadmap cleanup, and admin reports implementation.
+
+**Changes made:**
+1. **Grouping Engine on/off toggle** — Added master toggle (`allow_auto_grouping`) to the Grouping Engine section in Event Settings. When off, all sub-settings are greyed out and a message explains groups will follow RSVP order. When on, the full configuration UI (method selector, partner prefs, tee time prefs, variety) is available.
+
+2. **Roadmap cleanup** — Reviewed and updated the CLAUDE.md roadmap to reflect current priorities and mark completed items.
+
+3. **Admin Reports page** — Built a super-admin-only reports page (`/admin/reports`) with four interactive reports:
+   - **Golfer Engagement** — Per-golfer RSVP response rates, participation rates, consecutive no-replies, "ghost" detection (3+ weeks unresponsive). Filters: All, Ghosts, Low, Active. Sort by response rate, participation rate, or consecutive no-replies. Color-coded progress bars.
+   - **Platform Activity** — Login counts, unique users, page views, most visited pages, most active users. Based on the new `activity_log` table (last 30 days).
+   - **Response Timing** — Distribution of invite-to-response times across all events (last 8 weeks). Buckets: within 1 hour through 4+ days. Median/average stats. Insight callout about send-time optimization.
+   - **Profile Completeness** — Identifies golfers missing GHIN, phone, or handicap data. Filter by missing field type.
+
+4. **Activity tracking infrastructure** — Created `activity_log` table (migration 020), `/api/activity` POST endpoint, `ActivityTracker` client component (added to root layout). Login events logged in both OTP and magic link auth flows. Page views logged on every route change via client-side tracker.
+
+5. **Fixed TS error** — Removed invalid `.catch()` on Supabase PostgrestFilterBuilder in auth callback route.
+
+**Key decisions:**
+- **Reports are super-admin-only** for now. Can be expanded to event admins later if useful.
+- **Activity tracking is lightweight and non-blocking** — fire-and-forget pattern. Failures never block auth or navigation.
+- **Page paths are normalized** in the activity report — UUIDs and tokens are replaced with `[id]`/`[token]` for meaningful aggregation.
+- **Golfer engagement report uses 12-week lookback** — long enough for meaningful trends, short enough to reflect current behavior.
+- **Reports linked from admin dashboard** via a card in the global section.
+
+### Session: March 24, 2026
+
+**Context:** Profile data completion strategy — getting existing golfers to fill in missing phone and GHIN.
+
+**Changes made:**
+1. **Profile completion nudge on RSVP page** — Added an amber banner to `/rsvp/[token]` that detects missing profile fields (phone number, GHIN number) and prompts the golfer to complete their profile. Includes privacy reassurance and a direct "Update Profile" button linking to `/profile`. Disappears when profile is complete.
+
+2. **Handicap history table** — Created `handicap_history` table (migration 021) to record every handicap index value fetched from GHIN. Append-only, one row per golfer per sync. Updated `handicap-sync.ts` to insert a history record alongside each profile update. Added `HandicapHistoryEntry` type. Enables per-golfer trend analysis and group-level handicap distribution tracking over time.
+
+**Key decisions:**
+- **RSVP token page is the highest-traffic touchpoint** — most golfers never log into the dashboard. The nudge belongs where golfers already are every week, not behind a login.
+- **Soft nudge now, hard gate later** — current implementation is a non-blocking prompt. Future option to gate RSVP submission behind profile completion is architecturally supported (one conditional change) but deferred.
+- **Extensible field list** — the `profileMissingFields` array can be extended with additional required fields (e.g., playing partner preferences) without restructuring.
+- **Privacy reassurance included** — "This information is only shared with event admins and the pro shop" addresses the likely reason golfers skip these fields.
+- **Rejected dashboard-only approach** — Gemini recommended an onboarding checklist on the dashboard, but that only reaches the small fraction of users who log in. The RSVP page has near-100% weekly reach.
+- **Handicap history records every sync, not just changes** — Jesse wants a complete timeline for group trending. Recording every fetch (even unchanged values) lets you see stability vs. movement. The data volume is trivial (~30 rows/week for current roster, ~1,500/year).
+- **History only written on successful GHIN fetch** — if GHIN returns null/NH or the API errors, no history row is inserted. This keeps the history clean — every row represents a real GHIN-issued handicap index.
+
+### Session: April 1, 2026
+
+**Context:** Second event onboarding (FRCC Thursday League) — discovered missing UI features and display bugs during setup.
+
+**Changes made:**
+1. **Added URL slug field to admin UI** — The `slug` column existed in the database (migration 009) but was never exposed in the Event Settings or Create Event forms. Added an editable slug input to Basic Settings (with "Generate" button) and auto-generation from event name on the Create Event form. Input restricted to lowercase letters, numbers, and hyphens. Without this, new events had no self-registration join link.
+
+2. **Fixed "next game" display for events with future start_date** — Events showing schedule rows before their `start_date` (e.g., Thursday League showing April 2 when it starts April 16). Updated queries on admin dashboard, event dashboard, and emails page to filter by the later of today or `event.start_date`.
+
+3. **Fixed hardcoded placeholder names on join forms** — Registration forms (`/join` and `/join/[slug]`) had "Jesse" and "Herrera" as placeholder text, which looked like pre-populated data. Changed to generic "First name" and "Last name".
+
+**Key decisions:**
+- **No database migration needed for slug UI** — the column already existed, just needed the form fields and server action updates.
+- **Start date filtering applied at query level, not schedule generation** — even if stale schedule rows exist before the start date, they won't display. This is more resilient than trying to prevent/clean up early rows.
+- **Second event onboarding revealed gaps** — the slug field and start_date display bug were only discovered when actually setting up a new event, reinforcing the value of real-world testing.
+
+### Session: April 3, 2026
+
+**Context:** New golfer registration exposed two bugs — dual-event subscription and missing RSVP for recently approved golfers.
+
+**Changes made:**
+1. **Fixed dual-event subscription bug** — Root cause: the `handle_new_user()` database trigger (from migration 001) never extracted `registration_event_id` from user metadata, even though the column was added in migration 009. As a result, event-specific join links (`/join/[slug]`) produced NULL `registration_event_id`, which made the approval flow call `subscribeToAllActiveEvents()` instead of `subscribeToEvent()`. Three-layer fix: (a) new migration 022 updates the trigger, (b) `verifyEventJoinOtp` sets the field after OTP verification as belt-and-suspenders, (c) auth callback now checks `registration_event_id` for scoped admin alerts.
+
+2. **Fixed auth callback admin alerts** — `/auth/callback/route.ts` was always notifying all events' admins for pending registrations. Now checks `registration_event_id` and only alerts the relevant event's admins.
+
+3. **Added "Add Golfer to Game" admin feature** — New component on the RSVP management page (`add-golfer-to-game.tsx`) that lets admins add subscribed golfers who don't have an RSVP row for a specific game (e.g., golfers approved after the invite was sent). Searchable dropdown, option to add as "In" or "No Reply". Available on all non-cancelled games.
+
+**Key decisions:**
+- **Three-layer fix for registration_event_id** — trigger fix handles new users, OTP verification handles existing users re-registering, and the callback fix prevents duplicate admin alerts. Belt-and-suspenders approach because a NULL registration_event_id causes silent mis-behavior (subscribes to all events instead of one).
+- **Add Golfer to Game available at all times** — not just past cutoff. Admins may need to add a golfer mid-week for any reason.
+- **RSVP history logged for manually added golfers** — maintains participation tracking accuracy even for admin overrides.
+
+### Session: May 10, 2026
+
+**Context:** Money leaderboard feature and duplicate golfer cleanup.
+
+**Changes made:**
+1. **Money Leaderboard** — Added a money leaderboard alongside the existing Stableford points leaderboard on the league info page. New `league_money_scores` table (migration 030) stores total dollars won per golfer per week. The Leaderboard tab now has a Points/Money pill toggle. Money view uses the same grid layout (Rank, Golfer, WK1–WK10, Total) but with `$` formatting, green highlighting for winnings, `$0` for played-but-no-winnings, and `DNP` for missed weeks. No best-N-of-M — every dollar counts. New files: `money-leaderboard.tsx`, types `LeagueMoneyScore`/`MoneyLeaderboardEntry`, library functions `getLeagueMoneyScores()`/`buildMoneyLeaderboard()`.
+
+2. **Duplicate Craig Cohen cleanup** — Two profiles existed for Craig Cohen: one admin-created (`icloud.com`) with participation data, one self-registered (`me.com`) with better profile info. Merged by moving all RSVPs, league scores, groupings, and partner preferences to the self-registered profile, then deleting the admin-created one. Kept `me.com` as Craig's preferred login.
+
+3. **Week 1 money data inserted** — D. Irwin $300, B. Tashakorian $100, B. Ross $100, C. Cohen $50, T. McCartin $25, K. Stanley $25.
+
+**Key decisions:**
+- **Simple totals only** — no per-category breakdown (Stableford, Blind Draw, CTP) in the database. Each week stores one total dollar amount per golfer. Detailed breakdowns are in the weekly winner emails if anyone needs them.
+- **Conversational data entry** — admin pastes the weekly winner email into a Cowork chat, Claude parses and confirms totals, then inserts via SQL. No admin UI needed.
+- **$0 vs. DNP distinction** — `$0` means the golfer played but won nothing; `DNP` means they didn't play that week. Determined by cross-referencing `league_scores` (points) to know who played.
+- **Keep self-registered profile for duplicates** — when merging duplicate golfer accounts, prefer the profile the golfer created themselves (their chosen email) over the admin-created one.
+
+### Session: ~May–June 2026
+
+**Context:** Penalty Box feature, Restricted Pairings, cancellation email bug fix.
+
+**Changes made:**
+1. **Penalty Box** — Built the full gamified penalty system. Power meter mini golf escape game (3 holes, tap-to-stop mechanic, hole 3 clown reveal scripted to always reject). Character witness flow via tokenized email links (no login required). Yes/no vote with required comment. 3-no-vote apology flow. Admin one-click release. Release announcement to all subscribers with time served + witness testimonies. Repeat offender escalation (3 → 5 → 7 witnesses). Per-event feature flag (`penalty_box_enabled`) + configurable display name (`penalty_box_name`, default "The Penalty Box"). 6 new `email_log` types (penalty_issued, penalty_witness_request, penalty_witness_no, penalty_witness_timeout, penalty_apology, penalty_released). Migrations 032–033.
+
+2. **Restricted Pairings (Do-Not-Pair)** — Admin-only constraint to prevent specific golfer pairs from ever being grouped together. Enforced at two levels: (1) `-99999` pair score in `applyScoreModifiers` (handles harmony/greedy), (2) `separateRestrictedPairs` post-processing pass on all 5 methods. UUIDs stored order-normalized (profile_id_1 < profile_id_2). `RestrictedPairingsSection` component in Event Settings → Grouping Engine section. Migration 034.
+
+3. **Cancellation email bug fix** — Three bugs prevented cancellation emails from ever being delivered: (a) `sendCancellationEmails` was called without `await` in a Next.js Server Action — Vercel kills the function before the async work completes; (b) missing `.eq("is_active", true)` on the subscriber query; (c) `email_type: "custom"` should have been `"no_game"`. Also switched to `createAdminClient()` for consistency.
+
+**Key decisions:**
+- **Two-layer restricted pairs enforcement** — the `-99999` score alone is sufficient for harmony/greedy, but the `separateRestrictedPairs` post-processing pass provides a hard guarantee for handicap methods (where adjacency in the sorted list can force a restricted pair into the same group regardless of scores). Best-effort: if no valid swap exists, the pair remains together gracefully rather than throwing.
+- **Restricted pairings in Grouping Engine section, not Feature Flags** — because the feature is directly tied to how the grouping engine places golfers. Accessible to both event admins and super admins.
+- **Penalty Box feature flag in Event Settings → Feature Flags** — consistent with how guest requests are controlled. Super admin only.
+- **Cancellation emails must be awaited** — any async email send inside a Server Action that isn't awaited will be killed by Vercel's serverless lifecycle before it completes. This is now a documented constraint.
+
+### Session: July 14, 2026
+
+**Context:** After the Thursday League's 10-week season (May 7 – July 9) ended, an unexpected invite went out for July 16, and Jesse wanted to confirm no further invites would fire before the next series.
+
+**Investigation:** Two compounding bugs. (1) The season end date was computed off-by-one: `fixed_weeks` used `start_date + duration_weeks * 7`, which lands one week past the final game — a 10-week season from May 7 resolved to July 16 instead of the 10th game on July 9. (2) More seriously, the `email-scheduler` cron had a start-date guard but **no end-date guard**. Because the scheduler computes "next game day" generically and `ensureSchedule()` creates a schedule row on demand (default status `scheduled`, `invite_sent=false`), an active event with enabled email schedules would send a fresh invite every week forever — July 23, July 30, and so on. Cancelling July 16 did nothing to prevent July 23.
+
+**Changes made:**
+1. **Off-by-one fix** — `calculateEventEndDate()` (`schedule-gen.ts`) and the matching end-date math in the create-event and settings actions now use `start_date + (duration_weeks - 1) * 7`. A 10-week season correctly ends on its 10th game.
+2. **End-date guard in scheduler** — `email-scheduler` now skips any event whose upcoming game date is past `calculateEventEndDate(event)` (mirrors the existing start-date guard). Indefinite events return null and are never bounded.
+3. **Regression test** — new `src/lib/schedule-gen.test.ts` (Node built-in test runner) asserts the May 7 / 10-week season ends July 9 and generates exactly 10 game dates, never July 16.
+4. **Data corrections** — disabled all four Thursday League email schedules (off until the next series) and corrected the stored `events.end_date` from 2026-07-16 to 2026-07-09.
+
+**Key decisions:**
+- **Disable email schedules, don't deactivate the event** — deactivating (`is_active=false`) would have hidden the completed-season leaderboard, since `getLeagueConfigBySlug()` filters on `is_active=true`. Disabling the four `email_schedules` rows stops all weekly emails while keeping the event and its leaderboard live.
+- **Guard on both boundaries** — the scheduler must enforce start *and* end. The end guard is the durable fix; the off-by-one was a secondary contributor.
+
+**Lesson learned:** Any generic "next occurrence" scheduler that creates rows on demand needs an explicit upper bound. Start-date guards alone let a finite season run forever.
+</file>
+
 <file path="CLAUDE.md">
 # FRCC Golf Group Tracker
 
@@ -46564,9 +45998,6 @@ Every page (except the landing page and login) **must** have a `<Breadcrumbs>` c
 - `activity/route.ts` — Activity logging endpoint (page views, called by client-side ActivityTracker)
 - `cron/email-scheduler/route.ts` — Master cron endpoint (checks all events for due emails)
 - `guest-approve/[token]/route.ts` — Tokenized guest approve/decline endpoint (GET, returns HTML page, no auth required)
-- `cron/invite/route.ts` — Invite email sender (legacy, now handled by email-scheduler)
-- `cron/reminder/route.ts` — Reminder email sender (legacy, now handled by email-scheduler)
-- `cron/confirmation/route.ts` — Confirmation email sender (legacy, now handled by email-scheduler)
 
 
 ### Shared Libraries (src/lib/)
@@ -46989,6 +46420,9 @@ Configurable Penalty Box name (migration 033):
 
 Restricted Pairings / Do-Not-Pair (migration 034):
 - `event_do_not_pair` table: pairs of golfers who must never be placed in the same group. Columns: `id`, `event_id` (FK, CASCADE delete), `profile_id_1`, `profile_id_2` (both FK profiles, CASCADE delete), `created_by` (FK profiles, nullable), `created_at`. Constraints: `no_self_pair` (profile_id_1 ≠ profile_id_2), `ordered_pair` (profile_id_1 < profile_id_2 — UUID order-normalization to enforce uniqueness regardless of selection order), UNIQUE on `(event_id, profile_id_1, profile_id_2)`. RLS: event admins and super admins only — no golfer access. Indexed on `event_id`.
+
+Program-admin RLS helper repair (migration 035):
+- Repoints the `is_program_admin()` and `is_program_admin_for(uuid)` RLS helper functions at `event_admins`. During the programs→events refactor the `program_admins` table was renamed to `event_admins`, but these two functions still referenced the dropped table. Any RLS evaluation that reached them (e.g. anonymous reads of `events` on `/join/[slug]`, which cascade into the profiles "program admin read all" policy) threw `relation "public.program_admins" does not exist`, 404-ing the page for logged-out visitors. Both functions retain `SECURITY DEFINER` + `search_path = public`. Already applied in production.
 
 ### Authentication: Supabase Auth
 - Magic link (OTP) for passwordless login.

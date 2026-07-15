@@ -138,9 +138,6 @@ Every page (except the landing page and login) **must** have a `<Breadcrumbs>` c
 - `activity/route.ts` — Activity logging endpoint (page views, called by client-side ActivityTracker)
 - `cron/email-scheduler/route.ts` — Master cron endpoint (checks all events for due emails)
 - `guest-approve/[token]/route.ts` — Tokenized guest approve/decline endpoint (GET, returns HTML page, no auth required)
-- `cron/invite/route.ts` — Invite email sender (legacy, now handled by email-scheduler)
-- `cron/reminder/route.ts` — Reminder email sender (legacy, now handled by email-scheduler)
-- `cron/confirmation/route.ts` — Confirmation email sender (legacy, now handled by email-scheduler)
 
 
 ### Shared Libraries (src/lib/)
@@ -563,6 +560,9 @@ Configurable Penalty Box name (migration 033):
 
 Restricted Pairings / Do-Not-Pair (migration 034):
 - `event_do_not_pair` table: pairs of golfers who must never be placed in the same group. Columns: `id`, `event_id` (FK, CASCADE delete), `profile_id_1`, `profile_id_2` (both FK profiles, CASCADE delete), `created_by` (FK profiles, nullable), `created_at`. Constraints: `no_self_pair` (profile_id_1 ≠ profile_id_2), `ordered_pair` (profile_id_1 < profile_id_2 — UUID order-normalization to enforce uniqueness regardless of selection order), UNIQUE on `(event_id, profile_id_1, profile_id_2)`. RLS: event admins and super admins only — no golfer access. Indexed on `event_id`.
+
+Program-admin RLS helper repair (migration 035):
+- Repoints the `is_program_admin()` and `is_program_admin_for(uuid)` RLS helper functions at `event_admins`. During the programs→events refactor the `program_admins` table was renamed to `event_admins`, but these two functions still referenced the dropped table. Any RLS evaluation that reached them (e.g. anonymous reads of `events` on `/join/[slug]`, which cascade into the profiles "program admin read all" policy) threw `relation "public.program_admins" does not exist`, 404-ing the page for logged-out visitors. Both functions retain `SECURITY DEFINER` + `search_path = public`. Already applied in production.
 
 ### Authentication: Supabase Auth
 - Magic link (OTP) for passwordless login.
