@@ -768,30 +768,26 @@ The following is fully implemented and running in production:
 ### ~~Grouping Engine Enhancements~~ ✅ COMPLETE
 ### ~~Admin Reports~~ ✅ COMPLETE
 ### ~~Weather Integration~~ ✅ COMPLETE
+### ~~League Leaderboard & Season Scoring~~ ✅ COMPLETE
+Phase 1 (league info page with tabs, leaderboard grid, scoring/rules content, home page integration) and Phase 2 (weekly Stableford score entry via Golf Genius import, leaderboard email links, tie-breaking, historical seasons) are complete. See "What's Been Built" above.
 
-### 1. League Leaderboard & Season Scoring — Phase 1 ✅ COMPLETE (Phase 2 remaining)
-Phase 1 (complete): League info page with tabs, leaderboard grid, scoring/rules content, home page integration. See "What's Been Built" above.
+### ~~Email Template Review~~ ✅ COMPLETE
+All automated email templates (invite, reminder, golfer confirmation, suggested groupings, cancellation, admin alerts, registration notifications) have been reviewed and finalized for copy, formatting, and links.
 
-**Phase 2 (remaining):**
-- **Score entry:** Admin workflow to enter weekly Stableford scores. Method TBD — need first Golf Genius PDF report to determine format (manual entry, CSV upload, or PDF parser).
-- **Leaderboard links in emails:** Add leaderboard link to invite, reminder, and confirmation emails for the Thursday league event only (not other events).
-- **Tie-breaking:** Configurable rules beyond shared-rank (can defer further).
-- **Historical seasons:** Support viewing past season results (scope TBD).
-
-### 2. Email Template Review
-Review all automated email templates (invite, reminder, golfer confirmation, suggested groupings, cancellation, admin alerts, registration notifications) to ensure copy, formatting, and links are all hitting the mark. May involve tweaks to tone, layout, or information included.
-
-### ~~3. Guest Workflow~~ ✅ COMPLETE
+### ~~Guest Workflow~~ ✅ COMPLETE
 Guest workflow is fully implemented. Golfers can request guests (name required; email, phone, GHIN optional) via the RSVP page. Admins receive immediate email alerts with one-click approve/decline links (tokenized, no login required). Approval emails CC all event admins + guest (if email provided); missing GHIN triggers a reply-all prompt to the golfer, guest, admins, and pro shop contacts. Denial emails go to golfer + admins only (guest is never emailed on denial). Pending guest request reminders fire via the admin alert system before cutoff. Guest limits are configurable per event (1–3 per golfer per week). Past guest auto-fill with deduplication. See `docs/GUEST_WORKFLOW_SPEC.md`.
 
-### 4. Golfer Engagement & Gamification Stats
-Build a golfer-facing engagement system that incentivizes consistent RSVP responses and app usage. Ideas include: participation streaks ("You've played 8 of the last 12 weeks"), response rate scores (similar to an Uber-style rating — e.g., "Your response rate: 95%"), and badges or milestones. This data also serves an admin purpose: identifying disengaged golfers who haven't responded in X weeks so admins can reach out or eventually remove them from the distribution list. The engagement score could factor into future waitlist priority decisions.
+### ~~Golfer Engagement & Gamification Stats~~ ✅ COMPLETE (for now)
+Golfer-engagement analytics are covered by the Admin Reports "Golfer Engagement" report (per-golfer RSVP response rates, participation rates, consecutive no-replies, ghost detection). Considered complete for now — further golfer-facing gamification (streaks, badges, response-rate scores) is not being actively pursued.
 
-### 5. Waitlist End-to-End Testing & Refinement
-The waitlist system (capacity overflow, ranked by response time, admin manual promotion) has been built but has not been exercised in production yet. Before it sees real use, conduct a thorough end-to-end review: verify correct ordering, test admin pull-from-waitlist flow, confirm notification emails fire correctly, test edge cases (golfer switches from "In" to "Out" freeing a spot, capacity override changes mid-week, etc.). Address any gaps found.
+### Active
+No active priority items at this time. The candidates below are logged for future consideration.
 
-### 6. SMS / WhatsApp Notifications
-Add opt-in push notifications alongside email for key moments in the RSVP cycle — particularly a cutoff-day message to non-responders ("RSVP closes in 2 hours — tap here to respond"). SMS and WhatsApp both have significantly higher open rates than email and could meaningfully improve response rates. Either or both channels may be implemented. Primary concern for SMS is cost. **Before building:** evaluate delivery channel(s) — SMS providers (Twilio, AWS SNS, etc.) and/or WhatsApp Business API — for the expected volume (~30 golfers × 1-2 messages/week per event) to confirm it's manageable. If cost-effective, start with a single high-value touchpoint (cutoff reminder) before expanding to other notifications.
+### Future Enhancement Candidates (not currently prioritized)
+Logged for later consideration; not on the active priority list.
+
+- **SMS / WhatsApp Notifications** — add opt-in push notifications alongside email for key moments in the RSVP cycle, particularly a cutoff-day message to non-responders ("RSVP closes in 2 hours — tap here to respond"). Higher open rates than email could meaningfully improve response rates. Primary concern for SMS is cost. Before building, evaluate delivery channel(s) — SMS providers (Twilio, AWS SNS, etc.) and/or WhatsApp Business API — for the expected volume (~30 golfers × 1-2 messages/week per event). If cost-effective, start with a single high-value touchpoint (cutoff reminder).
+- **Waitlist End-to-End Testing & Refinement** — the waitlist system (capacity overflow, ranked by response time, admin manual promotion) is built but has not been exercised in production. Before real use, conduct a thorough end-to-end review: verify ordering, test admin pull-from-waitlist, confirm notification emails fire, and test edge cases (golfer switches "In"→"Out" freeing a spot, mid-week capacity override changes, etc.).
 
 ---
 

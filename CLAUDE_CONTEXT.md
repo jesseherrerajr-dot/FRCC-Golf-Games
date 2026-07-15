@@ -36,12 +36,14 @@ A companion to CLAUDE.md. Where CLAUDE.md is the technical specification and imp
 - Cancellation email bug fix — `sendCancellationEmails` was fire-and-forget (killed by Vercel before sending). Fixed by awaiting it, adding `is_active=true` filter, correcting `email_type` from `"custom"` to `"no_game"`, and switching to `createAdminClient()`.
 
 **What's on the roadmap (see CLAUDE.md Roadmap for details):**
-1. League Leaderboard & Season Scoring — Phase 2 (score entry pending Golf Genius report format)
-2. Email template review
-3. ~~Guest workflow~~ ✅ COMPLETE
-4. Golfer engagement & gamification stats
-5. Waitlist end-to-end testing & refinement
-6. SMS / WhatsApp notifications
+
+Recently completed: ~~League Leaderboard & Season Scoring (Phases 1 & 2)~~ ✅, ~~Email template review~~ ✅, ~~Guest workflow~~ ✅, ~~Golfer engagement & gamification stats~~ ✅ (complete for now — covered by Admin Reports' Golfer Engagement report).
+
+Active: none at this time.
+
+Future enhancement candidates (not currently prioritized):
+- SMS / WhatsApp notifications
+- Waitlist end-to-end testing & refinement
 
 ---
 
