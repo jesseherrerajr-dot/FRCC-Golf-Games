@@ -56,6 +56,26 @@ export default async function EventGolferDirectoryPage({
     .map((sub: any) => sub.profile)
     .filter((p: any) => !p.is_guest);
 
+  // Self-registrants land in `profiles` with status = 'pending_approval' and
+  // registration_event_id set, but have no event_subscriptions row yet (that
+  // row is only created on approval). Merge those in so they show up in the
+  // Pending tab. Also include generic (no event) registrations, since those
+  // are approved into every active event.
+  const { data: pendingProfiles } = await supabase
+    .from("profiles")
+    .select("*")
+    .in("status", ["pending_approval", "pending_email"])
+    .eq("is_guest", false)
+    .or(`registration_event_id.eq.${eventId},registration_event_id.is.null`);
+
+  const knownIds = new Set(allGolfers.map((g: any) => g.id));
+  for (const pending of pendingProfiles || []) {
+    if (!knownIds.has(pending.id)) {
+      allGolfers.push(pending);
+      knownIds.add(pending.id);
+    }
+  }
+
   // Apply status filter
   if (statusFilter === "active") {
     allGolfers = allGolfers.filter((m: any) => m.status === "active");
@@ -134,7 +154,7 @@ export default async function EventGolferDirectoryPage({
               Golfers
             </h1>
             <p className="text-sm text-gray-500">
-              {totalCount} golfers subscribed to {event.name}
+              {totalCount} golfers in {event.name}
             </p>
           </div>
 

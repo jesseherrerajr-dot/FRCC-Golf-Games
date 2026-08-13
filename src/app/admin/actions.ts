@@ -49,7 +49,7 @@ export async function approveRegistration(profileId: string) {
 
   const { error } = await supabase
     .from("profiles")
-    .update({ status: "active" })
+    .update({ status: "active", registration_event_id: null })
     .eq("id", profileId)
     .in("status", ["pending_approval", "pending_email"]);
 
@@ -78,6 +78,12 @@ export async function approveRegistration(profileId: string) {
   }
 
   revalidatePath("/admin");
+  revalidatePath("/admin/golfers");
+  if (pendingProfile.registration_event_id) {
+    revalidatePath(
+      `/admin/events/${pendingProfile.registration_event_id}/golfers`
+    );
+  }
   return { success: true };
 }
 
@@ -107,6 +113,13 @@ export async function denyRegistration(profileId: string) {
 
   if (!isAdmin) return { error: "Not authorized" };
 
+  const { data: pendingProfile } = await supabase
+    .from("profiles")
+    .select("registration_event_id")
+    .eq("id", profileId)
+    .in("status", ["pending_approval", "pending_email"])
+    .single();
+
   const { error } = await supabase
     .from("profiles")
     .update({ status: "deactivated" })
@@ -119,6 +132,12 @@ export async function denyRegistration(profileId: string) {
   }
 
   revalidatePath("/admin");
+  revalidatePath("/admin/golfers");
+  if (pendingProfile?.registration_event_id) {
+    revalidatePath(
+      `/admin/events/${pendingProfile.registration_event_id}/golfers`
+    );
+  }
   return { success: true };
 }
 
