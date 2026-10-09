@@ -10,7 +10,7 @@ import {
 } from "./rsvp-controls";
 import { AddGolferToGame } from "./add-golfer-to-game";
 import { GuestApprovalButton, GuestDenialButton } from "./guest-controls";
-import { formatPhoneDisplay, formatGameDate, formatDateTime, formatInitialLastName } from "@/lib/format";
+import { formatPhoneDisplay, formatGameDate, formatDateTime, formatFullName } from "@/lib/format";
 import { isPastCutoffPacific, calculateSendDateString } from "@/lib/timezone";
 import { EmailStatusPanel } from "./email-controls";
 import { RSVP_ADMIN_LABELS as statusLabels, RSVP_ADMIN_COLORS as statusBadgeColors, type RsvpStatus } from "@/lib/rsvp-status";
@@ -166,7 +166,7 @@ export default async function AdminRsvpPage({
     }
     const partner = pref.preferred_partner as { first_name: string; last_name: string };
     preferencesByProfile[pref.profile_id].partners.push(
-      formatInitialLastName(partner.first_name, partner.last_name)
+      formatFullName(partner.first_name, partner.last_name)
     );
   }
 

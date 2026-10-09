@@ -238,7 +238,7 @@ export default async function HelpPage() {
               <FAQ question='Who can see my information when I RSVP "In"?'>
                 <p>
                   Other golfers who are also &quot;In&quot; can see a list of confirmed
-                  players shown as first initial and last name only (e.g., &quot;J.
+                  players shown by first and last name (e.g., &quot;John
                   Smith&quot;). Your email, phone, and GHIN are never shown to other
                   golfers — only to admins and the pro shop in the confirmation email.
                 </p>
@@ -257,8 +257,8 @@ export default async function HelpPage() {
                 <p className="mt-2">
                   <strong>Who can see it:</strong> Your email, phone, and GHIN are
                   visible only to you and to event admins. Other golfers can only see
-                  your first initial and last name (e.g., &quot;J. Smith&quot;) on the
-                  confirmed list. The pro shop receives your details only in the
+                  your first and last name (e.g., &quot;John Smith&quot;) on the
+                  confirmed list and league leaderboard. The pro shop receives your details only in the
                   game-day email — they don&apos;t have a login or access to the app.
                 </p>
                 <p className="mt-2">

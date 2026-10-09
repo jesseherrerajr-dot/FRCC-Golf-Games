@@ -16,7 +16,7 @@ import type {
 } from "../types/events";
 import { DEFAULT_HANDICAP_INDEX } from "../types/events";
 import { pairKey } from "./grouping-engine";
-import { formatInitialLastName } from "./format";
+import { formatFullName } from "./format";
 
 // ============================================================
 // Fetch Inputs
@@ -537,7 +537,7 @@ export async function fetchStoredGroupings(
     }
   }
 
-  // Build a profileId → "F. Last" name map for display
+  // Build a profileId → "First Last" name map for display
   const profileNameMap = new Map<string, string>();
   for (const row of (golferData || []) as unknown as Array<{
     profile: { id: string; first_name: string; last_name: string } | null;
@@ -545,7 +545,7 @@ export async function fetchStoredGroupings(
     if (row.profile) {
       profileNameMap.set(
         row.profile.id,
-        formatInitialLastName(row.profile.first_name, row.profile.last_name)
+        formatFullName(row.profile.first_name, row.profile.last_name)
       );
     }
   }

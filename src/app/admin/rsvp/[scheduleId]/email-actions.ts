@@ -21,7 +21,7 @@ import {
   fetchApprovedGuests,
 } from "@/lib/grouping-db";
 import { ensureRsvps } from "@/lib/schedule";
-import { formatGameDateMonthDay, formatSponsorName, getSiteUrl } from "@/lib/format";
+import { formatGameDateMonthDay, formatFullName, getSiteUrl } from "@/lib/format";
 
 /**
  * Verify the current user is a super admin or event admin.
@@ -347,7 +347,7 @@ export async function sendGolferConfirmationNow(scheduleId: string) {
         last_name: g.guest_last_name as string,
         email: g.guest_email as string,
         is_guest: true,
-        sponsor_name: sponsor ? formatSponsorName(sponsor.first_name, sponsor.last_name) : "Golfer",
+        sponsor_name: sponsor ? formatFullName(sponsor.first_name, sponsor.last_name) : "Golfer",
       };
     });
 
@@ -502,7 +502,7 @@ export async function sendProShopDetailNow(scheduleId: string) {
         ghin_number: (g.guest_ghin_number as string) || "",
         low_hi_value: null as number | null,
         is_guest: true,
-        sponsor_name: sponsor ? formatSponsorName(sponsor.first_name, sponsor.last_name) : "Golfer",
+        sponsor_name: sponsor ? formatFullName(sponsor.first_name, sponsor.last_name) : "Golfer",
       };
     });
 

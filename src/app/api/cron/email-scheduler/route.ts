@@ -30,7 +30,7 @@ import {
   fetchTeeTimeHistory,
   fetchRecentPairings,
 } from "@/lib/grouping-db";
-import { formatGameDate, formatSponsorName, getSiteUrl } from "@/lib/format";
+import { formatGameDate, formatFullName, getSiteUrl } from "@/lib/format";
 import { getGameWeather } from "@/lib/weather";
 import { needsHandicapSync, runHandicapSync, getConsecutiveFailureCount } from "@/lib/handicap-sync";
 import type { GameType } from "@/types/events";
@@ -771,7 +771,7 @@ async function handleGolferConfirmation(
         email: g.guest_email as string,
         is_guest: true,
         sponsor_name: sponsor
-          ? formatSponsorName(sponsor.first_name, sponsor.last_name)
+          ? formatFullName(sponsor.first_name, sponsor.last_name)
           : "Golfer",
       };
     }
@@ -986,7 +986,7 @@ async function handleProShopDetail(
         low_hi_value: null as number | null,
         is_guest: true,
         sponsor_name: sponsor
-          ? formatSponsorName(sponsor.first_name, sponsor.last_name)
+          ? formatFullName(sponsor.first_name, sponsor.last_name)
           : "Golfer",
       };
     }

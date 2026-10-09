@@ -10,7 +10,7 @@ import {
   getEligibleWitnesses,
   expireOverdueWitnesses,
 } from "@/lib/penalty-box";
-import { formatFullName, formatInitialLastName } from "@/lib/format";
+import { formatFullName } from "@/lib/format";
 import { formatDateTime } from "@/lib/format";
 import { PenaltyBoxClient } from "./penalty-box-client";
 

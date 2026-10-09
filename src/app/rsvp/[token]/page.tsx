@@ -6,7 +6,7 @@ import { TeeTimePreference } from "./tee-time-preference";
 import { CollapsibleSection } from "./collapsible-section";
 import { HelpText } from "@/components/help-text";
 import { isPastCutoffPacific, formatCutoffDisplay } from "@/lib/timezone";
-import { formatGameDate, formatInitialLastName } from "@/lib/format";
+import { formatGameDate, formatFullName } from "@/lib/format";
 import { createAdminClient } from "@/lib/supabase/server";
 import { RSVP_GOLFER_LABELS as statusLabels, RSVP_GOLFER_COLORS as statusColors, type RsvpStatus } from "@/lib/rsvp-status";
 import { getGameWeather } from "@/lib/weather";
@@ -281,7 +281,7 @@ export default async function RsvpPage({
               <ul className="mt-2 space-y-1">
                 {inList.map((golfer, i) => (
                   <li key={i} className="flex items-center gap-2 text-sm text-gray-600">
-                    {formatInitialLastName(golfer.first_name, golfer.last_name)}
+                    {formatFullName(golfer.first_name, golfer.last_name)}
                     {penalizedProfileIds.has(golfer.id) && (
                       <span className="inline-flex items-center rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-700">
                         🔒

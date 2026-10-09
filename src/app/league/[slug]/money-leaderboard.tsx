@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { formatInitialLastName } from "@/lib/format";
+import { formatFullName } from "@/lib/format";
 
 export interface SerializedMoneyLeaderboardEntry {
   rank: number;
@@ -253,8 +253,10 @@ export function MoneyLeaderboard({
                       )}
                     </td>
                     {/* Golfer name */}
-                    <td className="sticky left-[48px] z-10 bg-inherit px-3 py-2.5 font-medium text-navy-900 whitespace-nowrap">
-                      {formatInitialLastName(entry.firstName, entry.lastName)}
+                    <td className="sticky left-[48px] z-10 bg-inherit px-3 py-2.5 font-medium text-navy-900">
+                      <span className="block max-w-[130px] leading-tight">
+                        {formatFullName(entry.firstName, entry.lastName)}
+                      </span>
                     </td>
                     {/* Weekly amounts */}
                     {seasonWeeks.map((week) => {

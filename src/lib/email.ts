@@ -1,6 +1,6 @@
 import { Resend } from "resend";
 import type { StoredGrouping, StoredGroupGolfer } from "./grouping-db";
-import { formatPhoneDisplay, formatInitialLastName, formatFullName, formatSponsorName, formatGameDate, formatGameDayName, getSiteUrl } from "./format";
+import { formatPhoneDisplay, formatFullName, formatGameDate, formatGameDayName, getSiteUrl } from "./format";
 import { formatCutoffDayTime } from "./timezone";
 import { generateWeatherEmailHtml } from "./weather";
 import type { GameWeatherForecast } from "@/types/events";
@@ -193,7 +193,7 @@ export function generateConfirmationEmail({
 
   const playerListHtml = confirmedPlayers
     .map((p) => {
-      const name = formatInitialLastName(p.first_name, p.last_name);
+      const name = formatFullName(p.first_name, p.last_name);
       const guestTag = p.is_guest ? ` <span style="color: #9ca3af;">(Guest of ${p.sponsor_name})</span>` : "";
       return `<li style="padding: 4px 0; color: #374151;">${name}${guestTag}</li>`;
     })

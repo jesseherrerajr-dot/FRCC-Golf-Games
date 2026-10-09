@@ -74,7 +74,7 @@ These are final decisions reflected in the codebase and not open for reconsidera
 - Reply-To is always the primary event admin's email.
 - All admin-targeted emails CC secondary admins and super admins.
 - Resend's default sending domain for now. Custom domain deferred.
-- Golfer confirmation email shows first-initial-last-name (e.g., "J. Herrera"). Suggested groupings email shows full details.
+- Golfer names are shown in full everywhere (e.g., "Jesse Herrera") — abbreviated "J. Herrera" was retired Oct 2026 because of same-initial/last-name collisions. Suggested groupings email additionally shows contact details.
 - Email footer links say "Go to FRCC Golf Games" (not "Go to Dashboard" or technical URLs).
 
 **RSVP Flow:**

@@ -3,7 +3,7 @@
  * Generates HTML emails with merge fields for each email type
  */
 
-import { formatPhoneDisplay, formatInitialLastName, formatFullName, formatGameDate } from "./format";
+import { formatPhoneDisplay, formatFullName, formatGameDate } from "./format";
 import type { GameWeatherForecast } from "@/types/events";
 import { generateWeatherEmailHtml } from "./weather";
 
@@ -229,10 +229,10 @@ export function generateGolferConfirmationEmail(
   let playerListHtml = '<ul style="list-style: none; padding: 0; margin: 20px 0;">';
 
   confirmedPlayers.forEach((player) => {
-    const initials = formatInitialLastName(player.first_name, player.last_name);
+    const fullName = formatFullName(player.first_name, player.last_name);
     playerListHtml += `
       <li style="padding: 8px; border-bottom: 1px solid #e5e7eb; font-size: 15px;">
-        ⛳ ${initials}
+        ⛳ ${fullName}
       </li>
     `;
   });

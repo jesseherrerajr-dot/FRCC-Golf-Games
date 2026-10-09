@@ -318,7 +318,7 @@ All email types, days, and times below are **configurable per event** via the `e
 - TO: All confirmed golfers and approved guests for that week
 - CC: Super admin, event admins, pro shop contacts
 - Subject: "[Event Name]: [Month] [Date]: Registration Confirmation"
-- Body: Event name, date, list of confirmed player names (first initial + last name). Guests shown with their sponsoring member.
+- Body: Event name, date, list of confirmed player names (full first + last name, to avoid ambiguity between golfers with the same initial + last name). Guests shown with their sponsoring member's full name.
 - Purpose: Anyone can "Reply All" to share game details, tee times, course conditions, etc. "Reply" goes to primary event admin.
 
 **Email 2 — Suggested Groupings (optional, toggled on/off per event, default OFF):**
@@ -328,7 +328,7 @@ All email types, days, and times below are **configurable per event** via the `e
 - Can be enabled/disabled via the toggle switch in Automated Email Settings on the event settings page.
 
 ### RSVP Visibility (Evite-Style)
-- Golfers who are "In" can see the list of other "In" golfers (first initial + last name only, e.g., "J. Herrera"). No email addresses, phone numbers, or full distribution list visible.
+- Golfers who are "In" can see the list of other "In" golfers (full name only, e.g., "Jesse Herrera"). No email addresses, phone numbers, or full distribution list visible.
 - Golfers who are "Out," "Not Sure," or haven't responded cannot see the "In" list until they opt in.
 - Super admins and event admins can see ALL categories at all times: In, Out, Not Sure, No Reply, Waitlist.
 
@@ -691,11 +691,9 @@ This project enforces centralized utility functions for common patterns. **Do NO
 
 ### Name Formatting (`src/lib/format.ts`)
 
-- `formatInitialLastName(firstName, lastName)` — "J. Herrera" (golfer-facing displays, RSVP lists, confirmation emails)
-- `formatFullName(firstName, lastName)` — "Jesse Herrera" (admin displays, pro shop emails)
-- `formatSponsorName(firstName, lastName)` — "Jesse H." (guest labels like "Guest of Jesse H.")
+- `formatFullName(firstName, lastName)` — "Jesse Herrera". Used for **all** golfer name displays: RSVP "In" lists, confirmation emails, league leaderboards, suggested groupings, guest sponsor labels ("Guest of Jesse Herrera"), and admin views.
 
-**NEVER** use inline patterns like `` `${firstName[0]}. ${lastName}` `` or `` `${firstName} ${lastName.charAt(0)}.` ``. Import the appropriate function from `@/lib/format`.
+Abbreviated names ("J. Herrera", "Jesse H.") were retired in Oct 2026 because the group has golfers who share an initial + last name (e.g., two "R. Martin"s). `formatInitialLastName` and `formatSponsorName` were removed. **NEVER** reintroduce abbreviated names or inline patterns like `` `${firstName[0]}. ${lastName}` ``. Import `formatFullName` from `@/lib/format`.
 
 ### RSVP Status Constants (`src/lib/rsvp-status.ts`)
 

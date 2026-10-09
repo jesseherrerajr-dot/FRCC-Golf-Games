@@ -1,6 +1,6 @@
 import { requireSuperAdmin } from "@/lib/auth";
 import { Breadcrumbs } from "@/components/breadcrumbs";
-import { formatInitialLastName, formatFullName } from "@/lib/format";
+import { formatFullName } from "@/lib/format";
 import { getTodayPacific } from "@/lib/timezone";
 import { ReportsClient } from "./reports-client";
 
@@ -384,7 +384,7 @@ export default async function AdminReportsPage() {
   const allProfilesMapped = (allProfiles || []).map((p) => ({
     id: p.id,
     name: formatFullName(p.first_name, p.last_name),
-    displayName: formatInitialLastName(p.first_name, p.last_name),
+    displayName: formatFullName(p.first_name, p.last_name),
     email: p.email,
     missingGhin: !p.ghin_number || p.ghin_number.trim() === "",
     missingPhone: !p.phone || p.phone.trim() === "",
